@@ -288,11 +288,11 @@ This repository is organized around the pillars:
 
 | Pillar | Key Documents |
 |--------|--------------|
-| Identity & Access | [Authentication Patterns](01-AUTHENTICATION-PATTERNS.md), [OBO vs M2M Matrix](reference/obo-vs-m2m-decision-matrix.md) |
-| Data Governance | [Authorization with UC](02-AUTHORIZATION-WITH-UC.md), [UC Policy Design](UC-POLICY-DESIGN-PRINCIPLES.md) |
-| Tool Governance | [AI Gateway Patterns](AI-GATEWAY-PATTERNS.md), [Federation Architecture](reference/federation-exchange-architecture.md) |
-| Observability | [Observability and Audit](reference/observability-and-audit.md), [Audit Logging](audit-logging/) |
-| Architecture | [Orchestration Architecture](ORCHESTRATION-ARCHITECTURE.md), [Identity Reference](reference/identity-and-auth-reference.md) |
+| Identity & Access | [Authentication Patterns](identity/authentication-patterns.md), [OBO vs M2M Matrix](identity/obo-vs-m2m-decision-matrix.md) |
+| Data Governance | [UC Authorization](data-governance/uc-authorization.md), [UC Policy Design](data-governance/uc-policy-design.md) |
+| Tool Governance | [AI Gateway Patterns](tool-governance/ai-gateway-patterns.md), [Federation Exchange](identity/federation-exchange.md) |
+| Observability | [Audit Reference](observability/audit-reference.md), [Genie Observability](observability/genie-aibi/) |
+| Architecture | [Orchestration Architecture](tool-governance/orchestration-architecture.md), [Identity Reference](identity/identity-reference.md) |
 | Interactive | [Visualizations](https://bhavink.github.io/applied-ai-governance/interactive/) |
 
 Network access controls and developer guardrails are covered in companion resources:
