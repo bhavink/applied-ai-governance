@@ -113,7 +113,7 @@ tr:hover td{background:var(--surface)}
 
 <div class="topbar">
   <div class="title">Identity &amp; <span>Governance</span> for AI on Databricks</div>
-  <div class="counter" id="counter">01 / 17</div>
+  <div class="counter" id="counter">01 / 18</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 <div class="nav-hint">&larr; &rarr; arrow keys</div>
@@ -205,9 +205,76 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 3: TWO IDENTITY PATTERNS -->
+<!-- SLIDE 5: OBO (U2M) vs M2M vs FEDERATION -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="5">
+  <div class="label reveal">Identity Models</div>
+  <h2 class="reveal">Three token patterns: OBO, M2M, and Federation</h2>
+  <div class="three-col mt-2">
+    <div class="card card-blue reveal">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span class="badge badge-blue">OBO (U2M)</span>
+      </div>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">User-to-Machine. The platform acts on behalf of a known human.</p>
+      <table>
+        <tr><td style="font-weight:600;width:90px">Token</td><td>User's scoped OAuth token via Apps proxy</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td><code>current_user()</code> = human email</td></tr>
+        <tr><td style="font-weight:600">UC fires as</td><td>The individual user</td></tr>
+        <tr><td style="font-weight:600">Audit trail</td><td>Full per-user attribution</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-small);padding:6px 8px;background:var(--blue-bg);border-radius:4px">
+        <strong>Best for:</strong> Internal apps where users have Databricks accounts. Streamlit dashboards, agent tools, interactive analytics.
+      </div>
+      <div class="mt-1" style="font-size:var(--sz-label);padding:6px 8px;border:1px solid var(--border);border-radius:4px">
+        <strong>DB Integrations:</strong> Databricks Apps (auto-proxy), SQL Warehouses, Genie Spaces, Model Serving, Agent Bricks Supervisor, Vector Search, UC Functions
+      </div>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--ink)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span class="badge badge-ink">M2M</span>
+      </div>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">Machine-to-Machine. A service principal authenticates with its own credentials. No human in the loop.</p>
+      <table>
+        <tr><td style="font-weight:600;width:90px">Token</td><td>SP OAuth client credentials grant</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td><code>current_user()</code> = SP application ID</td></tr>
+        <tr><td style="font-weight:600">UC fires as</td><td>The service principal</td></tr>
+        <tr><td style="font-weight:600">Audit trail</td><td>SP-level only (no human attribution)</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-small);padding:6px 8px;background:var(--surface);border-radius:4px">
+        <strong>Best for:</strong> Background jobs, scheduled pipelines, CI/CD, async audit writes, health checks. Anything where no user is present.
+      </div>
+      <div class="mt-1" style="font-size:var(--sz-label);padding:6px 8px;border:1px solid var(--border);border-radius:4px">
+        <strong>DB Integrations:</strong> Databricks SDK, Jobs/Workflows, DLT Pipelines, DBSQL Connectors, REST APIs, UC Connections (bearer token), Repos/Git integration
+      </div>
+    </div>
+    <div class="card card-red reveal">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span class="badge badge-red">FEDERATION</span>
+      </div>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">External IDP token exchanged for a role-based SP token. Users don't have Databricks accounts.</p>
+      <table>
+        <tr><td style="font-weight:600;width:90px">Token</td><td>IDP JWT exchanged via RFC 8693</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td>Role-based SP (mapped from IDP group)</td></tr>
+        <tr><td style="font-weight:600">UC fires as</td><td><code>is_member()</code> per SP group</td></tr>
+        <tr><td style="font-weight:600">Audit trail</td><td>SP-level + app-layer human attribution</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-small);padding:6px 8px;background:rgba(204,51,17,0.06);border-radius:4px">
+        <strong>Best for:</strong> Partner portals, customer-facing apps, multi-tenant SaaS. Users authenticate via their own IDP.
+      </div>
+      <div class="mt-1" style="font-size:var(--sz-label);padding:6px 8px;border:1px solid var(--border);border-radius:4px">
+        <strong>DB Integrations:</strong> Token Exchange API (RFC 8693), Federation Policies, Databricks Apps (as MCP backend), SQL Warehouses, Genie Spaces, Model Serving
+      </div>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center">
+    <p><strong>Key distinction:</strong> OBO propagates the <em>human's identity</em> through every layer. M2M uses <em>service credentials</em> with no human context. Federation <em>bridges an external identity</em> to a role-based SP. Most production apps combine OBO + M2M (user-facing calls use OBO, background tasks use M2M).</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 6: TWO IDENTITY PATTERNS (OBO vs FEDERATION detail) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
   <div class="label reveal">Two Patterns</div>
   <h2 class="reveal">Same governance, different identity models</h2>
   <div class="two-col mt-2">
@@ -241,9 +308,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 4: DECISION TREE -->
+<!-- SLIDE 7: DECISION TREE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="6">
+<div class="slide" data-slide="7">
   <div class="label reveal">Decision Guide</div>
   <h2 class="reveal">When to use which pattern</h2>
   <div class="flex-1 mt-2 reveal" style="max-width:800px">
@@ -284,9 +351,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 5: ARCHITECTURE — OBO -->
+<!-- SLIDE 8: ARCHITECTURE — OBO -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="7">
+<div class="slide" data-slide="8">
   <div class="label reveal">Architecture</div>
   <h2 class="reveal">OBO Pattern &mdash; Identity Flow</h2>
   <div class="flow-h mt-3 reveal">
@@ -334,9 +401,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 6: ARCHITECTURE — FEDERATION -->
+<!-- SLIDE 9: ARCHITECTURE — FEDERATION -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="8">
+<div class="slide" data-slide="9">
   <div class="label reveal">Architecture</div>
   <h2 class="reveal">Federation Pattern &mdash; Identity Flow</h2>
   <div class="flow-h mt-3 reveal">
@@ -378,9 +445,9 @@ scope=<span style="color:var(--red)">sql genie serving</span></pre>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 7: SHARED GOVERNANCE -->
+<!-- SLIDE 10: SHARED GOVERNANCE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="9">
+<div class="slide" data-slide="10">
   <div class="label reveal">UC Governance</div>
   <h2 class="reveal">One governance model, both patterns</h2>
   <p class="reveal" style="color:var(--muted)">Unity Catalog enforcement is identical &mdash; only the identity source differs.</p>
@@ -416,9 +483,9 @@ scope=<span style="color:var(--red)">sql genie serving</span></pre>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 8: SCOPE-BASED ACCESS -->
+<!-- SLIDE 11: SCOPE-BASED ACCESS -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="10">
+<div class="slide" data-slide="11">
   <div class="label reveal">Least Privilege</div>
   <h2 class="reveal">Scope-Based Access Model</h2>
   <div class="flex-1 mt-2 reveal">
@@ -448,9 +515,9 @@ scope=<span style="color:var(--red)">sql genie serving</span></pre>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 9: MCP AS GOVERNANCE GATEWAY -->
+<!-- SLIDE 12: MCP AS GOVERNANCE GATEWAY -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="11">
+<div class="slide" data-slide="12">
   <div class="label reveal">Custom MCP</div>
   <h2 class="reveal">MCP as the Governance Gateway</h2>
   <p class="reveal" style="color:var(--muted)">Both patterns use identical MCP servers &mdash; 9 tools, same production patterns.</p>
@@ -465,8 +532,8 @@ scope=<span style="color:var(--red)">sql genie serving</span></pre>
         <tr><td><code>genie_query</code></td><td>Natural language SQL</td></tr>
         <tr><td><code>query_knowledge_base</code></td><td>Vector Search</td></tr>
         <tr><td><code>ask_supervisor</code></td><td>Multi-agent orchestrator</td></tr>
-        <tr><td><code>github_search</code></td><td>GitHub via UC Connection</td></tr>
-        <tr><td><code>external_api_call</code></td><td>External API via UC Connection</td></tr>
+        <tr><td><code>github_search</code></td><td>GitHub via UC Connection (github_bearer_token)</td></tr>
+        <tr><td><code>external_api_call</code></td><td>External API via UC Connection (github_bearer_token)</td></tr>
       </table>
     </div>
     <div class="card reveal">
@@ -487,9 +554,9 @@ scope=<span style="color:var(--red)">sql genie serving</span></pre>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 10: GENIE CONVERSATION THREADING -->
+<!-- SLIDE 13: GENIE CONVERSATION THREADING -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="12">
+<div class="slide" data-slide="13">
   <div class="label reveal">Genie Integration</div>
   <h2 class="reveal">Conversation Threading</h2>
   <div class="two-col mt-2">
@@ -519,9 +586,9 @@ scope=<span style="color:var(--red)">sql genie serving</span></pre>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 11: OBSERVABILITY STACK -->
+<!-- SLIDE 14: OBSERVABILITY STACK -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="13">
+<div class="slide" data-slide="14">
   <div class="label reveal">Observability</div>
   <h2 class="reveal">Three-Layer Observability Stack</h2>
   <div class="three-col mt-2">
@@ -553,9 +620,9 @@ scope=<span style="color:var(--red)">sql genie serving</span></pre>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 12: ACCESS CONTROL MATRIX -->
+<!-- SLIDE 15: ACCESS CONTROL MATRIX -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="14">
+<div class="slide" data-slide="15">
   <div class="label reveal">Access Control</div>
   <h2 class="reveal">9 Tools &times; 6 Roles</h2>
   <div class="flex-1 mt-2 reveal">
@@ -580,9 +647,9 @@ scope=<span style="color:var(--red)">sql genie serving</span></pre>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 13: SUPERVISOR INTEGRATION -->
+<!-- SLIDE 16: SUPERVISOR INTEGRATION -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="15">
+<div class="slide" data-slide="16">
   <div class="label reveal">Agent Bricks</div>
   <h2 class="reveal">Supervisor Agent Integration</h2>
   <div class="flow-h mt-3 reveal">
@@ -620,9 +687,9 @@ REVOKE USE CONNECTION
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 14: SECURITY CHECKLIST -->
+<!-- SLIDE 17: SECURITY CHECKLIST -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="16">
+<div class="slide" data-slide="17">
   <div class="label reveal">Production Ready</div>
   <h2 class="reveal">Security Checklist</h2>
   <div class="check-grid mt-2 flex-1">
@@ -640,9 +707,9 @@ REVOKE USE CONNECTION
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 15: WHAT WE BUILT -->
+<!-- SLIDE 18: WHAT WE BUILT -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide slide-title" data-slide="17">
+<div class="slide slide-title" data-slide="18">
   <div class="label reveal">Summary</div>
   <h1 class="reveal" style="font-size:var(--sz-h1)">What We Built</h1>
   <div style="max-width:700px;text-align:left;margin:24px auto 0" class="reveal">

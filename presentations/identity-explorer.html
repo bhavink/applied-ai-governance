@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Databricks Identity & Audit Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* === THEME: Swiss Modern — Samurai 60:30:10 ===
+   60% white (#ffffff)  — backgrounds, breathing room
+   30% ink   (#1a1a1a)  — text, borders, structure
+   10% vermillion (#cc3311) — accents, emphasis, data highlights
+*/
+:root {
+  --bg:        #ffffff;
+  --surface:   #f8f8f8;
+  --surface-2: #f2f1ef;
+  --border:    #e5e5e5;
+  --border-dk: #d0d0d0;
+  --ink:       #1a1a1a;
+  --muted:     #666666;
+  --accent:    #cc3311;
+  --accent-bg: #cc331108;
+  --accent-lt: #cc331115;
+  --green:     #16a34a;
+  --green-bg:  #16a34a12;
+  --amber:     #b45309;
+  --amber-bg:  #f59e0b12;
+  --red:       #dc2626;
+  --red-bg:    #dc262612;
+  --blue:      #1e40af;
+  --blue-bg:   #1e40af10;
+  --font: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.6;
+  font-size: clamp(0.85rem, 1.3vw, 1rem);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* === SLIDE CONTAINER === */
+.slide {
+  min-height: 100vh;
+  padding: clamp(2rem, 5vw, 4rem);
+  padding-top: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+.slide + .slide { border-top: 1px solid var(--border); }
+
+/* === NAVIGATION === */
+nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+  padding: 0 clamp(1.5rem, 5vw, 4rem);
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  font-size: clamp(0.7rem, 1vw, 0.8rem);
+  height: 40px;
+}
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  font-weight: 500;
+}
+nav a:hover { color: var(--ink); }
+nav a.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+/* === TYPOGRAPHY === */
+h1 { font-size: clamp(2.2rem, 4.5vw, 3.5rem); font-weight: 700; letter-spacing: -0.035em; line-height: 1.1; }
+h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 1.5rem; }
+h3 { font-size: clamp(1rem, 1.8vw, 1.25rem); font-weight: 600; margin-bottom: 0.75rem; letter-spacing: -0.01em; }
+.subtitle { color: var(--muted); font-size: clamp(1rem, 2vw, 1.3rem); margin-top: 0.75rem; font-weight: 400; line-height: 1.5; }
+.red { color: var(--accent); }
+.label {
+  font-size: clamp(0.65rem, 0.9vw, 0.75rem);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+}
+
+/* === GRID === */
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: clamp(0.75rem, 2vw, 1.5rem); }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: clamp(0.75rem, 2vw, 1.5rem); }
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: clamp(0.75rem, 1.5vw, 1rem); }
+
+/* === CARD === */
+.card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.25rem 1.5rem;
+  transition: border-color 0.15s;
+}
+.card:hover { border-color: var(--border-dk); }
+.card h3 { font-size: clamp(0.85rem, 1.3vw, 1rem); margin-bottom: 0.5rem; }
+.card p { color: var(--muted); font-size: clamp(0.72rem, 1.1vw, 0.85rem); line-height: 1.55; }
+.card-accent { border-left: 3px solid var(--accent); }
+.card-surface { background: var(--surface); }
+
+/* === BADGE === */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 2px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+.b-obo    { background: var(--accent-lt); color: var(--accent); }
+.b-proxy  { background: var(--blue-bg); color: var(--blue); }
+.b-m2m    { background: var(--surface-2); color: var(--muted); }
+.b-del    { background: var(--amber-bg); color: var(--amber); }
+.b-ext    { background: var(--surface-2); color: var(--ink); }
+.b-lb     { background: var(--blue-bg); color: var(--blue); }
+.b-yes    { background: var(--green-bg); color: var(--green); }
+.b-no     { background: var(--red-bg); color: var(--red); }
+.b-dep    { background: var(--amber-bg); color: var(--amber); }
+.b-num    { background: var(--ink); color: var(--bg); min-width: 24px; text-align: center; border-radius: 2px; font-size: 0.65rem; }
+.b-scope  { background: var(--surface-2); color: var(--ink); font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.65rem; }
+.b-crit   { background: var(--red-bg); color: var(--red); }
+.b-warn   { background: var(--amber-bg); color: var(--amber); }
+.b-info   { background: var(--blue-bg); color: var(--blue); }
+
+/* === TABLE === */
+.tbl-wrap { overflow-x: auto; margin: 1rem 0; }
+table { width: 100%; border-collapse: collapse; font-size: clamp(0.72rem, 1.1vw, 0.85rem); }
+th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 2px solid var(--ink);
+  font-size: clamp(0.62rem, 0.9vw, 0.72rem);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:hover td { background: var(--surface); }
+td code, p code, li code {
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 0.82em;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* === CALLOUT === */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  padding: 1rem 1.5rem;
+  margin: 1.5rem 0;
+  border-radius: 0 4px 4px 0;
+  font-size: clamp(0.72rem, 1.1vw, 0.85rem);
+  line-height: 1.6;
+}
+.callout strong { color: var(--accent); }
+
+/* === FLOW DIAGRAM === */
+.flow { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin: 1.5rem 0; }
+.flow-step {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: clamp(0.7rem, 1vw, 0.8rem);
+  font-weight: 500;
+}
+.flow-step.active { border-color: var(--accent); background: var(--accent-lt); color: var(--accent); font-weight: 600; }
+.flow-arrow { color: var(--border-dk); font-size: 1.1rem; }
+
+/* === STAT === */
+.stat { text-align: center; padding: 1.5rem 1rem; }
+.stat-num { font-size: clamp(2.5rem, 6vw, 4rem); font-weight: 700; color: var(--accent); line-height: 1; letter-spacing: -0.03em; }
+.stat-label { font-size: clamp(0.7rem, 1vw, 0.8rem); color: var(--muted); margin-top: 0.4rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* === CODE === */
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1rem;
+  font-size: 0.75rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+/* === SLIDE NUMBER === */
+.slide-num {
+  position: absolute;
+  top: clamp(1.5rem, 4vw, 3rem);
+  right: clamp(1.5rem, 5vw, 4rem);
+  font-size: 0.65rem;
+  color: var(--border-dk);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+/* === KEYBOARD HINT === */
+.key-hint {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  font-size: 0.65rem;
+  color: var(--border-dk);
+  z-index: 50;
+  opacity: 0.6;
+}
+
+/* === REVEAL ANIMATION === */
+.reveal { opacity: 0; transform: translateY(12px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* === SP MATRIX === */
+.sp-matrix { display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 0; font-size: clamp(0.68rem, 1vw, 0.8rem); }
+.sp-matrix > div { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+.sp-matrix .sp-header { font-weight: 600; background: var(--surface); border-bottom: 2px solid var(--ink); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+/* === PRINT === */
+@media print {
+  .slide { min-height: auto; page-break-after: always; border: none; padding: 2rem; }
+  nav, .key-hint { display: none; }
+  .reveal { opacity: 1; transform: none; }
+}
+
+/* === REDUCED MOTION === */
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <a href="#s0">Home</a>
+  <a href="#s1">Problem</a>
+  <a href="#s2">Services</a>
+  <a href="#s3">Models</a>
+  <a href="#s4">Audit Gaps</a>
+  <a href="#s5">Scopes</a>
+  <a href="#s6">Scope Calculator</a>
+  <a href="#s7">Proxy</a>
+  <a href="#s8">SP Isolation</a>
+  <a href="#s9">Anti-Patterns</a>
+  <a href="#s10">Audit</a>
+  <a href="#s11">Chain of Custody</a>
+  <a href="#s12">Governance</a>
+  <a href="#s13">Limitations</a>
+  <a href="#s14">Close</a>
+</nav>
+
+<div class="key-hint">&larr; &rarr; navigate slides</div>
+
+<!-- ============================================================
+     SLIDE 0 — TITLE
+     ============================================================ -->
+<section class="slide" id="s0">
+  <div class="slide-num">01 / 15</div>
+  <div>
+    <p class="label">Databricks Field Engineering</p>
+    <h1 class="reveal">Identity <span class="red">&amp;</span> Audit<br>Architecture</h1>
+    <p class="subtitle reveal">16 AI services. 6 identity models. 12 OAuth scopes.<br>Every audit gap mapped. Every proxy hop documented.</p>
+    <div class="grid-4" style="margin-top:3rem">
+      <div class="stat reveal"><div class="stat-num">16</div><div class="stat-label">Services</div></div>
+      <div class="stat reveal"><div class="stat-num">6</div><div class="stat-label">Identity Models</div></div>
+      <div class="stat reveal"><div class="stat-num">12</div><div class="stat-label">OAuth Scopes</div></div>
+      <div class="stat reveal"><div class="stat-num">5</div><div class="stat-label">Platform Gaps</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 1 — THE PROBLEM
+     ============================================================ -->
+<section class="slide" id="s1">
+  <div class="slide-num">02 / 15</div>
+  <div>
+    <p class="label">The Problem</p>
+    <h2 class="reveal">Who did what, and can you <span class="red">prove</span> it?</h2>
+    <div class="grid-2" style="margin-top:1.5rem">
+      <div class="card card-accent reveal">
+        <h3>Identity Fragmentation</h3>
+        <p>Different services use different identity models. Some preserve the human in audit, others show only the service principal UUID. Without a map, you can't predict what shows up in <code>system.access.audit</code>.</p>
+      </div>
+      <div class="card card-accent reveal">
+        <h3>Audit Gaps</h3>
+        <p>Under M2M patterns, UC audit records the SP UUID&mdash;not the human who initiated the action. Application-plane audit is the only bridge back to the human.</p>
+      </div>
+      <div class="card card-accent reveal">
+        <h3>Scope Confusion</h3>
+        <p>OAuth scopes with undocumented requirements, silent 403 failures, and UI-vs-CLI behavior differences. The <code>genie</code> scope isn't even shown in the account UI but is required on Azure.</p>
+      </div>
+      <div class="card card-accent reveal">
+        <h3>Proxy Complexity</h3>
+        <p>Databricks Apps proxy strips tokens and injects headers. App-to-app calls add a second proxy. External MCP adds a third. Each hop changes the identity semantics.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 2 — 16 SERVICES
+     ============================================================ -->
+<section class="slide" id="s2">
+  <div class="slide-num">03 / 15</div>
+  <div>
+    <p class="label">Complete Service Identity Map</p>
+    <h2 class="reveal">16 services, one <span class="red">truth table</span></h2>
+    <div class="tbl-wrap reveal">
+      <table>
+        <thead><tr><th>#</th><th>Service</th><th>Identity Model</th><th>current_user()</th><th>UC Audit Shows</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge b-num">1</span></td><td>Genie (Conversation API)</td><td><span class="badge b-obo">True OBO</span></td><td><code>User email</code></td><td>User</td></tr>
+          <tr><td><span class="badge b-num">2</span></td><td>AI/BI Dashboard (run-as-viewer)</td><td><span class="badge b-obo">True OBO</span></td><td><code>Viewer email</code></td><td>Viewer</td></tr>
+          <tr><td><span class="badge b-num">3</span></td><td>AI/BI Dashboard (run-as-owner)</td><td><span class="badge b-del">Delegated</span></td><td><code>Owner email</code></td><td>Owner</td></tr>
+          <tr><td><span class="badge b-num">4</span></td><td>Agent Bricks / Model Serving</td><td><span class="badge b-obo">True OBO</span></td><td><code>User email</code></td><td>User</td></tr>
+          <tr><td><span class="badge b-num">5</span></td><td>SQL Warehouse (user token)</td><td><span class="badge b-obo">True OBO</span></td><td><code>User email</code></td><td>User</td></tr>
+          <tr><td><span class="badge b-num">6</span></td><td>SQL Warehouse (SP token)</td><td><span class="badge b-m2m">Pure M2M</span></td><td><code>SP UUID</code></td><td>SP UUID</td></tr>
+          <tr><td><span class="badge b-num">7</span></td><td>Custom MCP (Databricks Apps)</td><td><span class="badge b-proxy">Proxy + M2M</span></td><td><code>SP UUID</code></td><td>SP UUID</td></tr>
+          <tr><td><span class="badge b-num">8</span></td><td>UC Functions (via M2M SQL)</td><td><span class="badge b-m2m">Pure M2M</span></td><td><code>SP UUID</code></td><td>SP UUID</td></tr>
+          <tr><td><span class="badge b-num">9</span></td><td>UC Functions (via Genie OBO)</td><td><span class="badge b-obo">True OBO</span></td><td><code>User email</code></td><td>User</td></tr>
+          <tr><td><span class="badge b-num">10</span></td><td>Vector Search</td><td><span class="badge b-m2m">Pure M2M</span></td><td><code>N/A</code></td><td>SP UUID</td></tr>
+          <tr><td><span class="badge b-num">11</span></td><td>Foundation Model API</td><td><span class="badge b-m2m">M2M / OBO</span></td><td><code>N/A</code></td><td>Caller identity</td></tr>
+          <tr><td><span class="badge b-num">12</span></td><td>SDP / Lakeflow Pipeline</td><td><span class="badge b-del">Delegated</span></td><td><code>Owner email</code></td><td>Owner</td></tr>
+          <tr><td><span class="badge b-num">13</span></td><td>External MCP (shared bearer)</td><td><span class="badge b-ext">M2M at Proxy</span></td><td><code>N/A</code></td><td>Caller at proxy</td></tr>
+          <tr><td><span class="badge b-num">14</span></td><td>External MCP (per-user OAuth)</td><td><span class="badge b-ext">OBO at Proxy</span></td><td><code>N/A</code></td><td>User at proxy</td></tr>
+          <tr><td><span class="badge b-num">15</span></td><td>Custom MCP &rarr; Custom MCP</td><td><span class="badge b-proxy">Proxy + M2M</span></td><td><code>SP UUID</code></td><td>SP UUID</td></tr>
+          <tr><td><span class="badge b-num">16</span></td><td>Lakebase</td><td><span class="badge b-lb">DB &rarr; Postgres</span></td><td><code>DB email</code></td><td>Management ops</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout reveal">
+      <strong>Key insight:</strong> Only 5 of 16 services give you True OBO. The rest require either app-plane audit, delegated trust, or proxy-mediated identity.
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 3 — 6 IDENTITY MODELS
+     ============================================================ -->
+<section class="slide" id="s3">
+  <div class="slide-num">04 / 15</div>
+  <div>
+    <p class="label">Identity Models</p>
+    <h2 class="reveal">6 patterns, <span class="red">one question</span>: who executes?</h2>
+    <div class="grid-2" style="margin-top:1.5rem">
+      <div class="card card-accent reveal">
+        <h3><span class="badge b-obo">True OBO</span></h3>
+        <p><strong>Services:</strong> #1, 2, 4, 5, 9</p>
+        <p>User's token executes the operation. UC sees the human. Automatic audit capture. The gold standard.</p>
+      </div>
+      <div class="card card-accent reveal">
+        <h3><span class="badge b-proxy">Proxy + M2M</span></h3>
+        <p><strong>Services:</strong> #7, 15</p>
+        <p>App SP executes. Human identity from <code>X-Forwarded-Email</code> (proxy-injected, unforgeable). UC audit shows SP UUID only.</p>
+      </div>
+      <div class="card card-accent reveal">
+        <h3><span class="badge b-m2m">Pure M2M</span></h3>
+        <p><strong>Services:</strong> #6, 8, 10, 11</p>
+        <p>App SP executes. No user involvement at all. UC audit shows SP UUID. Per-user attribution impossible without app-plane audit.</p>
+      </div>
+      <div class="card card-accent reveal">
+        <h3><span class="badge b-del">Delegated</span></h3>
+        <p><strong>Services:</strong> #3, 12</p>
+        <p>Owner's identity executes. UC sees the owner, not the end user. Fine for dashboards, problematic for multi-user pipelines.</p>
+      </div>
+      <div class="card card-accent reveal">
+        <h3><span class="badge b-ext">External MCP</span></h3>
+        <p><strong>Services:</strong> #13, 14</p>
+        <p>Databricks proxy authenticates. External service sees shared bearer (#13) or per-user OAuth (#14). Split audit across two systems.</p>
+      </div>
+      <div class="card card-accent reveal">
+        <h3><span class="badge b-lb">DB &rarr; Postgres</span></h3>
+        <p><strong>Services:</strong> #16</p>
+        <p>Databricks OAuth identity mapped to Postgres role via <code>databricks_auth</code>. RLS enforced at database level. Data-plane query audit undocumented.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 4 — AUDIT GAP MATRIX
+     ============================================================ -->
+<section class="slide" id="s4">
+  <div class="slide-num">05 / 15</div>
+  <div>
+    <p class="label">Audit Gap Matrix</p>
+    <h2 class="reveal">Does UC audit capture the <span class="red">human</span>?</h2>
+    <div class="tbl-wrap reveal">
+      <table>
+        <thead><tr><th>Identity Model</th><th>UC Captures Human?</th><th>App-Plane Audit</th><th>Affected Services</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge b-obo">True OBO</span></td>
+            <td><span class="badge b-yes">Yes</span></td>
+            <td>Optional</td>
+            <td>#1, 2, 4, 5, 9</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-proxy">Proxy + M2M</span></td>
+            <td><span class="badge b-no">No &mdash; SP UUID</span></td>
+            <td><strong style="color:var(--accent)">Required</strong></td>
+            <td>#7, 15</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-m2m">Pure M2M</span></td>
+            <td><span class="badge b-no">No &mdash; SP UUID</span></td>
+            <td><strong style="color:var(--accent)">Required</strong></td>
+            <td>#6, 8, 10, 11</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-del">Delegated</span></td>
+            <td><span class="badge b-dep">Owner only</span></td>
+            <td><span class="badge b-dep">Depends</span></td>
+            <td>#3, 12</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-ext">External MCP</span></td>
+            <td><span class="badge b-yes">At proxy</span></td>
+            <td>Recommended</td>
+            <td>#13, 14</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-lb">DB &rarr; Postgres</span></td>
+            <td><span class="badge b-dep">Mgmt ops only</span></td>
+            <td><span class="badge b-dep">Depends</span></td>
+            <td>#16</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout reveal">
+      <strong>Bottom line:</strong> 8 of 16 services lose the human identity in UC audit. For those services, application-plane audit with the <code>@audited</code> decorator is the only way to close the gap.
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 5 — OAUTH SCOPES
+     ============================================================ -->
+<section class="slide" id="s5">
+  <div class="slide-num">06 / 15</div>
+  <div>
+    <p class="label">OAuth Scopes Reference</p>
+    <h2 class="reveal">12 scopes, <span class="red">4 gotchas</span> that break things silently</h2>
+    <div class="tbl-wrap reveal">
+      <table>
+        <thead><tr><th>Scope</th><th>Grants</th><th>Required By</th><th>Gotcha</th></tr></thead>
+        <tbody>
+          <tr><td><code>openid</code></td><td>OIDC identity token</td><td>All OAuth flows</td><td>&mdash;</td></tr>
+          <tr><td><code>email</code></td><td>Email claim in token</td><td>Proxy X-Forwarded-Email</td><td>&mdash;</td></tr>
+          <tr><td><code>profile</code></td><td>Display name claims</td><td>Proxy X-Forwarded-Preferred-Username</td><td>&mdash;</td></tr>
+          <tr><td><code>offline_access</code></td><td>Refresh token</td><td>Long-lived sessions</td><td>&mdash;</td></tr>
+          <tr><td><code>dashboards.genie</code></td><td>Genie space access</td><td>Genie Conversation API</td><td><span class="red">Must pair with <code>genie</code> on Azure</span></td></tr>
+          <tr><td><code>genie</code></td><td>Genie Conversation API</td><td>Genie (Azure)</td><td><span class="red">Not shown in account UI. Required on Azure. Silent 403 without it.</span></td></tr>
+          <tr><td><code>model-serving</code></td><td>Model Serving / Agent Bricks</td><td>Agent Bricks, FM API OBO</td><td>&mdash;</td></tr>
+          <tr><td><code>sql</code></td><td>Statement Execution API</td><td>Direct SQL with user token</td><td><span class="red">CLI <code>custom-app-integration update</code> does NOT embed scope in JWT. Use UI &ldquo;User Authorization&rdquo; instead.</span></td></tr>
+          <tr><td><code>unity-catalog</code></td><td>UC REST API + External MCP proxy</td><td>External MCP via UC HTTP</td><td><span class="red">Undocumented. Proxy checks this before <code>USE CONNECTION</code>. Without it: 403.</span></td></tr>
+          <tr><td><code>all-apis</code></td><td>Catch-all for Databricks REST APIs</td><td>General API access</td><td>Not a superset of granular scopes</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 6 — SCOPE CALCULATOR
+     ============================================================ -->
+<section class="slide" id="s6">
+  <div class="slide-num">07 / 15</div>
+  <div>
+    <p class="label">Interactive Tool</p>
+    <h2 class="reveal">OAuth Scope <span class="red">Calculator</span></h2>
+    <p class="subtitle reveal" style="margin-bottom:1.5rem">Select the services your app uses. Get the minimum scopes required.</p>
+    <div class="grid-2 reveal">
+      <div>
+        <h3>Select Services</h3>
+        <div id="scope-services" style="font-size:0.8rem;line-height:2.2"></div>
+      </div>
+      <div>
+        <h3>Required Scopes</h3>
+        <div id="scope-result" style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1rem;min-height:120px">
+          <p style="color:var(--muted);font-size:0.8rem">Select services to calculate minimum scopes.</p>
+        </div>
+        <div id="scope-notes" style="margin-top:0.75rem;font-size:0.75rem;color:var(--muted)"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 7 — PROXY ARCHITECTURE
+     ============================================================ -->
+<section class="slide" id="s7">
+  <div class="slide-num">08 / 15</div>
+  <div>
+    <p class="label">Proxy Architecture</p>
+    <h2 class="reveal">What happens at each <span class="red">hop</span></h2>
+
+    <h3 class="reveal" style="margin-top:1.5rem">Single proxy path</h3>
+    <div class="flow reveal">
+      <div class="flow-step">User (Browser / Claude)</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step active">Databricks Apps Proxy</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">Your App (:8000)</div>
+    </div>
+
+    <h3 class="reveal">What the proxy does</h3>
+    <div style="font-size:0.82rem;line-height:2;margin-bottom:1.5rem" class="reveal">
+      1. Authenticates the caller (OAuth cookie or Bearer token)<br>
+      2. <strong style="color:var(--accent)">Strips</strong> the original Authorization header<br>
+      3. <strong>Injects</strong> X-Forwarded headers (unforgeable)
+    </div>
+
+    <h3 class="reveal">Trusted Headers</h3>
+    <div class="tbl-wrap reveal">
+      <table>
+        <thead><tr><th>Header</th><th>Trust</th><th>Content</th></tr></thead>
+        <tbody>
+          <tr><td><code>X-Forwarded-Email</code></td><td><span class="badge b-yes">High</span></td><td>Proxy-verified user identity. Unforgeable. Primary identity source in M2M patterns.</td></tr>
+          <tr><td><code>X-Forwarded-Access-Token</code></td><td><span class="badge b-yes">High</span></td><td>OIDC JWT. SP-scoped but unforgeable. Used for OBO API calls (Genie, Agent Bricks).</td></tr>
+          <tr><td><code>X-Forwarded-User</code></td><td><span class="badge b-yes">High</span></td><td><code>{user_id}@{workspace_id}</code>. Unique cross-workspace identifier.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout reveal">
+      <strong>Two-proxy problem:</strong> When App A calls App B, Proxy B strips App A's token and substitutes its own SP token. Solution: <code>authorization: disabled</code> on App B + read <code>X-Forwarded-Email</code> for identity. Trade-off: external clients can't use App B directly.
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 8 — SP ISOLATION
+     ============================================================ -->
+<section class="slide" id="s8">
+  <div class="slide-num">09 / 15</div>
+  <div>
+    <p class="label">Service Principal Isolation</p>
+    <h2 class="reveal">One SP per <span class="red">capability boundary</span></h2>
+    <div class="tbl-wrap reveal">
+      <table>
+        <thead><tr><th>SP</th><th>Application</th><th>Read Capabilities</th><th>Write Capabilities</th><th>Why Separate</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>SP-A</strong></td>
+            <td>Streamlit app</td>
+            <td>Genie (OBO), VS indexes, UC Functions, FM API</td>
+            <td><em>None</em></td>
+            <td>Frontend&mdash;no direct write access</td>
+          </tr>
+          <tr>
+            <td><strong>SP-B</strong></td>
+            <td>Custom MCP server</td>
+            <td>opportunities, quota_viewers, customers</td>
+            <td>approval_requests (INSERT)</td>
+            <td>MCP needs write; Streamlit does not</td>
+          </tr>
+          <tr>
+            <td><strong>SP-C</strong></td>
+            <td>Claude Code MCP</td>
+            <td>opportunities, quota_viewers, customers</td>
+            <td>approval_requests (INSERT)</td>
+            <td>Different auth setting, OAuth integration, lifecycle</td>
+          </tr>
+          <tr>
+            <td><strong>SP-D</strong></td>
+            <td>Agent Bricks supervisor</td>
+            <td>Sub-agents inherit user token (OBO)</td>
+            <td>Through sub-agent tools only</td>
+            <td>Platform-managed; sub-agent access = user's access</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout reveal">
+      <strong>Principle:</strong> Separate SPs per capability boundary, not per app. A read-only tool vulnerability should never become a write exploit. Minimal, non-overlapping grants.
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 9 — ANTI-PATTERNS
+     ============================================================ -->
+<section class="slide" id="s9">
+  <div class="slide-num">10 / 15</div>
+  <div>
+    <p class="label">Confused Deputy Prevention</p>
+    <h2 class="reveal">5 anti-patterns <span class="red">to avoid</span></h2>
+    <div class="tbl-wrap reveal">
+      <table>
+        <thead><tr><th>#</th><th>Anti-Pattern</th><th>Why Dangerous</th><th>Correct Approach</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge b-crit">1</span></td>
+            <td>Sharing <code>CLIENT_ID/SECRET</code> across apps</td>
+            <td>One compromise = all apps compromised</td>
+            <td>Each <code>databricks apps create</code> auto-generates a unique SP</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-crit">2</span></td>
+            <td><code>ALL PRIVILEGES</code> on a catalog</td>
+            <td>SP can read, write, drop, grant</td>
+            <td>Object-level permissions only</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-warn">3</span></td>
+            <td>Same SP for read and write tools</td>
+            <td>Read vulnerability becomes write exploit</td>
+            <td>Separate SPs per capability boundary</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-warn">4</span></td>
+            <td>Re-using app OAuth integration for external clients</td>
+            <td>Scope changes affect production users</td>
+            <td>Separate OAuth integration per target</td>
+          </tr>
+          <tr>
+            <td><span class="badge b-crit">5</span></td>
+            <td>Adding MCP SP to admin groups</td>
+            <td>Bypasses all row filters and column masks</td>
+            <td>SP only in groups matching declared capabilities</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 10 — STOPGAP AUDIT
+     ============================================================ -->
+<section class="slide" id="s10">
+  <div class="slide-num">11 / 15</div>
+  <div>
+    <p class="label">Stopgap Audit Solution</p>
+    <h2 class="reveal">Bridge the gap with <span class="red">@audited</span></h2>
+    <div class="grid-2" style="margin-top:1.5rem">
+      <div class="reveal">
+        <h3>The Pattern</h3>
+        <p style="color:var(--muted);margin-bottom:1rem;font-size:0.82rem">Drop-in decorator. Zero changes to tool logic. Silent failure&mdash;audit write errors never break the tool.</p>
+        <pre><code>@mcp.tool()
+@audited()
+def get_deal_approval_status(opp_id: str) -> dict:
+    # ... existing logic unchanged ...
+
+@mcp.tool()
+@audited(service_type="uc_function")
+def call_uc_function(func_name: str) -> dict:
+    # ... existing logic unchanged ...</code></pre>
+      </div>
+      <div class="reveal">
+        <h3>What It Captures (15 fields)</h3>
+        <div style="font-size:0.78rem;line-height:2.1">
+          <code>caller_email</code> &mdash; X-Forwarded-Email<br>
+          <code>caller_user_id</code> &mdash; X-Forwarded-User<br>
+          <code>caller_display</code> &mdash; display name<br>
+          <code>app_sp_id</code> &mdash; DATABRICKS_CLIENT_ID<br>
+          <code>app_name</code> &mdash; application name<br>
+          <code>service_type</code> &mdash; custom_mcp | uc_function | ...<br>
+          <code>tool_name</code> &mdash; function name<br>
+          <code>tool_args_hash</code> &mdash; SHA-256 for dedup<br>
+          <code>tool_args_safe</code> &mdash; sanitized args<br>
+          <code>result_status</code> &mdash; success | error | denied<br>
+          <code>error_message</code> &mdash; error detail<br>
+          <code>trace_id</code> &mdash; MLflow trace ID<br>
+          <code>request_id</code> &mdash; UUID per invocation<br>
+          <code>event_time</code> &mdash; UTC timestamp<br>
+          <code>duration_ms</code> &mdash; execution time
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 11 — CHAIN OF CUSTODY
+     ============================================================ -->
+<section class="slide" id="s11">
+  <div class="slide-num">12 / 15</div>
+  <div>
+    <p class="label">End-to-End Traceability</p>
+    <h2 class="reveal">Chain of Custody: Human &rarr; Tool &rarr; SQL &rarr; <span class="red">Data</span></h2>
+
+    <div class="flow reveal" style="margin:2rem 0">
+      <div class="flow-step active">Alice (human)</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">MCP tool call</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">@audited captures</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">SP executes SQL</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">UC audit records</div>
+    </div>
+
+    <div class="grid-2 reveal">
+      <div>
+        <h3>Join Method</h3>
+        <p style="font-size:0.82rem;color:var(--muted);line-height:1.6">SP UUID + time window (&plusmn;2s start, +30s end). Falls back to <code>trace_id</code> for precise join when MLflow tracing is available.</p>
+        <h3 style="margin-top:1rem">Alert Views</h3>
+        <div style="font-size:0.78rem;line-height:2">
+          <span class="badge b-crit">critical</span> <code>alert_missing_identity</code> &mdash; empty email = broken auth<br>
+          <span class="badge b-warn">warning</span> <code>alert_high_frequency</code> &mdash; &gt;50 calls/hr per user<br>
+          <span class="badge b-info">info</span> <code>alert_write_ops</code> &mdash; all write operations<br>
+          <span class="badge b-warn">warning</span> <code>alert_error_rate</code> &mdash; &gt;10% error rate
+        </div>
+      </div>
+      <div>
+        <h3>The Query</h3>
+        <pre style="font-size:0.68rem"><code>WITH app_events AS (
+  SELECT request_id, caller_email, app_sp_id,
+         tool_name, event_time, trace_id,
+         event_time - INTERVAL 2 SECONDS  AS w_start,
+         event_time + INTERVAL 30 SECONDS AS w_end
+  FROM applied_ai_gov.audit.tool_invocations
+  WHERE event_time > current_timestamp() - INTERVAL 24 HOURS
+),
+uc_events AS (
+  SELECT event_time AS uc_time,
+         user_identity.email AS uc_executor,
+         action_name AS uc_action
+  FROM system.access.audit
+  WHERE service_name IN ('unityCatalog','databricksSql')
+)
+SELECT a.caller_email AS human,
+       a.tool_name    AS tool,
+       u.uc_action    AS uc_operation,
+       u.uc_executor  AS uc_identity
+FROM app_events a
+LEFT JOIN uc_events u
+  ON u.uc_executor = a.app_sp_id
+  AND u.uc_time BETWEEN a.w_start AND a.w_end
+ORDER BY a.event_time DESC;</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 12 — GOVERNANCE
+     ============================================================ -->
+<section class="slide" id="s12">
+  <div class="slide-num">13 / 15</div>
+  <div>
+    <p class="label">Governance</p>
+    <h2 class="reveal">USE CONNECTION: the <span class="red">confused deputy</span> defense</h2>
+    <div class="grid-2" style="margin-top:1.5rem">
+      <div class="reveal">
+        <h3>The Attack</h3>
+        <p style="color:var(--muted);font-size:0.82rem;line-height:1.6">A malicious user creates a function that calls an external endpoint to exfiltrate data. When a benign user triggers that function (via Genie, OneChat, or a shared space), it executes under the benign user's credentials.</p>
+      </div>
+      <div class="reveal">
+        <h3>The Defense Stack</h3>
+        <div style="font-size:0.82rem;line-height:2">
+          <strong>Layer 1:</strong> Lock down <code>CREATE FUNCTION</code> to curated schemas<br>
+          <strong>Layer 2:</strong> Tightly govern UC connections&mdash;no broad <code>USE CONNECTION</code><br>
+          <strong>Layer 3:</strong> No <code>EXECUTE</code> grants to <code>account users</code><br>
+          <strong>Layer 4:</strong> Monitor audit logs for function creation + external calls<br>
+          <strong>Layer 5:</strong> Advocate for Genie space review workflows
+        </div>
+      </div>
+    </div>
+    <div class="callout reveal">
+      <strong>Strongest defense:</strong> No <code>USE CONNECTION</code> = no exfiltration. Even a perfectly crafted malicious function has nowhere to send the data.
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 13 — LIMITATIONS
+     ============================================================ -->
+<section class="slide" id="s13">
+  <div class="slide-num">14 / 15</div>
+  <div>
+    <p class="label">Honest Assessment</p>
+    <h2 class="reveal">5 limitations <span class="red">you should know</span></h2>
+    <div class="tbl-wrap reveal">
+      <table>
+        <thead><tr><th>Limitation</th><th>Impact</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Time-window join is approximate</strong></td>
+            <td>If two users call the same tool within 30s via the same SP, UC audit events may be attributed to the wrong user</td>
+            <td>Use <code>trace_id</code> for precise join when MLflow tracing is available</td>
+          </tr>
+          <tr>
+            <td><strong>Audit table requires SP write access</strong></td>
+            <td>The SP must have MODIFY on the audit table&mdash;an additional privilege</td>
+            <td>Dedicated audit table, not production data. Acceptable trade-off.</td>
+          </tr>
+          <tr>
+            <td><strong>No platform enforcement of required tags</strong></td>
+            <td>MLflow trace tags are convention-based. A developer can ship without <code>user_email</code> tag.</td>
+            <td><code>@audited</code> decorator makes it automatic. Code review catches gaps.</td>
+          </tr>
+          <tr>
+            <td><strong>External MCP audit is one-sided</strong></td>
+            <td>Records that Alice called the GitHub MCP tool but NOT what GitHub returned</td>
+            <td>Per-user OAuth: GitHub has its own audit. Shared bearer: limited to shared identity.</td>
+          </tr>
+          <tr>
+            <td><strong>Lakebase data-plane audit undocumented</strong></td>
+            <td>Management ops audited. SQL query audit on Lakebase tables: unknown.</td>
+            <td>Postgres <code>pg_audit</code> extension available. Databricks integration TBD.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 14 — CLOSING
+     ============================================================ -->
+<section class="slide" id="s14">
+  <div class="slide-num">15 / 15</div>
+  <div style="text-align:center">
+    <p class="label">Identity Explorer</p>
+    <h1 class="reveal">Every service.<br>Every identity model.<br>Every <span class="red">gap</span>.</h1>
+    <p class="subtitle reveal" style="max-width:600px;margin:1rem auto 0">Live MCP server you can query from Claude Code.<br>Interactive web UI for visual exploration.<br>This presentation for architecture reviews.</p>
+    <div class="grid-4" style="margin-top:3rem;max-width:700px;margin-left:auto;margin-right:auto">
+      <div class="stat reveal"><div class="stat-num">16</div><div class="stat-label">Services</div></div>
+      <div class="stat reveal"><div class="stat-num">6</div><div class="stat-label">Models</div></div>
+      <div class="stat reveal"><div class="stat-num">12</div><div class="stat-label">Scopes</div></div>
+      <div class="stat reveal"><div class="stat-num">19</div><div class="stat-label">MCP Tools</div></div>
+    </div>
+    <p class="reveal" style="margin-top:3rem;color:var(--muted);font-size:0.8rem">Databricks Field Engineering &middot; Identity &amp; Audit Architecture Reference</p>
+  </div>
+</section>
+
+<script>
+/* === SCOPE CALCULATOR DATA === */
+const SVC_SCOPES = {
+  1:  {name:"Genie (Conversation API)",      scopes:["openid","email","profile","offline_access","dashboards.genie","genie"]},
+  2:  {name:"AI/BI Dashboard (viewer)",       scopes:["openid","email","profile","offline_access"]},
+  4:  {name:"Agent Bricks / Model Serving",   scopes:["openid","email","profile","offline_access","model-serving"]},
+  5:  {name:"SQL Warehouse (user token)",     scopes:["openid","email","profile","offline_access","sql"]},
+  7:  {name:"Custom MCP (Databricks Apps)",   scopes:["openid","email","profile","offline_access"]},
+  9:  {name:"UC Functions (via Genie OBO)",   scopes:["openid","email","profile","offline_access","dashboards.genie","genie"]},
+  14: {name:"External MCP (per-user OAuth)",  scopes:["openid","email","profile","offline_access","unity-catalog"]},
+  15: {name:"Custom MCP → Custom MCP",        scopes:["openid","email","profile","offline_access"]},
+  16: {name:"Lakebase",                       scopes:["postgres"]},
+};
+/* M2M services (3,6,8,10,11,12,13) have no user-token scopes */
+const M2M_SVCS = {
+  3:  "AI/BI Dashboard (run-as-owner)",
+  6:  "SQL Warehouse (SP token)",
+  8:  "UC Functions (via M2M SQL)",
+  10: "Vector Search",
+  11: "Foundation Model API",
+  12: "SDP / Lakeflow Pipeline",
+  13: "External MCP (shared bearer)",
+};
+
+function initScopeCalc() {
+  const container = document.getElementById('scope-services');
+  if (!container) return;
+
+  /* User-token services */
+  Object.entries(SVC_SCOPES).forEach(([id, svc]) => {
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex;align-items:center;gap:0.5rem;cursor:pointer';
+    label.innerHTML = `<input type="checkbox" value="${id}" style="accent-color:var(--accent);width:15px;height:15px"> <span class="badge b-num">${id}</span> ${svc.name}`;
+    label.querySelector('input').addEventListener('change', calcScopes);
+    container.appendChild(label);
+  });
+
+  /* M2M divider */
+  const divider = document.createElement('div');
+  divider.style.cssText = 'margin-top:0.75rem;padding-top:0.5rem;border-top:1px solid var(--border);color:var(--muted);font-size:0.72rem';
+  divider.textContent = 'M2M services (no user-token scopes needed):';
+  container.appendChild(divider);
+
+  Object.entries(M2M_SVCS).forEach(([id, name]) => {
+    const span = document.createElement('div');
+    span.style.cssText = 'color:var(--muted);font-size:0.75rem;padding:2px 0';
+    span.innerHTML = `<span class="badge b-num" style="opacity:0.5">${id}</span> ${name} — <em>SP credentials only</em>`;
+    container.appendChild(span);
+  });
+}
+
+function calcScopes() {
+  const checked = [...document.querySelectorAll('#scope-services input:checked')].map(i => parseInt(i.value));
+  const result = document.getElementById('scope-result');
+  const notes = document.getElementById('scope-notes');
+
+  if (checked.length === 0) {
+    result.innerHTML = '<p style="color:var(--muted);font-size:0.8rem">Select services to calculate minimum scopes.</p>';
+    notes.textContent = '';
+    return;
+  }
+
+  const allScopes = new Set();
+  const svcNames = [];
+  checked.forEach(id => {
+    SVC_SCOPES[id].scopes.forEach(s => allScopes.add(s));
+    svcNames.push(`#${id} ${SVC_SCOPES[id].name}`);
+  });
+
+  const base = ['openid','email','profile','offline_access'];
+  const extra = [...allScopes].filter(s => !base.includes(s)).sort();
+
+  let html = '<div style="font-size:0.78rem;line-height:2">';
+  html += '<strong style="color:var(--muted);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em">Base (always required)</strong><br>';
+  base.forEach(s => { html += `<span class="badge b-scope">${s}</span> `; });
+  if (extra.length) {
+    html += '<br><strong style="color:var(--accent);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;margin-top:0.5rem;display:inline-block">Service-specific</strong><br>';
+    extra.forEach(s => { html += `<span class="badge b-scope" style="border:1px solid var(--accent);color:var(--accent)">${s}</span> `; });
+  }
+  html += '</div>';
+  html += `<p style="margin-top:0.75rem;font-size:0.72rem;color:var(--muted)">Total: ${allScopes.size} scopes for ${checked.length} service${checked.length > 1 ? 's' : ''}</p>`;
+  result.innerHTML = html;
+
+  /* Gotcha notes */
+  const gotchas = [];
+  if (allScopes.has('genie')) gotchas.push('genie scope is not shown in account UI but is required on Azure');
+  if (allScopes.has('sql')) gotchas.push('sql scope: use UI "User Authorization" — CLI does not embed scope in JWT');
+  if (allScopes.has('unity-catalog')) gotchas.push('unity-catalog scope is undocumented — proxy checks it before USE CONNECTION');
+  notes.innerHTML = gotchas.length ? gotchas.map(g => `<span style="color:var(--accent)">⚠</span> ${g}`).join('<br>') : '';
+}
+
+/* === NAVIGATION === */
+const slides = [];
+function initNav() {
+  document.querySelectorAll('.slide').forEach(s => slides.push(s));
+  const navLinks = document.querySelectorAll('nav a');
+
+  /* Active nav on scroll */
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id));
+      }
+    });
+  }, { rootMargin: '-40% 0px -55% 0px' });
+
+  slides.forEach(s => observer.observe(s));
+
+  /* Keyboard navigation */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      navigateSlide(1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      navigateSlide(-1);
+    }
+  });
+}
+
+function navigateSlide(dir) {
+  const scrollY = window.scrollY;
+  let currentIdx = 0;
+  slides.forEach((s, i) => {
+    if (scrollY >= s.offsetTop - window.innerHeight / 3) currentIdx = i;
+  });
+  const nextIdx = Math.max(0, Math.min(slides.length - 1, currentIdx + dir));
+  slides[nextIdx].scrollIntoView({ behavior: 'smooth' });
+}
+
+/* === REVEAL ON SCROLL === */
+function initReveal() {
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+}
+
+/* === BOOT === */
+document.addEventListener('DOMContentLoaded', () => {
+  initNav();
+  initReveal();
+  initScopeCalc();
+});
+</script>
+
+</body>
+</html>

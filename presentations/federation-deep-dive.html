@@ -341,7 +341,7 @@ token.claims["/email"] = user.email;
       </div>
     </div>
     <div style="border:1px solid var(--border);border-radius:6px;overflow:hidden;min-height:0">
-      <iframe src="../interactive/federation-token-flow.html" style="width:100%;height:100%;border:none" title="Federation Token Flow Animation"></iframe>
+      <iframe src="federation-animation.html" style="width:100%;height:100%;border:none" title="Federation Token Flow Animation"></iframe>
     </div>
   </div>
   <p class="reveal" style="font-size:var(--sz-label);color:var(--muted);margin-top:4px">Interactive animation &rarr; click Next to step through the token flow. Token Inspector shows JWT fields at each stage.</p>
@@ -393,11 +393,11 @@ token.claims["/email"] = user.email;
 <span class="kw">SELECT</span> *
 <span class="kw">FROM</span> sales.opportunities
 <span class="cmt">-- UC auto-applies:</span>
-<span class="kw">WHERE</span> is_member(<span class="str">'authz_showcase_west'</span>)
+<span class="kw">WHERE</span> is_member(<span class="str">'west_sales'</span>)
   <span class="kw">AND</span> opp_region = <span class="str">'WEST'</span>
 
 <span class="cmt">-- Column mask function</span>
-<span class="kw">CASE WHEN</span> is_member(<span class="str">'authz_showcase_finance'</span>)
+<span class="kw">CASE WHEN</span> is_member(<span class="str">'finance'</span>)
   <span class="kw">THEN</span> margin_pct
   <span class="kw">ELSE NULL END</span></pre>
       <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Fires automatically &middot; No application code needed &middot; Can't be bypassed</p>
@@ -557,12 +557,12 @@ token.claims["/email"] = user.email;
       <div class="card card-red mb-2">
         <h4 style="font-size:var(--sz-body)"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:0.6rem;font-weight:700;margin-right:6px">6</span>Create Role-Based Service Principals</h4>
         <p style="font-size:var(--sz-small);color:var(--ink-60)">One SP per role (not per user). Each SP gets a unique <code>application_id</code> and <code>numeric_id</code>.</p>
-        <p style="font-size:var(--sz-small);margin-top:3px"><code>fed-exchange-sp-west-sales</code>, <code>fed-exchange-sp-finance</code>, etc.</p>
+        <p style="font-size:var(--sz-small);margin-top:3px"><code>sp-role-west-sales</code>, <code>sp-role-finance</code>, etc.</p>
       </div>
 
       <div class="card card-red mb-2">
         <h4 style="font-size:var(--sz-body)"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:0.6rem;font-weight:700;margin-right:6px">7</span>Add SPs to Workspace Groups</h4>
-        <p style="font-size:var(--sz-small);color:var(--ink-60)">Create workspace groups (e.g., <code>authz_showcase_west</code>) and add each SP. These groups are what <code>is_member()</code> checks in row filters and column masks.</p>
+        <p style="font-size:var(--sz-small);color:var(--ink-60)">Create workspace groups (e.g., <code>west_sales</code>) and add each SP. These groups are what <code>is_member()</code> checks in row filters and column masks.</p>
       </div>
 
       <div class="card card-red mb-2">
@@ -671,7 +671,7 @@ ROLE_SP_MAP = {
           <tr><td><strong>SELECT</strong></td><td>Data tables</td><td>Role SPs</td></tr>
           <tr><td><strong>SELECT</strong></td><td>VS index</td><td>App SP</td></tr>
           <tr><td><strong>MODIFY + SELECT</strong></td><td>Audit table</td><td>App SP only</td></tr>
-          <tr><td><strong>USE CONNECTION</strong></td><td>UC Connection</td><td>Exec + Admin</td></tr>
+          <tr><td><strong>USE CONNECTION</strong></td><td>github_bearer_token</td><td>Exec + Admin</td></tr>
           <tr><td><strong>CAN_QUERY</strong></td><td>Serving endpoint</td><td>Exec + Admin</td></tr>
           <tr><td><strong>CAN_RUN</strong></td><td>Genie Space</td><td>All role SPs</td></tr>
           <tr><td><strong>Workspace group</strong></td><td>Group per role</td><td>Each role SP</td></tr>
@@ -1218,12 +1218,12 @@ Scope:      Any scope</pre>
         </tr>
       </thead>
       <tbody>
-        <tr><td><strong>Sarah Chen</strong><br><span style="color:var(--muted)">West Territory Lead</span></td><td>west_sales</td><td>authz_showcase_west</td><td style="color:var(--red)">WEST only</td><td>NULL</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td></tr>
-        <tr><td><strong>Marcus Johnson</strong><br><span style="color:var(--muted)">East Territory Lead</span></td><td>east_sales</td><td>authz_showcase_east</td><td style="color:var(--red)">EAST only</td><td>NULL</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td></tr>
-        <tr><td><strong>David Park</strong><br><span style="color:var(--muted)">Sales Manager</span></td><td>managers</td><td>authz_showcase_managers</td><td style="color:var(--green)">ALL</td><td>NULL</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td></tr>
-        <tr><td><strong>Priya Sharma</strong><br><span style="color:var(--muted)">VP of Sales</span></td><td>executive</td><td>authz_showcase_executives</td><td style="color:var(--green)">ALL</td><td style="color:var(--green)">Real</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td></tr>
-        <tr><td><strong>Lisa Okafor</strong><br><span style="color:var(--muted)">External Auditor</span></td><td>finance</td><td>authz_showcase_finance</td><td style="color:var(--green)">ALL</td><td style="color:var(--green)">Real</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--green)">Y</td></tr>
-        <tr><td><strong>Raj Patel</strong><br><span style="color:var(--muted)">Platform Admin</span></td><td>admin</td><td>authz_showcase_admin</td><td style="color:var(--green)">ALL</td><td style="color:var(--green)">Real</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td></tr>
+        <tr><td><strong>Sarah Chen</strong><br><span style="color:var(--muted)">West Territory Lead</span></td><td>west_sales</td><td>west_sales</td><td style="color:var(--red)">WEST only</td><td>NULL</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td></tr>
+        <tr><td><strong>Marcus Johnson</strong><br><span style="color:var(--muted)">East Territory Lead</span></td><td>east_sales</td><td>east_sales</td><td style="color:var(--red)">EAST only</td><td>NULL</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td></tr>
+        <tr><td><strong>David Park</strong><br><span style="color:var(--muted)">Sales Manager</span></td><td>managers</td><td>managers</td><td style="color:var(--green)">ALL</td><td>NULL</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td></tr>
+        <tr><td><strong>Priya Sharma</strong><br><span style="color:var(--muted)">VP of Sales</span></td><td>executive</td><td>executives</td><td style="color:var(--green)">ALL</td><td style="color:var(--green)">Real</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td></tr>
+        <tr><td><strong>Lisa Okafor</strong><br><span style="color:var(--muted)">External Auditor</span></td><td>finance</td><td>finance</td><td style="color:var(--green)">ALL</td><td style="color:var(--green)">Real</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--green)">Y</td></tr>
+        <tr><td><strong>Raj Patel</strong><br><span style="color:var(--muted)">Platform Admin</span></td><td>admin</td><td>admin</td><td style="color:var(--green)">ALL</td><td style="color:var(--green)">Real</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td></tr>
       </tbody>
     </table>
 

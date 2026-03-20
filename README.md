@@ -69,11 +69,13 @@ New to Databricks AI governance? Read these in order:
 
 ## Presentations
 
-| Deck | Topic |
-|------|-------|
-| [Identity & Governance for AI](presentations/identity-governance-overview.html) | Two patterns (OBO + Federation), shared UC governance, scope model, supervisor integration |
-| [Federation Exchange Deep Dive](presentations/federation-deep-dive.html) | Three actors, token anatomy, sequence diagram, embedded animation, grants checklist |
-| [AI Gateway Patterns v2](presentations/ai-gateway-patterns-v2.html) | AI Gateway traffic patterns and decision framework |
+| # | Deck | Audience | Topic |
+|---|------|----------|-------|
+| 1 | [Identity & Governance Overview](presentations/identity-governance-overview.html) | Exec | OBO vs M2M vs Federation, shared UC governance, scope model -- 18 slides |
+| 2 | [Federation Animation](presentations/federation-animation.html) | Exec | Interactive token flow animation with token inspector |
+| 3 | [Identity Explorer](presentations/identity-explorer.html) | Technical | 16-service identity map, scope calculator, audit gaps, confused deputy -- 15 slides |
+| 4 | [Federation Deep Dive](presentations/federation-deep-dive.html) | Technical | Token anatomy, enforcement points, grants checklist, embedded animation -- 21 slides |
+| 5 | [AI Gateway Patterns](presentations/ai-gateway-patterns-v2.html) | Technical | AI Gateway traffic patterns and decision framework |
 
 ---
 
