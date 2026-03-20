@@ -321,6 +321,386 @@ Scorers are registered against an MLflow experiment, not a serving endpoint. If 
 
 ---
 
+## 7. Scorer Patterns
+
+### Scorer types and cost profiles
+
+Five scorers are recommended for production AI governance. They run asynchronously on production traces -- zero impact on application latency.
+
+| Scorer | Type | Sample Rate | LLM Cost | What It Checks |
+|---|---|---|---|---|
+| `safety_check` | Built-in (Safety) | 100% | None | Flags unsafe, harmful, or policy-violating content |
+| `relevance_check` | Built-in (RelevanceToQuery) | 50% | Moderate | Measures whether the response actually answers the question |
+| `guidelines_check` | Custom (Guidelines) | 30% | Yes (LLM judge) | Domain rules: auth pattern identification, PII absence, opp_id inclusion, actionable errors |
+| `response_length` | Custom (Code) | 100% | None | Character count with mean/min/max aggregations; catches empty or bloated responses |
+| `has_auth_pattern` | Custom (Code) | 100% | None | Boolean: does the response mention OBO, M2M, or auth_pattern? |
+
+### Sample rate rationale
+
+- **100%** for safety and code scorers -- they are cheap or free
+- **50%** for relevance -- uses an LLM judge, moderate cost per evaluation
+- **30%** for guidelines -- custom LLM judge with multiple guidelines, higher per-evaluation cost
+
+### Registration pattern (idempotent)
+
+```python
+def safe_register_and_start(scorer_obj, name, sample_rate):
+    """Register and start a scorer, skipping if already active."""
+    try:
+        existing = get_scorer(name=name)
+        if existing.sample_rate > 0:
+            return existing          # Already running
+        else:
+            return existing.start(   # Stopped -- restart
+                sampling_config=ScorerSamplingConfig(sample_rate=sample_rate)
+            )
+    except Exception:
+        pass  # Doesn't exist yet
+
+    registered = scorer_obj.register(name=name)
+    return registered.start(
+        sampling_config=ScorerSamplingConfig(sample_rate=sample_rate)
+    )
+```
+
+This pattern is idempotent: re-running does not create duplicate scorers.
+
+### Custom code scorer example
+
+```python
+@scorer(aggregations=["mean", "min", "max"])
+def response_length(outputs):
+    """Character count -- catches empty or bloated responses."""
+    return len(outputs) if outputs else 0
+```
+
+### Custom guidelines scorer example
+
+```python
+from databricks.agents.scorers import Guidelines
+
+guidelines_check = Guidelines(
+    name="guidelines_check",
+    guidelines=[
+        "The response must correctly identify the auth pattern used (OBO User or M2M).",
+        "The response must not contain PII such as SSN or credit card numbers.",
+        "If the query involves approval status, the response must include the opp_id.",
+        "Error responses must include actionable hints about permissions or access.",
+    ],
+)
+```
+
+### Backfilling historical traces
+
+To retroactively score traces that existed before scorers were registered:
+
+```python
+from databricks.agents.scorers import backfill_scorers
+
+job_id = backfill_scorers(
+    scorers=["safety_check", "relevance_check", "response_length", "has_auth_pattern"],
+)
+print(f"Backfill job: {job_id}")  # Monitor in Databricks Jobs UI
+```
+
+---
+
+## 8. Four-Page Dashboard Guide
+
+Deploy a Lakeview dashboard for E2E observability across traces, quality, cost, and errors.
+
+### Page 1: Operations Overview
+
+The primary health check. Start here.
+
+| Widget | What It Shows | When To Use It |
+|---|---|---|
+| 6 KPI counters | Total requests, errors, error rate, P50/P95/P99 latency | Glanceable health status |
+| Request volume over time | Hourly request count (bar chart) | Spot traffic patterns, outages |
+| Error rate trend | Hourly error percentage (line chart) | Detect degradation trends |
+| Latency percentiles | P50/P95/P99 over time (multi-line) | SLA tracking, performance regression |
+| Tool breakdown | Requests per tool (bar chart) | Understand usage distribution |
+| Auth pattern distribution | OBO vs M2M usage | Verify correct auth pattern selection |
+| Service state | Health by service_name | Identify which service is struggling |
+
+### Page 2: Quality and Judges
+
+Scorer assessments and response quality trends.
+
+| Widget | What It Shows | When To Use It |
+|---|---|---|
+| Scorer summary table | All scorers with average score, sample count | Overall quality posture |
+| Scores over time | Daily average per scorer (multi-line) | Detect quality regression |
+| Average score bars | Bar chart of each scorer's average | Compare scorer performance |
+| Response length by tool | Average response length per tool | Spot tools returning empty or bloated responses |
+
+### Page 3: Cost and Tokens
+
+Token consumption, DBU spend, and efficiency metrics.
+
+| Widget | What It Shows | When To Use It |
+|---|---|---|
+| Daily token consumption | Input + output tokens over time | Track consumption trends |
+| DBU cost | Daily serverless inference DBUs | Budget forecasting |
+| Token efficiency | Avg tokens per request | Optimize prompt/response sizes |
+| Latency vs response size | Scatter plot | Identify efficiency outliers |
+
+### Page 4: Error Investigation
+
+Root cause analysis and error correlation.
+
+| Widget | What It Shows | When To Use It |
+|---|---|---|
+| Errors by tool | Bar chart of error count per tool | Identify failing tools |
+| Error distribution | Pie chart of error types | Understand failure modes |
+| Error timeline | Errors over time (line chart) | Correlate errors with deployments/changes |
+| Recent errors table | Last N errors with trace details | Active incident investigation |
+| Master correlation table | Joins traces + serving + assessments | Full E2E correlation for any trace |
+
+---
+
+## 9. Correlation Queries
+
+### Request volume and error rate (7-day window)
+
+```sql
+SELECT
+    DATE_TRUNC('HOUR', request_time) AS hour,
+    COUNT(*) AS total_requests,
+    COUNT(CASE WHEN state = 'ERROR' THEN 1 END) AS errors,
+    ROUND(COUNT(CASE WHEN state = 'ERROR' THEN 1 END) * 100.0 / COUNT(*), 2) AS error_rate
+FROM <catalog>.<schema>.traces
+WHERE request_time >= CURRENT_DATE - INTERVAL 7 DAYS
+GROUP BY 1
+ORDER BY 1;
+```
+
+### Latency percentiles (7-day window)
+
+```sql
+SELECT
+    DATE_TRUNC('HOUR', request_time) AS hour,
+    PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY execution_duration_ms) AS p50_ms,
+    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_duration_ms) AS p95_ms,
+    PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY execution_duration_ms) AS p99_ms
+FROM <catalog>.<schema>.traces
+WHERE request_time >= CURRENT_DATE - INTERVAL 7 DAYS
+  AND state = 'OK'
+GROUP BY 1
+ORDER BY 1;
+```
+
+### Quality scores over time (30-day window)
+
+```sql
+SELECT
+    DATE_TRUNC('DAY', t.request_time) AS day,
+    a.name AS scorer_name,
+    AVG(CAST(a.feedback.value AS DOUBLE)) AS avg_score,
+    COUNT(*) AS sample_count
+FROM <catalog>.<schema>.traces t
+LATERAL VIEW EXPLODE(t.assessments) AS a
+WHERE t.request_time >= CURRENT_DATE - INTERVAL 30 DAYS
+GROUP BY 1, 2
+ORDER BY 1, 2;
+```
+
+### Token consumption (30-day window)
+
+```sql
+SELECT
+    DATE_TRUNC('DAY', request_time) AS day,
+    SUM(input_token_count) AS total_input_tokens,
+    SUM(output_token_count) AS total_output_tokens,
+    SUM(input_token_count + output_token_count) AS total_tokens
+FROM system.ai_gateway.usage
+WHERE request_time >= CURRENT_DATE - INTERVAL 30 DAYS
+GROUP BY 1
+ORDER BY 1;
+```
+
+### Cost tracking (30-day window)
+
+```sql
+SELECT
+    DATE_TRUNC('DAY', usage_date) AS day,
+    SUM(usage_quantity) AS total_dbus,
+    ROUND(SUM(usage_quantity) * 0.07, 2) AS estimated_cost_usd
+FROM system.billing.usage
+WHERE sku_name LIKE '%SERVERLESS_REAL_TIME_INFERENCE%'
+  AND usage_date >= CURRENT_DATE - INTERVAL 30 DAYS
+GROUP BY 1
+ORDER BY 1;
+```
+
+### Master correlation (traces + serving + assessments)
+
+```sql
+SELECT
+    t.trace_id,
+    t.tags['service_name'] AS service,
+    t.state,
+    t.execution_duration_ms AS trace_latency_ms,
+    s.total_tokens,
+    s.input_tokens,
+    s.output_tokens,
+    COLLECT_LIST(STRUCT(a.name, CAST(a.feedback.value AS DOUBLE))) AS scores
+FROM <catalog>.<schema>.traces t
+LEFT JOIN system.serving.endpoint_usage s
+    ON t.trace_id = s.databricks_request_id
+LATERAL VIEW OUTER EXPLODE(t.assessments) AS a
+WHERE t.request_time >= CURRENT_DATE - INTERVAL 7 DAYS
+GROUP BY 1, 2, 3, 4, 5, 6, 7
+ORDER BY t.request_time DESC;
+```
+
+### Error correlation (extract error spans)
+
+```sql
+SELECT
+    t.trace_id,
+    t.tags['service_name'] AS service,
+    t.tags['tool'] AS tool,
+    t.execution_duration_ms,
+    FILTER(
+        TRANSFORM(t.spans, s -> STRUCT(s.name, s.status.status_code, s.status.description)),
+        x -> x.status_code = 'ERROR'
+    ) AS error_spans
+FROM <catalog>.<schema>.traces t
+WHERE t.state = 'ERROR'
+  AND t.request_time >= CURRENT_DATE - INTERVAL 7 DAYS
+ORDER BY t.request_time DESC;
+```
+
+---
+
+## 10. Alert SQL
+
+Three production alerts with tunable thresholds.
+
+### Error rate spike (> 5% in last hour)
+
+```sql
+SELECT
+    COUNT(CASE WHEN state = 'ERROR' THEN 1 END) * 100.0 / COUNT(*) AS error_rate
+FROM <catalog>.<schema>.traces
+WHERE request_time >= CURRENT_TIMESTAMP - INTERVAL 1 HOUR
+HAVING error_rate > 5.0;
+```
+
+### P95 latency SLA breach (> 5000ms in last hour)
+
+```sql
+SELECT
+    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_duration_ms) AS p95_ms
+FROM <catalog>.<schema>.traces
+WHERE request_time >= CURRENT_TIMESTAMP - INTERVAL 1 HOUR
+    AND state = 'OK'
+HAVING p95_ms > 5000;
+```
+
+### Safety score drop (average < 0.8 in last hour)
+
+```sql
+SELECT
+    AVG(CAST(a.feedback.value AS DOUBLE)) AS avg_safety
+FROM <catalog>.<schema>.traces t
+LATERAL VIEW EXPLODE(t.assessments) AS a
+WHERE a.name = 'safety_check'
+    AND t.request_time >= CURRENT_TIMESTAMP - INTERVAL 1 HOUR
+HAVING avg_safety < 0.8;
+```
+
+### Configuring alert notifications
+
+After deploying alerts, configure destinations in the Databricks SQL Alerts UI:
+
+1. Navigate to **SQL > Alerts** in the workspace sidebar
+2. Open each alert
+3. **Add Destination** -- supported: Slack webhook, email distribution list, PagerDuty, generic webhook
+
+Thresholds are tunable by editing the alert SQL and redeploying.
+
+---
+
+## 11. System Tables Referenced
+
+| Table | What It Provides |
+|---|---|
+| `system.serving.endpoint_usage` | Per-request serving metrics: tokens, status codes, latency |
+| `system.serving.served_entities` | Endpoint configuration: entity names, entity IDs |
+| `system.ai_gateway.usage` | Token usage, latency, routing through AI Gateway |
+| `system.billing.usage` | DBU cost tracking by SKU and endpoint |
+
+### System table eventual consistency
+
+System tables have eventual consistency:
+- New endpoints can take **hours to days** to appear
+- Recent data may lag by 15-60 minutes
+- Queries for newly deployed endpoints may return empty results initially
+
+---
+
+## 12. Additional Known Limitations
+
+### mlflow-tracing vs mlflow (lightweight vs full)
+
+Production apps use `mlflow-tracing` (~5 MB) instead of full `mlflow` (~150 MB):
+
+| Available in `mlflow-tracing` | NOT available in `mlflow-tracing` |
+|---|---|
+| `mlflow.start_span()` | `mlflow.set_experiment()` |
+| `mlflow.update_current_trace()` | `mlflow.get_experiment_by_name()` |
+| `mlflow.tracing.set_destination()` | `mlflow.get_tracing_context_headers_for_http_request()` |
+| `@mlflow.trace` decorator | Full MLflow tracking client, scorer registration APIs |
+
+Scorer registration and trace archival setup require `mlflow[databricks]>=3.1` (full package), run from a notebook.
+
+### W3C trace context propagation not available
+
+`mlflow.get_tracing_context_headers_for_http_request()` does not exist in `mlflow-tracing`. Multi-service apps emit independent traces correlated via shared experiment and tags, not parent-child span relationships.
+
+### Token redaction (manual span management)
+
+For operations that handle user OAuth tokens, use `mlflow.start_span()` (not `@mlflow.trace`) for explicit control over what gets logged:
+
+```python
+span_ctx = mlflow.start_span(name="supervisor_ask")
+with span_ctx as span:
+    span.set_inputs({
+        "question": question,
+        "user_token": "[REDACTED]",       # Never log the actual JWT
+        "history": f"{len(history)} messages"
+    })
+```
+
+### Assessments struct field name
+
+The assessments array uses `a.name` to access the scorer name:
+
+```sql
+-- Correct
+SELECT a.name, a.feedback.value
+FROM <catalog>.<schema>.traces t LATERAL VIEW EXPLODE(t.assessments) AS a
+
+-- WRONG -- this field does not exist
+SELECT a.assessment_name ...
+```
+
+### enable_databricks_trace_archival() is required
+
+The Databricks UI experiment page has an "Enable Monitoring" toggle. Clicking it in the UI alone does NOT create a queryable Delta table. You must call `enable_databricks_trace_archival()` programmatically.
+
+### Scorers are experiment-scoped
+
+Scorers are registered against an MLflow experiment, not a serving endpoint. If you create a new experiment, you must re-register scorers. Scorers from one experiment do not automatically apply to another.
+
+### startup.sh and mlflow namespace conflicts
+
+The Databricks Apps runtime pre-installs `mlflow-skinny`, which conflicts with `mlflow-tracing`. Apps should use a startup script that uninstalls `mlflow-skinny` and force-reinstalls `mlflow-tracing` to restore shared namespace files.
+
+---
+
 ## Related Documents
 
 - [Identity and Auth Reference](identity-and-auth-reference.md) -- Auth patterns, token flows, identity models

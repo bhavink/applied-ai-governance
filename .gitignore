@@ -1,1 +1,158 @@
-# Demo-specific files with real infrastructure IDs — keep locally, not in repo
+# =============================================================================
+# Applied AI Governance - .gitignore
+# =============================================================================
+# This file prevents credentials, infrastructure secrets, demo data with real
+# IDs, and development artifacts from being committed to the repository.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# 1. CREDENTIALS AND SECRETS (top priority)
+# -----------------------------------------------------------------------------
+# Environment files
+.env
+.env.*
+.env.local
+
+# Terraform state and variable files (contain real infrastructure values)
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.auto.tfvars
+
+# Cloud provider credentials and service account keys
+*-key.json
+*-credentials.json
+*-policy.json
+*.pem
+*.key
+
+# Credential directories
+secrets/
+creds/
+
+# Auth0 and identity provider configs (contain client IDs and secrets)
+auth0-config.json
+role_sp_map.json
+
+# Cloudflare Workers config (contains Auth0 client IDs and account bindings)
+wrangler.toml
+
+# Catch-all for files with sensitive naming patterns
+*secret*
+*credential*
+*token*
+
+# OAuth and API tokens
+*.token
+*.oauth
+.tokens/
+
+
+# -----------------------------------------------------------------------------
+# 2. INFRASTRUCTURE IDS AND CONFIGS WITH REAL VALUES
+# -----------------------------------------------------------------------------
+# Seed directories contain real service principal UUIDs and demo data
+**/seed/
+**/migration/
+
+# SP mapping files and workspace configs with real IDs
+sp_mapping*.json
+workspace_config*.json
+*-config.local.json
+
+
+# -----------------------------------------------------------------------------
+# 3. DEMO-SPECIFIC FILES
+# -----------------------------------------------------------------------------
+# Demo login credentials and user data
+demo_logins.md
+demo_credentials.*
+demo_users.*
+
+
+# -----------------------------------------------------------------------------
+# 4. PYTHON
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+.eggs/
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+
+# -----------------------------------------------------------------------------
+# 5. NODE.JS
+# -----------------------------------------------------------------------------
+node_modules/
+.npm/
+package-lock.json
+yarn.lock
+.yarn/
+.pnp.*
+
+
+# -----------------------------------------------------------------------------
+# 6. TERRAFORM
+# -----------------------------------------------------------------------------
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+
+# -----------------------------------------------------------------------------
+# 7. IDE AND EDITOR FILES
+# -----------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+.project
+.classpath
+.settings/
+
+
+# -----------------------------------------------------------------------------
+# 8. JUPYTER NOTEBOOKS
+# -----------------------------------------------------------------------------
+.ipynb_checkpoints/
+
+
+# -----------------------------------------------------------------------------
+# 9. OS FILES
+# -----------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.tmp
+*.bak
+*.orig
+
+
+# -----------------------------------------------------------------------------
+# 10. CLAUDE CODE / AI TOOLS
+# -----------------------------------------------------------------------------
+# Local Claude Code settings (not project-level config)
+.claude/
+CLAUDE.local.md

@@ -1370,4 +1370,398 @@ ALTER TABLE catalog.schema.table ALTER COLUMN column SET MASK catalog.schema.mas
 
 ---
 
+---
+
+## Industry Vertical ABAC Patterns
+
+The following patterns show how to implement fine-grained access control for common industry scenarios using UC row filters and column masks. Each vertical demonstrates governance column design, group-to-filter mapping, and column masking strategies.
+
+### Data Model Patterns for Access Control
+
+Access control effectiveness depends on how the underlying data is modeled. Choose the right pattern based on the granularity of control required.
+
+| Pattern | Description | Best For | Data Model Requirement |
+|---|---|---|---|
+| **Team/Region-level** | Rows contain a territory or team column; access granted via group membership | Channel partners, regional sales, geographic compliance | Explicit `region` or `team` column on every governed table |
+| **Individual-level** | Rows tied to a specific user (email, user ID); only the owner sees their records | CRM "my accounts" views, patient-provider assignments | `owner_email` or `assigned_to` column mapping to authenticated identity |
+| **Hierarchical** | Managers see direct reports' data; directors see managers' data | Management dashboards, approval workflows | Separate hierarchy/org-chart lookup table |
+| **Attribute-based (ABAC)** | Decisions combine multiple attributes: role + department + clearance + data sensitivity | Regulated industries, multi-dimensional security | Governance columns on data + subject attribute lookups |
+
+### The Governance Column Pattern
+
+Add explicit columns whose sole purpose is supporting access control policies:
+
+```sql
+CREATE TABLE catalog.schema.sales_pipeline (
+  -- Business columns
+  deal_id           STRING,
+  account_name      STRING,
+  amount            DOUBLE,
+  stage             STRING,
+
+  -- Governance columns
+  region            STRING,       -- maps to group-based row filter
+  sensitivity_level STRING,       -- maps to ABAC tag policy
+  data_owner_email  STRING,       -- maps to individual-level filter
+  department        STRING        -- maps to department-level filter
+);
+```
+
+**Principles:**
+- Governance columns should be NOT NULL with constrained values
+- Populate governance columns at ingestion time, not retroactively
+- For tables that will have row filters, prefer denormalizing governance columns onto the table rather than requiring JOINs in filter functions
+
+### Healthcare (HIPAA)
+
+**Access tiers:**
+
+| Role | Row Access | Column Access |
+|---|---|---|
+| Treating provider | Their assigned patients only | Full clinical data |
+| Department nurse | Same department patients | Clinical, no billing |
+| Billing specialist | All patients in their facility | Billing only, no clinical notes |
+| Hospital admin | All patients, all facilities | Aggregates only, no PHI |
+| External auditor | Sampled records | De-identified |
+
+**Implementation:**
+
+```sql
+-- Governance columns on patient_encounters table:
+--   facility_id, department_id, treating_provider_id, sensitivity_level
+
+CREATE OR REPLACE FUNCTION catalog.schema.hipaa_row_filter(
+  dept_id STRING, facility_id STRING
+)
+  RETURNS BOOLEAN
+  RETURN (
+    CASE
+      WHEN is_account_group_member('hospital-admin') THEN TRUE
+      WHEN is_account_group_member('billing') THEN TRUE
+      WHEN is_account_group_member('dept-nursing')
+        THEN dept_id = 'NURSING'
+      ELSE FALSE
+    END
+  );
+
+-- Column mask: redact patient name for billing
+CREATE OR REPLACE FUNCTION catalog.schema.mask_patient_name(name_val STRING)
+  RETURNS STRING
+  RETURN (
+    CASE
+      WHEN is_account_group_member('clinical') THEN name_val
+      WHEN is_account_group_member('billing') THEN 'REDACTED'
+      ELSE 'REDACTED'
+    END
+  );
+```
+
+### Financial Services
+
+**Access tiers:**
+
+| Role | Row Access | Column Access |
+|---|---|---|
+| Branch advisor | Their clients only | Full account details |
+| Branch manager | All clients in their branch | Full account details |
+| Regional director | All branches in region | Aggregated, no PII |
+| Compliance officer | All accounts, all branches | Full (audit purpose) |
+| External auditor (federated) | Sampled accounts | De-identified |
+
+**Implementation:**
+
+```sql
+-- Governance columns: branch_id, region, advisor_email, risk_rating
+
+CREATE OR REPLACE FUNCTION catalog.schema.finserv_row_filter(
+  region_col STRING, branch_col STRING
+)
+  RETURNS BOOLEAN
+  RETURN (
+    CASE
+      WHEN is_account_group_member('compliance') THEN TRUE
+      WHEN is_account_group_member('region-northeast')
+        THEN region_col = 'NORTHEAST'
+      WHEN is_account_group_member('region-southeast')
+        THEN region_col = 'SOUTHEAST'
+      ELSE FALSE
+    END
+  );
+
+-- Column mask: hide account numbers except last 4
+CREATE OR REPLACE FUNCTION catalog.schema.mask_account_number(acct STRING)
+  RETURNS STRING
+  RETURN (
+    CASE
+      WHEN is_account_group_member('compliance') THEN acct
+      WHEN is_account_group_member('branch-advisors') THEN acct
+      ELSE CONCAT('****-****-', RIGHT(acct, 4))
+    END
+  );
+```
+
+### Retail / CPG
+
+**Access tiers:**
+
+| Role | Row Access | Column Access |
+|---|---|---|
+| Store manager | Their store only | Full store metrics |
+| District manager | All stores in district | Full metrics |
+| Regional VP | All stores in region | Full metrics |
+| Franchise partner (federated) | Their franchise stores | Revenue, no cost data |
+| Vendor/supplier (federated) | Their product categories | Sell-through, no margin |
+
+**Implementation:**
+
+```sql
+-- Governance columns: store_id, district, region, franchise_id, category
+
+CREATE OR REPLACE FUNCTION catalog.schema.retail_row_filter(
+  region_col STRING, franchise_col STRING
+)
+  RETURNS BOOLEAN
+  RETURN (
+    CASE
+      WHEN is_account_group_member('corporate') THEN TRUE
+      WHEN is_account_group_member('region-west') THEN region_col = 'WEST'
+      WHEN is_account_group_member('franchise-acme')
+        THEN franchise_col = 'ACME'
+      ELSE FALSE
+    END
+  );
+
+-- Mask cost/margin from franchise partners
+CREATE OR REPLACE FUNCTION catalog.schema.mask_cost(cost_val DOUBLE)
+  RETURNS DOUBLE
+  RETURN (
+    CASE
+      WHEN is_account_group_member('corporate') THEN cost_val
+      ELSE -1.0
+    END
+  );
+```
+
+### SaaS Multi-Tenant
+
+**Access tiers:**
+
+| Role | Row Access | Column Access |
+|---|---|---|
+| Tenant user | Their tenant only | Based on subscription tier |
+| Tenant admin | Their tenant only | Full |
+| Platform ops | All tenants | Full |
+| Partner reseller (federated) | Their managed tenants | Usage metrics only |
+
+**Implementation:**
+
+```sql
+-- Every table has tenant_id as governance column (non-nullable)
+
+CREATE OR REPLACE FUNCTION catalog.schema.tenant_isolation_filter(tenant_id_col STRING)
+  RETURNS BOOLEAN
+  RETURN (
+    CASE
+      WHEN is_account_group_member('platform-ops') THEN TRUE
+      WHEN is_account_group_member('tenant-acme') THEN tenant_id_col = 'acme'
+      WHEN is_account_group_member('tenant-globex') THEN tenant_id_col = 'globex'
+      ELSE FALSE
+    END
+  );
+
+-- Feature-gate: premium columns masked for free tier
+CREATE OR REPLACE FUNCTION catalog.schema.mask_premium_metric(val DOUBLE)
+  RETURNS DOUBLE
+  RETURN (
+    CASE
+      WHEN is_account_group_member('tier-premium') THEN val
+      WHEN is_account_group_member('tier-enterprise') THEN val
+      ELSE NULL  -- free tier sees NULL for premium metrics
+    END
+  );
+```
+
+### Channel Partner / Reseller (Federation Scenario)
+
+This pattern is most relevant when external users authenticate via token exchange through an external IDP and map to Databricks service principals.
+
+**Access tiers:**
+
+| Role | IDP Group | Databricks SP | Row Access | Column Access |
+|---|---|---|---|---|
+| Territory rep | sales-west | `<sp-application-id>` | WEST region | No margin |
+| Territory rep | sales-east | `<sp-application-id>` | EAST region | No margin |
+| Partner manager | managers | `<sp-application-id>` | All regions | No margin |
+| Partner exec | executives | `<sp-application-id>` | All regions | Full |
+| External auditor | finance | `<sp-application-id>` | All regions | Full (incl. margin) |
+
+**Implementation:**
+
+```sql
+-- Row filter
+CREATE OR REPLACE FUNCTION catalog.schema.region_filter(region_col STRING)
+  RETURNS BOOLEAN
+  RETURN (
+    CASE
+      WHEN is_account_group_member('executives') THEN TRUE
+      WHEN is_account_group_member('finance') THEN TRUE
+      WHEN is_account_group_member('managers') THEN TRUE
+      WHEN is_account_group_member('sales-west') THEN region_col = 'WEST'
+      WHEN is_account_group_member('sales-east') THEN region_col = 'EAST'
+      ELSE FALSE
+    END
+  );
+
+-- Column mask for margin (only finance and executives see real values)
+CREATE OR REPLACE FUNCTION catalog.schema.mask_margin(margin_val DOUBLE)
+  RETURNS DOUBLE
+  RETURN (
+    CASE
+      WHEN is_account_group_member('finance') THEN margin_val
+      WHEN is_account_group_member('executives') THEN margin_val
+      ELSE -1.0
+    END
+  );
+
+-- Apply both
+ALTER TABLE catalog.schema.sales_pipeline
+  SET ROW FILTER catalog.schema.region_filter ON (region);
+
+ALTER TABLE catalog.schema.sales_pipeline
+  ALTER COLUMN margin SET MASK catalog.schema.mask_margin;
+```
+
+---
+
+## The Service Principal Identity Gap
+
+When external users authenticate via token exchange (e.g., through Auth0 or Entra ID), they map to a Databricks service principal. This creates a fundamental tension for access control.
+
+### The Problem
+
+```
+External User (sarah@partner.com)
+    --> IDP login --> IDP JWT
+    --> Token exchange --> Databricks token (SP: <sp-application-id>)
+    --> Query: SELECT * FROM sales_pipeline
+
+Inside Databricks:
+    session_user()  -->  "<sp-application-id>" (SP UUID)
+    current_user()  -->  "<sp-application-id>" (SP UUID)
+
+    Row filter checks: WHERE owner_email = current_user()
+    Result: 0 rows (no rows match SP UUID)
+```
+
+The original user's email is **not available** inside Unity Catalog filter functions when access is via a service principal.
+
+### What Works and What Does Not
+
+| Access Pattern | Works with SP Token Exchange? | Why |
+|---|---|---|
+| `is_account_group_member('sales-west')` | YES | SP can be a member of Databricks groups |
+| `session_user() = 'sarah@partner.com'` | NO | Returns SP UUID, not federated email |
+| `owner_email = current_user()` | NO | Same -- returns SP UUID |
+| Parameter passing via app layer | YES | App sends user context as query parameters |
+
+### Strategy Decision Framework
+
+```
+Do all users in the same role see the same rows?
+  |
+  +-- YES --> Strategy A (Group-Based)
+  |           Use is_account_group_member() in row filters.
+  |           Simplest, most secure, best-performing.
+  |
+  +-- NO --> Does the user need to see only "their" records?
+              |
+              +-- YES, and platform enforcement required
+              |   --> Strategy C (Mapping Table + EXISTS)
+              |     Accept the JOIN cost. Maintain the mapping table.
+              |
+              +-- YES, and app-layer enforcement acceptable
+              |   --> Strategy B (App Parameter Passing)
+              |     App adds WHERE clauses. Document the trust boundary.
+              |
+              +-- MIXED (some rows by role, some by individual)
+                  --> Strategy D (Hybrid)
+                    Row filter for role-based. App for individual-level.
+```
+
+### Mapping Table Pattern (Strategy C)
+
+When individual-level platform-enforced filtering is required with service principals:
+
+```sql
+-- Mapping table (maintained by governance team)
+CREATE TABLE catalog.schema.user_access_map (
+  external_email    STRING,
+  sp_application_id STRING,
+  authorized_region STRING,
+  authorized_accounts ARRAY<STRING>
+);
+
+-- Row filter using the mapping table
+CREATE OR REPLACE FUNCTION catalog.schema.mapped_filter(
+  region_col STRING,
+  account_id_col STRING
+)
+  RETURNS BOOLEAN
+  RETURN EXISTS (
+    SELECT 1 FROM catalog.schema.user_access_map m
+    WHERE m.sp_application_id = session_user()
+      AND (m.authorized_region = region_col
+           OR array_contains(m.authorized_accounts, account_id_col))
+  );
+```
+
+---
+
+## UDF Best Practices for Filter/Mask Functions
+
+### Do
+
+- Use simple `CASE` statements and boolean expressions
+- Keep functions deterministic (same input, same output)
+- Prefer SQL UDFs over Python UDFs
+- Reference only columns from the target table
+- Test performance on 1M+ rows before deploying
+
+### Do Not
+
+- Call external APIs from filter functions
+- Use complex subqueries or JOINs (mapping table pattern is the exception, with accepted cost)
+- Use heavy regex on large text fields
+- Nest UDFs within UDFs
+- Use non-deterministic logic that breaks query caching
+
+### Performance Hierarchy
+
+```
+Fastest --> Slowest:
+
+1. is_account_group_member('group')     ~0ms (cached per session)
+2. Simple column comparison              ~0ms per row
+3. CASE with 5-10 branches              ~0ms per row
+4. EXISTS with small lookup table        ~1-10ms per query
+5. EXISTS with large mapping table       ~10-100ms per query
+6. Python UDF                            10-100x slower than SQL
+7. External API call                     DO NOT DO THIS
+```
+
+---
+
+## Access Control Pattern Comparison
+
+| Pattern | Granularity | Complexity | Query Performance | Works with SPs? | Platform Enforced? |
+|---|---|---|---|---|---|
+| **Group + is_account_group_member()** | Team / Region | Low | Good (simple boolean) | Yes | Yes |
+| **current_user() / session_user()** | Individual | Low | Good | No (returns SP UUID) | Yes |
+| **App-layer parameter passing** | Individual | Medium | Good (simple WHERE) | Yes (app-enforced) | No |
+| **Mapping table + EXISTS** | Individual | High | Moderate (JOIN per query) | Partial (per-SP) | Yes |
+| **ABAC via governed tags** | Flexible | High (initial setup) | Moderate | Yes | Yes |
+| **Dynamic views** | Flexible | Medium | Good | Yes | Yes |
+
+---
+
 **Questions?** See troubleshooting above or continue to [03-PRODUCT-INTEGRATION.md](03-PRODUCT-INTEGRATION.md) to learn how AI products use Unity Catalog.

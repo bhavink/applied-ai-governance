@@ -134,4 +134,142 @@ External API keys or SP OAuth credentials stored in Databricks Secrets for servi
 
 ---
 
-*Last updated: 2026-03-17 -- Slimmed to overview; detailed content consolidated into [reference/identity-and-auth-reference.md](reference/identity-and-auth-reference.md)*
+---
+
+## Extended Decision Matrix -- OBO vs M2M vs Proxy Identity
+
+Every API call in a Databricks AI application uses one of three identity models. Choosing the right one per operation is critical for audit fidelity, access control correctness, and confused deputy prevention.
+
+| Model | When to Use | Identity in Audit | Example Operations |
+|---|---|---|---|
+| **On-Behalf-Of (OBO)** | User-specific data, row-filtered queries, consent-gated operations | Human email | Genie queries, OBO SQL, agent endpoints |
+| **Machine-to-Machine (M2M)** | Shared resources, system-level queries, background tasks | Service Principal UUID | Vector Search, CRM sync status, knowledge base queries |
+| **Proxy Identity + M2M** | User-specific operations where OBO token lacks required scope | SP UUID (with human email in app-level audit) | Custom MCP tools with M2M SQL + `X-Forwarded-Email` identity |
+
+### Quick Decision Reference
+
+| Question | Answer |
+|---|---|
+| User should only see their data? | Use OBO (user token + UC row filters) |
+| Everyone sees the same data? | Use M2M (app SP credentials) |
+| Need SQL as the user? | Add `sql` scope via UI User Authorization, use OBO token with httpx |
+| External API via UC connection? | Use UC External MCP Proxy + USE CONNECTION governance |
+| MCP server called by another app? | Set `authorization: disabled` on the MCP server app |
+| MCP server called by external clients too? | Deploy two instances, or add token-parsing fallback |
+| Need human identity in audit? | Use OBO where possible; add app-level audit for M2M paths |
+| Preventing confused deputy? | Minimal SP grants + USE CONNECTION as the governance layer |
+
+### OBO SQL Implementation Note
+
+Use `httpx` or `requests` directly for OBO SQL -- not the Databricks SDK. The SDK auto-discovers `DATABRICKS_CLIENT_ID`/`SECRET` from environment variables, causing an auth method conflict:
+
+```python
+# Correct -- direct HTTP with user token
+import httpx
+host = os.environ["DATABRICKS_HOST"]
+if not host.startswith("http"):
+    host = f"https://{host}"
+
+resp = httpx.post(
+    f"{host}/api/2.0/sql/statements",
+    headers={"Authorization": f"Bearer {user_token}"},
+    json={"warehouse_id": wh_id, "statement": sql, "wait_timeout": "30s"},
+)
+
+# Wrong -- SDK conflicts with env vars
+# w = WorkspaceClient(token=user_token)  # raises: more than one auth method
+```
+
+---
+
+## Confused Deputy Prevention
+
+A **confused deputy** occurs when a service with elevated permissions performs actions on behalf of a user without proper authorization checks. This is a critical risk when building MCP servers and multi-app architectures.
+
+### The Risk
+
+An MCP server SP has `SELECT` on sensitive tables for its M2M tools. An external caller through a UC connection could potentially trigger those tools -- using the MCP server's elevated permissions to access data they should not see.
+
+### Defense: UC Connection Governance
+
+For external-facing MCP servers, **USE CONNECTION is the primary defense**:
+
+```
+Caller --> UC External MCP Proxy --> USE CONNECTION check --> MCP server
+```
+
+- If the caller lacks `USE CONNECTION` on the UC HTTP Connection, the request **never reaches** the MCP server
+- The MCP server's own SP grants are irrelevant for proxied calls -- they only matter for the server's own M2M tools
+- `REVOKE USE CONNECTION` instantly cuts off all access through that connection
+
+### Defense Principles
+
+1. **Minimum grants for M2M tools only.** The MCP server SP should hold SELECT/MODIFY only on tables it directly queries. Do not grant SELECT on tables the server does not need.
+2. **For UC-proxied external calls, the server is a stateless proxy.** It receives identity via `X-Forwarded-Email` and USE CONNECTION is the governance layer.
+3. **USE CONNECTION is the access boundary for external MCP.** Grant or revoke it per user/group. The MCP server itself does not decide who gets access.
+4. **Validate caller identity** -- read `X-Forwarded-Email` and enforce per-user access in the tool's WHERE clause.
+5. **Prefer row filters + M2M over broad SELECT.** If the server queries tables with mixed-sensitivity data, use UC row filters keyed on the caller's email rather than granting unrestricted SELECT.
+
+### Anti-Patterns
+
+| Anti-pattern | Why It Is Dangerous | Better Approach |
+|---|---|---|
+| Granting SP `SELECT` on all catalog tables | Any MCP tool bug exposes all data | Grant only on tables the SP's tools actually query |
+| Using SP identity for user-facing queries | All queries run as SP, bypassing row filters | Use OBO SQL or filter in WHERE clause using `X-Forwarded-Email` |
+| Hardcoding elevation checks in app code only | Code changes bypass governance | Combine with UC row filters or group-based USE CONNECTION grants |
+
+---
+
+## UC Connection Governance for External MCP
+
+### USE CONNECTION as the On/Off Switch
+
+Every call through a UC HTTP Connection (including UC External MCP Proxy calls) requires `USE CONNECTION` on the calling identity:
+
+```sql
+-- Grant access
+GRANT USE CONNECTION ON CONNECTION my_connection TO `<sp-role-name>`;
+
+-- Revoke access (instant effect)
+REVOKE USE CONNECTION ON CONNECTION my_connection FROM `<sp-role-name>`;
+```
+
+### Four Connection Auth Methods, Same Governance
+
+| Auth Method | Who Authenticates to External Service | Best For |
+|---|---|---|
+| **Bearer Token** | Stored token (shared identity) | APIs with static API keys |
+| **OAuth M2M** | Client credentials (shared SP) | Service-to-service APIs |
+| **OAuth U2M Shared** | Shared user identity | APIs requiring user context |
+| **OAuth U2M Per User** | Each user's own identity | GitHub, Salesforce (per-user audit) |
+
+All four are governed by the same `USE CONNECTION` privilege. The auth method determines *how* the connection authenticates; `USE CONNECTION` determines *whether* the call is allowed.
+
+### Important Behaviors
+
+- **Connection owner has implicit USE CONNECTION** that cannot be revoked. `GRANT`/`REVOKE` only affects non-owners. When demoing governance, use a non-owner identity (e.g., the app SP).
+- **Revoking USE CONNECTION is immediate** -- no token refresh needed, the proxy rejects the next call.
+- **Bearer token connections expire** (~1hr for Databricks tokens). Refresh before demos.
+
+### Service Principal Grants Checklist for Custom MCP
+
+The MCP app's SP needs explicit grants -- a different SP from the main app:
+
+```bash
+# Get SP UUID from app
+SP=$(databricks apps get my-mcp-server --profile <workspace-profile> | python3 -c \
+  "import sys,json; print(json.load(sys.stdin)['service_principal_client_id'])")
+
+# UC grants
+databricks sql execute "
+  GRANT USE CATALOG ON CATALOG my_catalog     TO \`$SP\`;
+  GRANT USE SCHEMA  ON SCHEMA  my_catalog.my_schema TO \`$SP\`;
+  GRANT SELECT      ON TABLE   my_catalog.my_schema.my_table  TO \`$SP\`;
+" --warehouse <warehouse-id> --profile <workspace-profile>
+```
+
+**Common miss**: The main app SP and the MCP app SP are different identities. Grants on one do not carry over to the other.
+
+---
+
+*Last updated: 2026-03-20 -- Added extended decision matrix, confused deputy defense, UC connection governance*
