@@ -15,7 +15,7 @@ Production-ready governance patterns for AI applications on Databricks. Identity
 | Identity & Access Control | [identity/](identity/) | AuthN (IdP delegation), AuthZ (OBO, M2M, Federation), UC governance, scopes, SPs |
 | Data Governance | [data-governance/](data-governance/) | Row filters, column masks, ABAC, governed tags, Genie multi-team patterns |
 | Tool & API Governance | [tool-governance/](tool-governance/) | AI Gateway, MCP, UC Connections, orchestration |
-| Observability & Audit | [observability/](observability/) | System tables, MLflow traces, Genie monitoring |
+| Observability & Audit | [observability/](observability/) | System tables, MLflow traces, audit patterns |
 
 Network, developer guardrails, and policy/compliance pillars are defined in the [Governance Framework](GOVERNANCE-FRAMEWORK.md) and will be added as content is built and validated.
 
@@ -25,7 +25,7 @@ Network, developer guardrails, and policy/compliance pillars are defined in the 
 
 1. [Authentication](identity/authentication.md): AuthN is delegated to IdPs (brief overview + official doc links)
 2. [Authorization](identity/authorization.md): The three token patterns, UC governance, OAuth scopes, service principals
-3. [UC Authorization](data-governance/uc-governance.md): Row filters, column masks, ABAC, governed tags
+3. [UC Governance](data-governance/uc-governance.md): Row filters, column masks, ABAC, Genie patterns
 
 ---
 
