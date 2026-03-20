@@ -33,12 +33,12 @@ Network, developer guardrails, and policy/compliance pillars are defined in the 
 
 | # | Deck | Audience | Topic |
 |---|------|----------|-------|
-| 1 | [Identity & Governance Overview](presentations/identity-governance-overview.html) | Exec | OBO vs M2M vs Federation, shared UC governance, scope model |
-| 2 | [Federation Deep Dive](presentations/federation-deep-dive.html) | Technical | Token anatomy, enforcement points, grants checklist |
-| 3 | [Identity Patterns](presentations/identity-patterns.html) | Technical | OBO, M2M, Federation flows, decision guide, scopes, SPs |
-| 4 | [UC Governance](presentations/uc-governance.html) | Technical | Four-layer access control, row filters, column masks, ABAC |
-| 5 | [Orchestration](presentations/orchestration.html) | Technical | Agents, Apps, MCP, AI Gateway, external auth |
-| 6 | [AI Gateway Patterns](presentations/ai-gateway-patterns-v2.html) | Technical | Gateway traffic patterns and decision framework |
+| 1 | [Identity & Governance Overview](https://bhavink.github.io/applied-ai-governance/presentations/identity-governance-overview.html) | Exec | OBO vs M2M vs Federation, shared UC governance, scope model |
+| 2 | [Federation Deep Dive](https://bhavink.github.io/applied-ai-governance/presentations/federation-deep-dive.html) | Technical | Token anatomy, enforcement points, grants checklist |
+| 3 | [Identity Patterns](https://bhavink.github.io/applied-ai-governance/presentations/identity-patterns.html) | Technical | OBO, M2M, Federation flows, decision guide, scopes, SPs |
+| 4 | [UC Governance](https://bhavink.github.io/applied-ai-governance/presentations/uc-governance.html) | Technical | Four-layer access control, row filters, column masks, ABAC |
+| 5 | [Orchestration](https://bhavink.github.io/applied-ai-governance/presentations/orchestration.html) | Technical | Agents, Apps, MCP, AI Gateway, external auth |
+| 6 | [AI Gateway Patterns](https://bhavink.github.io/applied-ai-governance/presentations/ai-gateway-patterns-v2.html) | Technical | Gateway traffic patterns and decision framework |
 
 Browse all decks: [Presentations](https://bhavink.github.io/applied-ai-governance/presentations/)
 
