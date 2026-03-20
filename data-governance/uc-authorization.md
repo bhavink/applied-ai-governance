@@ -1,62 +1,19 @@
 # Authorization with Unity Catalog
 
-> **Technical reference for Unity Catalog governance across Databricks AI products**
+> **Reference architecture for Unity Catalog governance across Databricks AI products.**
 >
-> **Before writing row filters or column masks**, read [UC Policy Design Principles](UC-POLICY-DESIGN-PRINCIPLES.md) — a single cross-cutting reference for how `current_user()` and `is_member()` behave across all execution contexts (Genie OBO, Agent Bricks, M2M, direct SQL).
+> **Prerequisite**: Read [UC Policy Design Principles](UC-POLICY-DESIGN-PRINCIPLES.md) for how `current_user()` and `is_member()` behave across all execution contexts (Genie OBO, Agent Bricks, M2M, direct SQL).
 
 ---
 
-## ⚠️ Important Disclaimers
+## Disclaimers
 
-### Multi-Cloud Documentation
-
-This guide primarily links to **AWS Databricks documentation** for consistency. However, all Unity Catalog concepts apply universally across **AWS, Azure, and GCP**.
-
-**To access cloud-specific documentation:**
-- Use the **cloud selector dropdown** at the top of any Databricks doc page
-- Navigate: AWS docs → Switch to Azure or GCP
-- Cloud-specific differences are noted where applicable
-
-**Quick Links:**
-- [AWS Documentation](https://docs.databricks.com/aws/en/)
-- [Azure Documentation](https://learn.microsoft.com/en-us/azure/databricks/)
-- [GCP Documentation](https://docs.databricks.com/gcp/en/)
-
-### Guidance vs Official Documentation
-
-- This guide represents **practical guidance and best practices**, not official Databricks positions
-- Always consult [official Databricks documentation](https://docs.databricks.com) for authoritative information
-- Databricks features evolve rapidly - **verify current capabilities** and syntax in official docs
-- **Use your best judgment** when applying these patterns to your specific requirements
-- Features, APIs, and best practices may have changed since publication
-- **Check official documentation** for the latest updates
+- Links default to **AWS Databricks docs**. Use the cloud selector dropdown for Azure or GCP variants.
+- This guide is **practical guidance**, not official Databricks positions. Verify current syntax in [official docs](https://docs.databricks.com).
 
 ---
 
-## 🎯 Overview: Unity Catalog's Role in Authorization
-
-**Unity Catalog (UC)** is Databricks' unified governance layer that enforces authorization policies for all data access, regardless of which AI product or compute resource accesses the data.
-
-> 📺 **[View interactive access control flow →](https://bhavink.github.io/applied-ai-governance/interactive/uc-access-control-layers.html)**
-
-### Key Principles
-
-1. **Separation of Concerns:**
-   - **Authentication** (covered in [01-AUTHENTICATION-PATTERNS.md](01-AUTHENTICATION-PATTERNS.md)) → "Who are you?"
-   - **Authorization** (this document) → "What can you access?"
-
-2. **Single Source of Truth:**
-   - UC policies are defined **once** and enforced **everywhere**
-   - Works across Genie Space, Agent Bricks, Databricks Apps, SQL Warehouses, Notebooks
-
-3. **Pattern Integration:**
-   - **Pattern 1 (Automatic Auth):** UC evaluates service principal permissions
-   - **Pattern 2 (User Auth):** UC evaluates user permissions + row filters + column masks
-   - **Pattern 3 (Manual Credentials):** UC not involved (external services)
-
-### Four Layers of Access Control
-
-Access control in Unity Catalog is built on **four complementary layers** that work together to enforce secure, fine-grained access:
+## Four Layers of Access Control
 
 | Layer | Question Answered | Mechanisms |
 |-------|-------------------|------------|
@@ -65,1444 +22,296 @@ Access control in Unity Catalog is built on **four complementary layers** that w
 | **3. ABAC Policies** | WHAT data based on tags? | Governed tags + policies with UDFs for dynamic enforcement |
 | **4. Table-Level Filtering** | WHAT rows/columns visible? | Row filters, column masks, dynamic views |
 
-### How the Four Layers Work Together
+Layers evaluate top-down: workspace binding first, then GRANTs, then ABAC tag policies, then row/column filters. All four must pass for data to be returned.
 
-```mermaid
-flowchart TB
-    subgraph Auth["Authentication (Pattern 1 or 2)"]
-        User["User<br/>(Pattern 2)"]
-        SP["Service Principal<br/>(Pattern 1)"]
-    end
+> [View interactive access control flow](https://bhavink.github.io/applied-ai-governance/interactive/uc-access-control-layers.html)
 
-    subgraph Products["Databricks AI Products"]
-        Genie[Genie Space]
-        Agent[Agent Bricks]
-        App[Databricks Apps]
-    end
-
-    subgraph UC["Unity Catalog: Four Authorization Layers"]
-        Layer1["Layer 1: Workspace Restrictions<br/>WHERE can they access?"]
-        Layer2["Layer 2: Privileges & Ownership<br/>WHO can access WHAT?"]
-        Layer3["Layer 3: ABAC Policies<br/>WHAT data based on tags?"]
-        Layer4["Layer 4: Table-Level Filtering<br/>WHAT rows/columns?"]
-    end
-
-    subgraph Data["Data Resources"]
-        Tables[(Tables/Views)]
-    end
-
-    User -->|Authenticated request| Products
-    SP -->|Authenticated request| Products
-
-    Products -->|Query data| Layer1
-
-    Layer1 -->|Workspace OK| Layer2
-    Layer2 -->|Has GRANTs| Layer3
-    Layer3 -->|Tags match policy| Layer4
-    Layer4 -->|Filter & mask| Tables
-
-    Tables -->|Return governed data| Products
-
-    style UC fill:#e8f8f5,stroke:#1abc9c,stroke-width:3px
-    style Layer1 fill:#cffafe,stroke:#06b6d4,stroke-width:2px
-    style Layer2 fill:#d5f5e3,stroke:#27ae60,stroke-width:2px
-    style Layer3 fill:#f3e8ff,stroke:#a855f7,stroke-width:2px
-    style Layer4 fill:#ffedd5,stroke:#f97316,stroke-width:2px
-```
-
-**Official Documentation:**
-- [Access Control in Unity Catalog](https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control)
-- [Unity Catalog Overview](https://docs.databricks.com/aws/en/data-governance/unity-catalog/index.html)
+**Docs**: [Access Control in UC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control), [UC Overview](https://docs.databricks.com/aws/en/data-governance/unity-catalog/index.html)
 
 ---
 
-## 🏛️ Unity Catalog Hierarchy
+## UC Hierarchy
 
-Unity Catalog enforces authorization at multiple levels in a hierarchical structure:
+Metastore > Catalog > Schema > Table > Column/Row. Permissions granted at a higher level cascade downward. More specific permissions override general ones.
 
-```mermaid
-flowchart TD
-    Metastore[Metastore<br/>Account-wide data catalog<br/><br/>Highest level]
+| Level | Permissions Granted | Example |
+|-------|---------------------|---------|
+| **Catalog** | USE CATALOG, CREATE SCHEMA | `finance_prod` |
+| **Schema** | USE SCHEMA, CREATE TABLE | `finance_prod.accounting` |
+| **Table** | SELECT, INSERT, UPDATE, DELETE, MODIFY | `finance_prod.accounting.transactions` |
+| **Column** | Column masks | `transactions.amount` |
+| **Row** | Row filters | Individual records |
 
-    Catalog1[Catalog: finance_prod<br/>Domain or tenant<br/><br/>Contains schemas]
-    Catalog2[Catalog: marketing_prod<br/>Domain or tenant]
-
-    Schema1[Schema: accounting<br/>Functional area<br/><br/>Contains tables]
-    Schema2[Schema: campaigns<br/>Functional area]
-
-    Table1[Table: transactions<br/>Data object<br/><br/>Contains columns/rows]
-    Table2[Table: email_campaigns<br/>Data object]
-
-    Column1[Column: amount<br/>Table attribute]
-    Row1[Row: Individual record<br/>Data row]
-
-    Metastore --> Catalog1
-    Metastore --> Catalog2
-
-    Catalog1 --> Schema1
-    Catalog2 --> Schema2
-
-    Schema1 --> Table1
-    Schema2 --> Table2
-
-    Table1 --> Column1
-    Table1 --> Row1
-
-    style Metastore fill:#e8f8f5,stroke:#1abc9c,stroke-width:2px
-    style Catalog1 fill:#d5f5e3,stroke:#27ae60,stroke-width:2px
-    style Catalog2 fill:#d5f5e3,stroke:#27ae60,stroke-width:2px
-    style Schema1 fill:#fef5e7,stroke:#f39c12,stroke-width:2px
-    style Schema2 fill:#fef5e7,stroke:#f39c12,stroke-width:2px
-    style Table1 fill:#fdebd0,stroke:#e67e22,stroke-width:2px
-    style Table2 fill:#fdebd0,stroke:#e67e22,stroke-width:2px
-    style Column1 fill:#fce4ec,stroke:#c2185b,stroke-width:2px
-    style Row1 fill:#ebf5fb,stroke:#3498db,stroke-width:2px
-```
-
-### Hierarchy Levels
-
-| Level | Description | Permissions Granted | Example |
-|-------|-------------|---------------------|---------|
-| **Metastore** | Account-wide catalog | Metastore admin | One per account |
-| **Catalog** | Top-level container | USE CATALOG, CREATE SCHEMA | `finance_prod`, `marketing_prod` |
-| **Schema** | Logical grouping | USE SCHEMA, CREATE TABLE | `finance_prod.accounting` |
-| **Table** | Data object | SELECT, INSERT, UPDATE, DELETE | `finance_prod.accounting.transactions` |
-| **Column** | Table attribute | Column masks | `transactions.amount` |
-| **Row** | Individual record | Row filters | Individual transaction records |
-
-### Permission Inheritance
-
-```mermaid
-flowchart TD
-    Top[Permission granted at higher level]
-    Cascade[Cascades down to child objects]
-    Override[More specific permissions override general ones]
-
-    Top --> Cascade
-    Cascade --> Override
-
-    Example1["Example:<br/>GRANT USE CATALOG ON finance_prod<br/>↓<br/>Can access all schemas within"]
-
-    Example2["But if:<br/>DENY SELECT ON specific_table<br/>↓<br/>Cannot read that specific table"]
-
-    Override --> Example1
-    Override --> Example2
-
-    style Top fill:#d5f5e3,stroke:#27ae60,stroke-width:2px
-    style Cascade fill:#fef5e7,stroke:#f39c12,stroke-width:2px
-    style Override fill:#fce4ec,stroke:#c2185b,stroke-width:2px
-```
-
-**Documentation:** [Unity Catalog Object Model](https://docs.databricks.com/aws/en/data-governance/unity-catalog/best-practices.html)
+**Docs**: [UC Object Model](https://docs.databricks.com/aws/en/data-governance/unity-catalog/best-practices.html)
 
 ---
 
-## 🔐 Permission Model: GRANTs
-
-Unity Catalog uses SQL GRANT statements to control access to objects.
-
-### Permission Types
-
-| Permission | Level | Description | Required For |
-|------------|-------|-------------|--------------|
-| `USE CATALOG` | Catalog | Access catalog and list schemas | Prerequisite for schema access |
-| `USE SCHEMA` | Schema | Access schema and list tables | Prerequisite for table access |
-| `SELECT` | Table | Read data | Queries, Genie Space, read-only agents |
-| `INSERT` | Table | Write new data | ETL pipelines, data ingestion |
-| `UPDATE` | Table | Modify existing data | Data correction workflows |
-| `DELETE` | Table | Remove data | Data retention policies |
-| `MODIFY` | Table | Alter table structure | Schema evolution |
-| `CREATE TABLE` | Schema | Create new tables | Agent Bricks writing results |
-| `CREATE SCHEMA` | Catalog | Create new schemas | Admin operations |
-| `ALL PRIVILEGES` | Any | All permissions on object | Full control (use sparingly) |
-
-### GRANT Syntax Pattern
+## Permission Model: GRANTs
 
 ```sql
--- Basic pattern
-GRANT <privilege> ON <object_type> <object_name> TO <principal>;
-
--- Examples
+-- Three-step grant pattern (all three required for table access)
 GRANT USE CATALOG ON CATALOG finance_prod TO `analysts`;
 GRANT USE SCHEMA ON SCHEMA finance_prod.accounting TO `analysts`;
 GRANT SELECT ON TABLE finance_prod.accounting.transactions TO `analysts`;
 ```
-
-### Permission Cascade Example
-
-```sql
--- Step 1: Grant catalog access
-GRANT USE CATALOG ON CATALOG finance_prod TO `analysts`;
-
--- Step 2: Grant schema access
-GRANT USE SCHEMA ON SCHEMA finance_prod.accounting TO `analysts`;
-
--- Step 3: Grant table access
-GRANT SELECT ON TABLE finance_prod.accounting.transactions TO `analysts`;
-
--- Now analysts group can query: SELECT * FROM finance_prod.accounting.transactions
-```
-
-### Who Can Grant Permissions
 
 | Role | Can Grant On | Scope |
 |------|--------------|-------|
 | **Metastore Admin** | All objects | Account-wide |
-| **Catalog Owner** | Catalog and all child objects | Specific catalog |
-| **Schema Owner** | Schema and all child objects | Specific schema |
+| **Catalog Owner** | Catalog and children | Specific catalog |
+| **Schema Owner** | Schema and children | Specific schema |
 | **Table Owner** | Specific table | Individual table |
-| **Users with GRANT permission** | Objects they have GRANT on | Delegated scope |
 
-**Documentation:**
-- [GRANT Statement](https://docs.databricks.com/aws/en/sql/language-manual/security-grant.html)
-- [Unity Catalog Privileges](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/index.html)
+**Docs**: [GRANT Statement](https://docs.databricks.com/aws/en/sql/language-manual/security-grant.html), [UC Privileges](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/index.html)
 
 ---
 
-## 🎭 Row-Level Security: Row Filters
+## Row-Level Security: Row Filters
 
-Row filters restrict **which rows** users can see in a table based on their identity or group membership.
+Row filters restrict which rows a user sees. The filter function evaluates per row and returns TRUE/FALSE. Users are unaware of filtered-out rows.
 
-> 📺 **[View interactive row filters flow →](https://bhavink.github.io/applied-ai-governance/interactive/uc-row-filters.html)**
-
-### Concept
-
-When a row filter is applied to a table:
-1. User queries the table normally (`SELECT * FROM table`)
-2. UC automatically evaluates the filter function for each row
-3. UC returns only rows where the filter function returns `TRUE`
-4. User is unaware of filtered-out rows (they simply don't appear in results)
-
-### How Row Filters Work
-
-```mermaid
-sequenceDiagram
-    participant User as User: alice@company.com
-    participant Product as AI Product
-    participant UC as Unity Catalog
-    participant Filter as Row Filter Function
-    participant Table as Table Data
-
-    User->>Product: Query: SELECT * FROM sales_data
-    Product->>UC: Execute query (with user context)
-
-    UC->>UC: Identify current_user()<br/>= alice@company.com
-
-    UC->>Filter: Evaluate filter for each row<br/>filter_by_owner(owner_email)
-    Filter->>Filter: Check: owner_email = current_user()?
-
-    alt Row matches filter
-        Filter->>UC: Return TRUE
-        UC->>Table: Include row in results
-    else Row doesn't match
-        Filter->>UC: Return FALSE
-        UC->>UC: Exclude row from results
-    end
-
-    Table-->>UC: Filtered dataset
-    UC-->>Product: Return only Alice's rows
-    Product-->>User: Display results
-
-    Note over UC,Filter: Different users see<br/>different rows from<br/>same query
-```
-
-### Row Filter Function Pattern
+> [View interactive row filters flow](https://bhavink.github.io/applied-ai-governance/interactive/uc-row-filters.html)
 
 ```sql
--- Create filter function
-CREATE FUNCTION catalog.schema.filter_function_name(column_name DATA_TYPE)
+-- Pattern: create filter function, then apply to table
+CREATE FUNCTION schema.filter_fn(col DATA_TYPE)
 RETURNS BOOLEAN
 RETURN condition_using_current_user_or_is_member;
 
--- Apply filter to table
-ALTER TABLE catalog.schema.table_name
-  SET ROW FILTER catalog.schema.filter_function_name ON (column_name);
-```
-
-### Example: User-Based Filter
-
-```sql
--- Filter: Users see only their own rows
-CREATE FUNCTION sales.filters.user_owns_row(owner STRING)
-RETURNS BOOLEAN
-RETURN owner = current_user();
-
-ALTER TABLE sales.data.opportunities
-  SET ROW FILTER sales.filters.user_owns_row ON (owner_email);
-```
-
-### Example: Group-Based Filter
-
-```sql
--- Filter: Users see rows based on group membership
-CREATE FUNCTION sales.filters.team_access(team STRING)
-RETURNS BOOLEAN
-RETURN is_member(team);
-
-ALTER TABLE sales.data.opportunities
-  SET ROW FILTER sales.filters.team_access ON (team_name);
-```
-
-### Example: Hierarchical Filter
-
-```sql
--- Filter: Managers see team data, employees see own data
-CREATE FUNCTION hr.filters.hierarchical(employee STRING, manager STRING)
-RETURNS BOOLEAN
-RETURN
-    employee = current_user() OR         -- Own records
-    manager = current_user() OR          -- Managed records
-    is_member('hr-admins');              -- HR sees all
-
-ALTER TABLE hr.data.employee_reviews
-  SET ROW FILTER hr.filters.hierarchical ON (employee_email, manager_email);
+ALTER TABLE schema.table
+  SET ROW FILTER schema.filter_fn ON (col);
 ```
 
 ### Common Row Filter Patterns
 
-| Pattern | Use Case | Logic |
-|---------|----------|-------|
-| **User-based** | Personal data (own records only) | `column = current_user()` |
-| **Group-based** | Team data (department access) | `is_member(column)` |
-| **Hierarchical** | Manager/employee relationships | `owner = current_user() OR manager = current_user()` |
-| **Time-based** | Historical data restrictions | `date_column >= current_date() - 365` |
-| **Multi-tenant** | SaaS isolation | `tenant_id = extract_tenant(current_user())` |
-| **Compliance bypass** | Audit/compliance sees all | `is_member('compliance') OR condition` |
+| Pattern | Logic | Use Case |
+|---------|-------|----------|
+| **User-based** | `column = current_user()` | Personal data (own records) |
+| **Group-based** | `is_member(column)` | Department access |
+| **Hierarchical** | `owner = current_user() OR manager = current_user()` | Manager/employee |
+| **Time-based** | `date_column >= current_date() - 365` | Historical restrictions |
+| **Multi-tenant** | `tenant_id = extract_tenant(current_user())` | SaaS isolation |
+| **Compliance bypass** | `is_member('compliance') OR condition` | Audit/compliance sees all |
 
-### Removing Row Filters
-
-```sql
--- Remove row filter from table
-ALTER TABLE catalog.schema.table_name DROP ROW FILTER;
-```
-
-**Documentation:** [Row Filters and Column Masks](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-row-filter-column-mask.html)
+**Docs**: [Row Filters and Column Masks](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-row-filter-column-mask.html)
 
 ---
 
-## 🔒 Column-Level Security: Column Masks
+## Column-Level Security: Column Masks
 
-Column masks control **what values** users see in specific columns based on their identity or group membership.
+Column masks transform column values based on user identity. The `VALUE` keyword represents the original column value.
 
-> 📺 **[View interactive column masks flow →](https://bhavink.github.io/applied-ai-governance/interactive/uc-column-masks.html)**
-
-### Concept
-
-When a column mask is applied:
-1. User queries the table including masked columns
-2. UC evaluates the mask function for the user
-3. UC returns transformed values based on mask logic
-4. User sees masked/redacted values, not original data
-
-### How Column Masks Work
-
-```mermaid
-sequenceDiagram
-    participant User as User: analyst@company.com<br/>Group: analysts
-    participant Product as AI Product
-    participant UC as Unity Catalog
-    participant Mask as Column Mask Function
-    participant Table as Table Data
-
-    User->>Product: Query: SELECT ssn FROM customers
-    Product->>UC: Execute query (with user context)
-
-    UC->>UC: Identify user groups<br/>is_member('analysts') = TRUE
-
-    UC->>Table: Retrieve raw column value<br/>SSN: 123-45-6789
-    Table->>Mask: Pass value to mask function<br/>mask_ssn()
-
-    Mask->>Mask: Evaluate:<br/>CASE WHEN is_member('admins')<br/>THEN VALUE<br/>ELSE '***-**-' || SUBSTR(VALUE, -4)
-
-    alt User is admin
-        Mask->>UC: Return: 123-45-6789
-    else User is not admin
-        Mask->>UC: Return: ***-**-6789
-    end
-
-    UC-->>Product: Return masked value
-    Product-->>User: Display: ***-**-6789
-
-    Note over Mask: Original value never<br/>leaves UC unmasked
-```
-
-### Column Mask Function Pattern
+> [View interactive column masks flow](https://bhavink.github.io/applied-ai-governance/interactive/uc-column-masks.html)
 
 ```sql
--- Create mask function
-CREATE FUNCTION catalog.schema.mask_function_name()
+-- Pattern: CASE expression with group-based disclosure
+CREATE FUNCTION schema.mask_fn()
 RETURNS DATA_TYPE
-RETURN
-    CASE
-        WHEN condition THEN VALUE              -- Original value
-        WHEN other_condition THEN transform    -- Transformed value
-        ELSE default_mask                      -- Default mask
-    END;
+RETURN CASE WHEN is_member('admins') THEN VALUE
+            ELSE '***' END;
 
--- Apply mask to column
-ALTER TABLE catalog.schema.table_name
-  ALTER COLUMN column_name SET MASK catalog.schema.mask_function_name;
-```
-
-**Important:** `VALUE` is a special keyword representing the original column value.
-
-### Example: SSN Masking
-
-```sql
--- Mask: Show last 4 digits only to non-admins
-CREATE FUNCTION customer.masks.mask_ssn()
-RETURNS STRING
-RETURN
-    CASE
-        WHEN is_member('admins') THEN VALUE
-        ELSE CONCAT('***-**-', SUBSTR(VALUE, -4))
-    END;
-
-ALTER TABLE customer.data.customers
-  ALTER COLUMN ssn SET MASK customer.masks.mask_ssn;
-```
-
-### Example: Email Partial Masking
-
-```sql
--- Mask: Show partial email for verification
-CREATE FUNCTION customer.masks.mask_email()
-RETURNS STRING
-RETURN
-    CASE
-        WHEN is_member('customer-service') THEN VALUE
-        WHEN is_member('analysts') THEN
-            CONCAT(SUBSTR(VALUE, 1, 2), '***@', SPLIT_PART(VALUE, '@', 2))
-        ELSE '***@***'
-    END;
-
-ALTER TABLE customer.data.customers
-  ALTER COLUMN email SET MASK customer.masks.mask_email;
-```
-
-### Example: Conditional Masking by Data Classification
-
-```sql
--- Mask: Different masking based on data sensitivity
-CREATE FUNCTION data.masks.conditional_mask()
-RETURNS STRING
-RETURN
-    CASE
-        WHEN is_member('data-owners') THEN VALUE
-        WHEN sensitivity_level = 'high' AND is_member('managers') THEN VALUE
-        WHEN sensitivity_level = 'medium' THEN SUBSTR(VALUE, 1, 10) || '***'
-        ELSE '*** REDACTED ***'
-    END;
+ALTER TABLE schema.table
+  ALTER COLUMN col SET MASK schema.mask_fn;
 ```
 
 ### Common Column Mask Patterns
 
-| Pattern | Use Case | Masking Logic |
-|---------|----------|---------------|
-| **Full redaction** | Hide entire value | `'***'` or `NULL` |
-| **Partial redaction** | Show last N characters | `CONCAT('***', SUBSTR(VALUE, -4))` |
-| **Email masking** | Hide username, show domain | `CONCAT('***@', SPLIT_PART(VALUE, '@', 2))` |
-| **Hash masking** | Pseudonymize for analytics | `SHA2(VALUE, 256)` |
-| **Role-based** | Different masks per role | Multiple `WHEN is_member()` conditions |
-| **Null masking** | Hide from specific groups | `CASE WHEN is_member() THEN NULL ELSE VALUE` |
+| Pattern | Masking Logic |
+|---------|---------------|
+| **Full redaction** | `'***'` or `NULL` |
+| **Partial redaction** | `CONCAT('***', SUBSTR(VALUE, -4))` |
+| **Email masking** | `CONCAT('***@', SPLIT_PART(VALUE, '@', 2))` |
+| **Hash masking** | `SHA2(VALUE, 256)` |
+| **Role-based** | Multiple `WHEN is_member()` conditions |
 
-### Removing Column Masks
-
-```sql
--- Remove mask from column
-ALTER TABLE catalog.schema.table_name
-  ALTER COLUMN column_name DROP MASK;
-```
-
-**Documentation:** [Column Masks](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-row-filter-column-mask.html)
+**Docs**: [Column Masks](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-row-filter-column-mask.html)
 
 ---
 
-## 🏷️ Attribute-Based Access Control (ABAC)
+## Attribute-Based Access Control (ABAC)
 
-> **Preview Feature:** ABAC is currently in Public Preview.
->
-> 📺 **[View interactive ABAC + Governed Tags flow →](https://bhavink.github.io/applied-ai-governance/interactive/uc-abac-governed-tags.html)**
+> **Public Preview.** [View interactive ABAC + Governed Tags flow](https://bhavink.github.io/applied-ai-governance/interactive/uc-abac-governed-tags.html)
 
-ABAC is a **centralized, tag-based policy framework** for enforcing access control in Unity Catalog. It enables admins to define scalable policies that apply dynamically across catalogs, schemas, and tables based on **governed tags**. Databricks recommends using ABAC for centralized and scalable governance, rather than applying filters or masks individually on each table.
+ABAC is a centralized, tag-based policy framework. Instead of configuring filters on each table, you define policies that reference governed tags. Databricks recommends ABAC for governance at scale.
 
 ### ABAC vs Table-Level Filtering
 
-| Aspect | ABAC (Recommended) | Table-Level Row/Column Filters |
-|--------|-------------------|-------------------------------|
+| Aspect | ABAC (Recommended) | Table-Level Filters |
+|--------|---------------------|---------------------|
 | **Scope** | Centralized, tag-driven | Per-table configuration |
-| **Scalability** | Define once → apply to 1000s of tables | Must configure each table |
-| **Management** | Policies reference governed tags | UDFs directly on tables |
-| **Updates** | Change tag → access changes instantly | Must update each table |
-| **Use When** | Centralized governance at scale | Per-table logic needed |
+| **Scalability** | Define once, applies to thousands of tables | Must configure each table |
+| **Updates** | Change tag = access changes instantly | Must update each table |
+| **Use When** | Centralized governance at scale | Per-table custom logic needed |
 
-### Governed Tags: The Foundation
+### How It Works
 
-**[Governed Tags](https://docs.databricks.com/aws/en/admin/governed-tags/)** are account-level tags with enforced rules for consistency. They classify data assets with standardized attributes:
+1. Define **governed tags** at account level with allowed values (e.g., `sensitivity: [low, medium, high, critical]`)
+2. Apply tags to catalogs, schemas, or tables (tags inherit downward)
+3. Create **UDFs** for filtering/masking logic
+4. Create **ABAC policies** referencing tags and UDFs
 
-```
-sensitivity=high
-region=EMEA
-domain=finance
-classification=pii
-```
+Tags alone do not enforce access. ABAC policies do the enforcement.
 
-**Key Characteristics:**
-- Defined at **account level** with allowed values
-- Applied to **catalogs, schemas, or tables** (inherit downward)
-- Control **who can assign tags** and **what values** are allowed
-- Tags alone **don't enforce access** — ABAC policies do the enforcement
+### Limitations
 
-### How ABAC Works with Governed Tags
+- Requires Databricks Runtime 16.4+ or serverless
+- Cannot apply policies directly to views (underlying tables are enforced)
+- One row filter can resolve per table per user at runtime
 
-```mermaid
-flowchart TB
-    subgraph Tags["Governed Tags (Classification)"]
-        TagDef["Account-level tag definitions<br/>sensitivity: [low, medium, high, critical]<br/>region: [EMEA, AMER, APAC]"]
-        TagAssign["Tags applied to tables<br/>customer_data: sensitivity=high, region=EMEA"]
-    end
-
-    subgraph ABAC["ABAC Policies (Enforcement)"]
-        Policy["Policy: If sensitivity=high<br/>THEN require compliance-team"]
-        UDF["UDF: filter_by_region()<br/>Row filter logic"]
-    end
-
-    subgraph Query["Query Execution"]
-        User["User: alice@company.com<br/>Groups: compliance-team"]
-        Eval["UC evaluates:<br/>1. Table has sensitivity=high<br/>2. Policy requires compliance-team<br/>3. Alice is in compliance-team"]
-        Result["✅ Access granted<br/>with policy filters applied"]
-    end
-
-    TagDef --> TagAssign
-    TagAssign --> Policy
-    Policy --> UDF
-    User --> Eval
-    Eval --> Result
-
-    style Tags fill:#dbeafe,stroke:#3b82f6,stroke-width:2px
-    style ABAC fill:#f3e8ff,stroke:#a855f7,stroke-width:2px
-    style Query fill:#d1fae5,stroke:#10b981,stroke-width:2px
-```
-
-### ABAC Policy Types
-
-Two types of ABAC policies are supported:
-
-| Policy Type | Purpose | Example Use Case |
-|-------------|---------|------------------|
-| **Row Filter Policies** | Restrict access to rows based on data content | Only show rows where `region=EMEA` to users with EMEA access |
-| **Column Mask Policies** | Control what values users see in columns | Mask phone numbers unless table is tagged `sensitivity=low` |
-
-### ABAC Policy Example
-
-```sql
--- Example: ABAC row filter policy referencing governed tags
--- (Conceptual - actual syntax may vary per feature release)
-
--- 1. Define governed tag at account level
-CREATE TAG POLICY sensitivity
-  ALLOWED_VALUES = ['low', 'medium', 'high', 'critical'];
-
--- 2. Apply tag to tables
-ALTER TABLE customer.data.transactions
-  SET TAG sensitivity = 'high';
-
--- 3. Create UDF for filtering logic
-CREATE FUNCTION security.filters.require_compliance()
-RETURNS BOOLEAN
-RETURN is_member('compliance-team') OR is_member('admins');
-
--- 4. Create ABAC policy referencing tag and UDF
--- Policy: Tables tagged sensitivity=high require compliance-team membership
-CREATE POLICY high_sensitivity_access
-  ON TAG sensitivity = 'high'
-  USING security.filters.require_compliance();
-```
-
-### Benefits of ABAC with Governed Tags
-
-| Benefit | Description |
-|---------|-------------|
-| **Scalability** | Manage access at scale by leveraging tags instead of per-table permissions |
-| **Flexibility** | Adjust governance by updating tags or policies without modifying each table |
-| **Centralized Governance** | Single policy framework spans catalogs, schemas, and tables |
-| **Dynamic Enforcement** | Access decisions evaluated in real-time based on tags and user context |
-| **Instant Updates** | Change a tag → access changes immediately across all affected tables |
-| **Auditability** | Full visibility into data access through audit logs |
-
-### ABAC Best Practices
-
-1. **Use ABAC for centralized governance:** Apply policies at catalog/schema level for consistency
-2. **Define clear tag taxonomies:** Standardize values like `sensitivity: [low, medium, high, critical]`
-3. **Fail secure:** Default to deny if policy conditions aren't met
-4. **Admin bypass:** Allow compliance/admin roles to override for audits
-5. **Start with governed tags:** Classify data before creating policies
-6. **Test thoroughly:** Verify with multiple user personas and tag combinations
-
-### ABAC Limitations
-
-- Requires compute on **Databricks Runtime 16.4+** or serverless
-- Cannot apply policies directly to **views** (but underlying tables are enforced)
-- Only one row filter can resolve per table per user at runtime
-- See [official documentation](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac) for complete limitations
-
-**Official Documentation:**
-- [Unity Catalog ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac)
-- [Governed Tags](https://docs.databricks.com/aws/en/admin/governed-tags/)
-- [ABAC Tutorial](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac-tutorial.html)
+**Docs**: [UC ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac), [Governed Tags](https://docs.databricks.com/aws/en/admin/governed-tags/), [ABAC Tutorial](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac-tutorial.html)
 
 ---
 
-## 🔄 Dynamic Views
+## Dynamic Views
 
-Dynamic views use SQL logic to implement complex access control patterns that go beyond simple row filters and column masks.
-
-### When to Use Dynamic Views
+Use dynamic views when you need cross-table logic, complex aggregations, or conditional column selection that row filters and masks cannot express.
 
 | Use Case | Row Filter/Mask | Dynamic View |
 |----------|-----------------|--------------|
-| **Simple user/group check** | ✅ Preferred | ❌ Overkill |
-| **Cross-table logic** | ❌ Not possible | ✅ Use view |
-| **Complex aggregations** | ❌ Not possible | ✅ Use view |
-| **Conditional column selection** | ⚠️ Mask each column | ✅ SELECT CASE |
-| **Legacy migration** | ❌ Requires table changes | ✅ Layer views on top |
-| **Performance-sensitive** | ✅ Better | ⚠️ May be slower |
-
-### Dynamic View Pattern
+| Simple user/group check | Preferred | Overkill |
+| Cross-table logic | Not possible | Use view |
+| Complex aggregations | Not possible | Use view |
+| Legacy migration | Requires table changes | Layer views on top |
 
 ```sql
--- Create view with conditional logic
-CREATE VIEW catalog.schema.dynamic_view AS
-SELECT
-    column1,
-
-    -- Conditional column visibility
-    CASE
-        WHEN is_member('group1') THEN column2
-        ELSE NULL
-    END AS column2,
-
-    -- Conditional aggregation
-    CASE
-        WHEN is_member('executives') THEN SUM(amount)
-        WHEN is_member('managers') THEN SUM(amount) OVER (PARTITION BY team)
-        ELSE NULL
-    END AS total_amount
-
-FROM catalog.schema.base_table
-WHERE
-    -- Row-level filtering
-    (owner_email = current_user() OR is_member('managers'));
+-- Pattern: conditional visibility + row filtering in a single view
+CREATE VIEW schema.dynamic_view AS
+SELECT col1,
+  CASE WHEN is_member('group') THEN col2 ELSE NULL END AS col2
+FROM schema.base_table
+WHERE owner_email = current_user() OR is_member('managers');
 ```
 
-### Example: Multi-Tier Visibility View
-
-```sql
--- Different users see different aggregations
-CREATE VIEW sales.views.revenue_by_role AS
-SELECT
-    date,
-    region,
-
-    -- Executives see exact amounts
-    CASE
-        WHEN is_member('executives') THEN revenue
-        WHEN is_member('regional-managers') THEN
-            -- Regional managers see regional totals
-            SUM(revenue) OVER (PARTITION BY region, date)
-        WHEN is_member('sales-reps') THEN
-            -- Sales reps see only their contribution
-            CASE WHEN rep_email = current_user() THEN revenue ELSE NULL END
-        ELSE NULL
-    END AS revenue_amount
-
-FROM sales.data.daily_revenue;
-```
-
-### Trade-offs
-
-| Aspect | Row Filters/Masks | Dynamic Views |
-|--------|------------------|---------------|
-| **Setup** | Simpler (function + ALTER) | More complex (view definition) |
-| **Performance** | Better (evaluated in engine) | May be slower (subquery) |
-| **Flexibility** | Limited to single table | Complex multi-table logic |
-| **Maintenance** | Change function definition | Change view definition |
-| **Transparency** | Users query base table | Users query view (abstraction layer) |
-
-**Documentation:** [Dynamic Views for Access Control](https://docs.databricks.com/aws/en/data-governance/unity-catalog/create-views.html)
+**Docs**: [Dynamic Views](https://docs.databricks.com/aws/en/data-governance/unity-catalog/create-views.html)
 
 ---
 
-## 📖 Unity Catalog Built-in Functions Reference
+## UC Built-in Functions Reference
 
-UC provides session functions that can be used in row filters, column masks, and dynamic views:
+| Function | Returns | Use Case |
+|----------|---------|----------|
+| `current_user()` | STRING (email) | Row filter: `owner = current_user()` |
+| `is_member('group')` | BOOLEAN | Column mask: `WHEN is_member('admins') THEN VALUE` |
+| `current_catalog()` | STRING | Context-aware policies |
+| `current_timestamp()` | TIMESTAMP | Time-based access |
 
-| Function | Returns | Description | Example Use Case |
-|----------|---------|-------------|------------------|
-| `current_user()` | STRING | Email of authenticated user | Row filter: `owner = current_user()` |
-| `is_member('group')` | BOOLEAN | TRUE if user is in specified group | Column mask: `WHEN is_member('admins') THEN VALUE` |
-| `current_catalog()` | STRING | Name of current catalog | Context-aware policies |
-| `current_schema()` | STRING | Name of current schema | Context-aware policies |
-| `current_database()` | STRING | Alias for `current_schema()` | Legacy compatibility |
-| `current_timestamp()` | TIMESTAMP | Current timestamp | Time-based access: `date > current_timestamp() - INTERVAL '90' DAY` |
-| `current_date()` | DATE | Current date | Date-based filtering |
+### `is_member()` vs `current_user()` Under OBO
 
-### Function Examples
+> Verified on Azure Databricks, March 2026. Applies to Genie, Databricks Apps, and any OBO path.
 
-```sql
--- Example 1: User-specific row filter
-CREATE FUNCTION filters.my_data(owner STRING)
-RETURNS BOOLEAN
-RETURN owner = current_user();
-
--- Example 2: Group-based column mask
-CREATE FUNCTION masks.redact_pii()
-RETURNS STRING
-RETURN CASE WHEN is_member('pii-authorized') THEN VALUE ELSE '***' END;
-
--- Example 3: Time-based row filter
-CREATE FUNCTION filters.recent_data(record_date DATE)
-RETURNS BOOLEAN
-RETURN record_date >= current_date() - INTERVAL '365' DAY;
-
--- Example 4: Combined logic
-CREATE FUNCTION filters.complex_access(owner STRING, dept STRING, created_date DATE)
-RETURNS BOOLEAN
-RETURN
-    (owner = current_user() OR is_member(dept)) AND
-    (created_date >= current_date() - INTERVAL '90' DAY OR is_member('admins'));
-```
-
-**Documentation:** [SQL Functions Reference](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-functions-builtin.html)
-
-### is_member() vs current_user() Under OBO — Critical Distinction
-
-> Verified on Azure Databricks, March 2026 (AI Auth Showcase build). Applies to Genie, Databricks Apps, and any other OBO path.
-
-When UC row filters or column masks are evaluated under OBO, these two functions behave differently:
-
-| Function | Evaluated as | Correct under OBO? |
+| Function | Evaluated as under OBO | Correct? |
 |---|---|---|
-| `current_user()` | The **calling user's email** (the OBO principal) | YES — resolves to the authenticated user |
-| `is_member('group')` | The **SQL execution identity** (e.g., Genie's service account or app SP) | NO — evaluates the service account's groups, not the user's |
+| `current_user()` | The calling user's email | YES |
+| `is_member('group')` | The SQL execution identity (e.g., Genie's service account) | NO for user-level checks |
 
-**The trap:** A row filter or column mask using `is_member('sales-managers')` will evaluate based on whether Genie's service account is in that group — regardless of which user called Genie via OBO. The result is identical for every user.
-
-**Rule:** Use `current_user()` for OBO-compatible access control. Replace `is_member()` patterns with an allowlist table lookup keyed on `current_user()`:
+**Rule**: Use `current_user()` for OBO-compatible access control. Replace `is_member()` patterns with an allowlist table lookup keyed on `current_user()`:
 
 ```sql
--- WRONG under OBO: is_member evaluates the service account, not the caller
-CREATE FUNCTION masks.redact_quota(value DOUBLE)
+-- Replace is_member() with allowlist for OBO compatibility
+CREATE FUNCTION masks.redact_obo(value DOUBLE)
 RETURNS DOUBLE
-RETURN CASE WHEN is_member('quota-viewers') THEN value ELSE NULL END;
-
--- CORRECT under OBO: current_user() always evaluates to the calling user
-CREATE FUNCTION masks.redact_quota_obo(value DOUBLE)
-RETURNS DOUBLE
-RETURN CASE
-    WHEN EXISTS (
-        SELECT 1 FROM catalog.schema.quota_viewers
-        WHERE user_email = current_user()
-    ) THEN value
-    ELSE NULL
-END;
-```
-
-This pattern works correctly for Genie OBO, Databricks Apps, Agent Bricks OBO, and direct SQL — `current_user()` always resolves to the authenticated caller.
-
-> **Last verified:** 2026-03-08, Azure Databricks. Source: AI Auth Showcase build, Phase 3.
-
----
-
-## 🔗 Pattern Integration: How UC Enforces Authentication Patterns
-
-Unity Catalog enforces authorization differently based on which authentication pattern is used:
-
-### Pattern Integration Architecture
-
-```mermaid
-flowchart TB
-    subgraph Pattern1["Pattern 1: Automatic Auth"]
-        SP[Service Principal<br/>sp-agent-prod]
-        SP1[Fixed Identity]
-    end
-
-    subgraph Pattern2["Pattern 2: User Auth"]
-        User[End User<br/>alice@company.com]
-        User1[Variable Identity]
-    end
-
-    subgraph Pattern3["Pattern 3: Manual"]
-        Ext[External API<br/>Not UC-managed]
-    end
-
-    subgraph UC["Unity Catalog Enforcement"]
-        Grants[Check GRANTs<br/>on objects]
-        RowCheck{Row filters<br/>defined?}
-        ColCheck{Column masks<br/>defined?}
-        Data[(Tables)]
-    end
-
-    SP --> SP1
-    User --> User1
-
-    SP1 -->|Query as SP| Grants
-    User1 -->|Query as user| Grants
-
-    Grants -->|Permission OK| RowCheck
-
-    RowCheck -->|Yes| EvalRow[Evaluate:<br/>current_user = user<br/>or SP identity]
-    RowCheck -->|No| ColCheck
-
-    EvalRow -->|Filter rows| ColCheck
-
-    ColCheck -->|Yes| EvalCol[Evaluate:<br/>is_member<br/>for user/SP groups]
-    ColCheck -->|No| Data
-
-    EvalCol -->|Mask columns| Data
-
-    Ext -.->|No UC enforcement| ExtData[(External Data)]
-
-    style Pattern1 fill:#fdebd0,stroke:#e67e22,stroke-width:2px
-    style Pattern2 fill:#d5f5e3,stroke:#27ae60,stroke-width:2px
-    style Pattern3 fill:#fce4ec,stroke:#c2185b,stroke-width:2px
-    style UC fill:#e8f8f5,stroke:#1abc9c,stroke-width:3px
-```
-
-### How Each Pattern Works with UC
-
-#### Pattern 1: Automatic Authentication Passthrough (Service Principal)
-
-```sql
--- Service principal: sp-agent-prod
--- Groups: [agents, production-services]
-
--- Query executed as sp-agent-prod
-SELECT * FROM catalog.schema.table;
-
--- UC evaluation:
--- 1. Check GRANTs for sp-agent-prod
--- 2. Evaluate row filters (if any) with current_user() = sp-agent-prod
--- 3. Evaluate column masks (if any) with is_member() for SP's groups
--- 4. Return data based on SP's permissions
-```
-
-**Key Characteristics:**
-- Same permissions every execution
-- Row filters evaluate to same SP identity
-- Column masks check SP's group memberships
-- Ideal for consistent, automated access
-
-#### Pattern 2: User Authentication Passthrough (OBO)
-
-```sql
--- User: alice@company.com
--- Groups: [analysts, sales-team]
-
--- Query executed as alice@company.com
-SELECT * FROM catalog.schema.table;
-
--- UC evaluation:
--- 1. Check GRANTs for alice@company.com and her groups
--- 2. Evaluate row filters: current_user() = 'alice@company.com'
--- 3. Evaluate column masks: is_member('analysts'), is_member('sales-team')
--- 4. Return data based on Alice's permissions and group memberships
-
--- Different user (Bob) gets different results from same query
-```
-
-**Key Characteristics:**
-- Different permissions per user
-- Row filters dynamically filter per user
-- Column masks apply differently per user's groups
-- Ideal for personalized, user-specific access
-
-#### Pattern 3: Manual Credentials
-
-- UC is **not involved** - external service handles authorization
-- Use for APIs outside Databricks (OpenAI, Salesforce, etc.)
-- Data from external sources is not governed by UC until written to UC tables
-
-### 📖 Agent Bricks & Agent Framework Authentication Reference
-
-For **[Agent Bricks](https://docs.databricks.com/aws/en/generative-ai/agent-bricks/)** and **AI agents**, the authentication methods integrate with UC as follows:
-
-#### Agent Bricks Use Cases
-
-Agent Bricks supports these production-grade AI agent templates, all of which integrate with UC for authorization:
-
-| Use Case | UC Integration | Auth Pattern |
-|----------|----------------|--------------|
-| **[Knowledge Assistant](https://docs.databricks.com/aws/en/generative-ai/agent-bricks/knowledge-assistant)** | Vector indexes governed by UC | Pattern 1 or 2 |
-| **[Information Extraction](https://docs.databricks.com/aws/en/generative-ai/agent-bricks/key-info-extraction)** (Beta) | Source docs and output tables | Pattern 1 or 2 |
-| **[Custom LLM](https://docs.databricks.com/aws/en/generative-ai/agent-bricks/custom-llm)** (Beta) | Model endpoints in UC | Pattern 1 or 2 |
-| **[Multi-Agent Supervisor](https://docs.databricks.com/aws/en/generative-ai/agent-bricks/multi-agent-supervisor)** (Beta) | Orchestrates Genie + agents | Pattern 2 (OBO) |
-| **[Code Your Own](https://docs.databricks.com/aws/en/generative-ai/agent-framework/author-agent)** | Full UC access via SDK | Pattern 1, 2, or 3 |
-
-#### Automatic Authentication Passthrough
-- **Agent Framework:** Agent runs with permissions of deployer, Databricks manages short-lived credentials
-- **UC Integration:** Service principal permissions evaluated (Pattern 1 above)
-- **When to use:** Simple agents, consistent access requirements, least-privilege automation
-- **Reference:** [Agent Authentication - Automatic Passthrough](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication#automatic-authentication-passthrough)
-
-#### On-Behalf-Of-User (OBO) Authentication
-- **Agent Framework:** Agent runs with permissions of end user making request
-- **UC Integration:** Per-user row filters, column masks, and ABAC policies apply (Pattern 2 above)
-- **When to use:** Per-user data access, fine-grained UC governance, user-attributed auditing
-- **Security:** Tokens are downscoped to declared API scopes, reducing risk
-- **Reference:** [Agent Authentication - OBO](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication#on-behalf-of-user-authentication)
-
-**OBO Security Considerations:**
-- Agents can access sensitive resources on behalf of users
-- While scopes restrict APIs, endpoints might allow more actions than explicitly requested
-- Example: `serving.serving-endpoints` scope grants permission to run a serving endpoint, but that endpoint may access additional API scopes
-- **Always review:** [OBO Security Considerations](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication#obo-security-considerations)
-
-#### Manual Authentication (OAuth/PAT)
-- **Agent Framework:** Explicitly provide credentials via environment variables
-- **UC Integration:** Depends on credential type (service principal vs user PAT)
-- **When to use:** External resources, prompt registry access, non-passthrough scenarios
-- **OAuth (Recommended):** Secure, token-based with automatic refresh
-- **Reference:** [Agent Authentication - Manual](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication#manual-authentication)
-
-> **Important:** For complete Agent Framework authentication setup (code examples, MLflow integration, resource declarations), see the [official Agent Authentication documentation](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication). This document focuses on **how UC enforces authorization** once authentication is established.
-
----
-
-## ✅ Testing and Verification
-
-### Check Applied Policies
-
-```sql
--- View table details including row filters
-DESCRIBE TABLE EXTENDED catalog.schema.table_name;
-
--- Check grants on table
-SHOW GRANTS ON TABLE catalog.schema.table_name;
-
--- View column details including masks
-DESCRIBE TABLE catalog.schema.table_name column_name;
-
--- View function definition
-SHOW CREATE FUNCTION catalog.schema.filter_function;
-```
-
-### Test with Multiple Personas
-
-Create test matrix:
-
-| Test User | Groups | Expected Rows | Expected Column Values |
-|-----------|--------|---------------|----------------------|
-| alice@company.com | `analysts` | 100 rows (her data) | SSN masked to last 4 |
-| bob@company.com | `analysts, managers` | 500 rows (team data) | SSN masked to last 4 |
-| carol@company.com | `admins` | 10,000 rows (all data) | SSN unmasked |
-
-```sql
--- Test as each user (run in separate sessions)
-SELECT COUNT(*) FROM catalog.schema.table;
-SELECT ssn FROM catalog.schema.table LIMIT 1;
-```
-
-### Verify Row Filter Logic
-
-```sql
--- As admin, check filter function logic
-SHOW CREATE FUNCTION catalog.schema.row_filter_name;
-
--- Test filter independently (as admin with bypass)
-SELECT
-    COUNT(*) as total_rows,
-    COUNT(*) FILTER (WHERE owner_email = 'alice@company.com') as alice_rows
-FROM catalog.schema.table;
-```
-
-### Audit Logs
-
-```sql
--- Query audit logs to see who accessed what
-SELECT
-    user_identity.email,
-    request_params.full_name_arg AS object_accessed,
-    action_name,
-    event_time,
-    request_params.command_text AS query
-FROM system.access.audit
-WHERE request_params.full_name_arg = 'catalog.schema.table'
-  AND event_date >= current_date() - INTERVAL '7' DAY
-ORDER BY event_time DESC
-LIMIT 100;
-```
-
-**Documentation:** [Unity Catalog Audit Logs](https://docs.databricks.com/aws/en/administration-guide/account-settings/audit-logs.html)
-
----
-
-## ⚡ Performance Considerations
-
-Row filters and column masks add overhead to query execution. Consider these optimization strategies:
-
-### Performance Impact
-
-| Operation | Overhead | Mitigation Strategy |
-|-----------|----------|---------------------|
-| **Simple row filter** | Low (5-10%) | Acceptable for most use cases |
-| **Complex row filter** | Medium (10-30%) | Simplify logic, use indexes |
-| **Multiple row filters** | High (30%+) | Consolidate into single filter |
-| **Column mask** | Low-Medium | Minimal impact |
-| **Dynamic view with aggregations** | High | Use materialized views |
-
-### Optimization Strategies
-
-#### 1. Use Materialized Views
-
-```sql
--- Create materialized view with pre-filtered data
-CREATE MATERIALIZED VIEW catalog.schema.filtered_view AS
-SELECT * FROM catalog.schema.base_table
-WHERE department = 'sales';
-
--- Apply row filter to materialized view
-ALTER MATERIALIZED VIEW catalog.schema.filtered_view
-  SET ROW FILTER catalog.schema.user_filter ON (owner_email);
-
--- Queries hit pre-filtered, cached data
-SELECT * FROM catalog.schema.filtered_view;
-```
-
-#### 2. Partition Tables by Filter Column
-
-```sql
--- Partition table by department (commonly filtered column)
-CREATE TABLE catalog.schema.partitioned_table (
-    id STRING,
-    department STRING,
-    data STRING
-)
-PARTITIONED BY (department);
-
--- Row filter can leverage partition pruning
-ALTER TABLE catalog.schema.partitioned_table
-  SET ROW FILTER catalog.schema.dept_filter ON (department);
-```
-
-#### 3. Simplify Filter Logic
-
-```sql
--- ❌ Complex (slower)
-CREATE FUNCTION filters.complex(dept STRING, region STRING, level STRING)
-RETURNS BOOLEAN
-RETURN
-    (dept = 'sales' AND is_member('sales-' || region || '-' || level)) OR
-    (dept = 'marketing' AND is_member('marketing-team')) OR
-    is_member('executives');
-
--- ✅ Simplified (faster)
-CREATE FUNCTION filters.simple(dept STRING)
-RETURNS BOOLEAN
-RETURN
-    is_member(dept) OR is_member('executives');
-```
-
-#### 4. Index Commonly Filtered Columns
-
-```sql
--- Create indexes on columns used in row filters
-CREATE INDEX idx_owner ON catalog.schema.table (owner_email);
-CREATE INDEX idx_dept ON catalog.schema.table (department);
-```
-
-### Performance Monitoring
-
-```sql
--- Check query execution time
-SELECT
-    query_id,
-    execution_duration_ms,
-    query_text
-FROM system.query.history
-WHERE query_text LIKE '%catalog.schema.filtered_table%'
-ORDER BY execution_duration_ms DESC
-LIMIT 10;
-```
-
-**Documentation:** [Performance Tuning](https://docs.databricks.com/aws/en/optimizations/index.html)
-
----
-
-## 🎯 Best Practices
-
-### 1. Least Privilege Principle
-
-```sql
--- ❌ Don't grant broad access
-GRANT ALL PRIVILEGES ON CATALOG production TO `account users`;
-
--- ✅ Grant minimum required permissions
-GRANT USE CATALOG ON CATALOG production TO `analysts`;
-GRANT USE SCHEMA ON SCHEMA production.sales TO `analysts`;
-GRANT SELECT ON TABLE production.sales.data TO `analysts`;
-```
-
-### 2. Use Groups, Not Individual Users
-
-```sql
--- ❌ Don't grant to individual users
-GRANT SELECT ON TABLE data TO `alice@company.com`;
-GRANT SELECT ON TABLE data TO `bob@company.com`;
-
--- ✅ Grant to groups
-GRANT SELECT ON TABLE data TO `analysts`;
--- Manage group membership in IdP
-```
-
-### 3. Document Filter/Mask Logic
-
-```sql
--- ✅ Add clear comments
-CREATE FUNCTION filters.sales_access(owner STRING, team STRING)
-RETURNS BOOLEAN
-COMMENT 'Row filter: Sales reps see own data | Managers see team data | Executives see all'
-RETURN
-    CASE
-        -- Executives bypass filter
-        WHEN is_member('executives') THEN TRUE
-        -- Managers see team data
-        WHEN is_member('managers') AND is_member(team) THEN TRUE
-        -- Sales reps see own data
-        WHEN owner = current_user() THEN TRUE
-        ELSE FALSE
-    END;
-```
-
-### 4. Separate Access Control from Business Logic
-
-```sql
--- ❌ Don't mix
-CREATE FUNCTION filters.mixed(status STRING, owner STRING)
-RETURNS BOOLEAN
-RETURN status = 'active' AND owner = current_user();
--- Confusing: is this access control or business logic?
-
--- ✅ Separate
-CREATE FUNCTION filters.access_only(owner STRING)
-RETURNS BOOLEAN
-RETURN owner = current_user();
-
--- Business logic in query
-SELECT * FROM table WHERE status = 'active';
--- Row filter handles access control automatically
-```
-
-### 5. Test with Multiple Personas
-
-Create test users for each role:
-- Regular user
-- Power user (manager)
-- Limited user
-- Admin/compliance
-
-Verify each sees correct data and masked columns.
-
-### 6. Regular Audits
-
-```sql
--- Quarterly review: Who has access to what?
-SHOW GRANTS ON CATALOG production;
-SHOW GRANTS ON SCHEMA production.sales;
-SHOW GRANTS ON TABLE production.sales.sensitive_data;
-
--- Review row filters and masks
-SELECT
-    table_catalog,
-    table_schema,
-    table_name,
-    row_filter,
-    column_masks
-FROM system.information_schema.tables
-WHERE table_catalog = 'production';
+RETURN CASE WHEN EXISTS (
+  SELECT 1 FROM schema.viewers WHERE user_email = current_user()
+) THEN value ELSE NULL END;
 ```
 
 ---
 
-## 🚨 Troubleshooting
+## Pattern Integration: Auth Patterns and UC
 
-### Common Issues and Solutions
+| Pattern | Identity in UC | Row Filters Evaluate As | Use When |
+|---------|---------------|------------------------|----------|
+| **Pattern 1 (M2M)** | Service Principal | SP identity (fixed) | Consistent automated access |
+| **Pattern 2 (OBO)** | End User | User identity (per-user) | Personalized data access |
+| **Pattern 3 (Manual)** | N/A | UC not involved | External APIs |
 
-| Issue | Symptoms | Diagnosis | Solution |
-|-------|----------|-----------|----------|
-| **User can't see expected data** | Query returns 0 rows | Check GRANTs, row filters, group membership | Verify user has USE CATALOG, USE SCHEMA, SELECT permissions; Check row filter logic |
-| **Column appears masked incorrectly** | Wrong mask applied | Check mask function and user groups | Verify `is_member()` conditions and group membership |
-| **Performance degradation** | Slow queries after adding filters | Check filter complexity | Simplify filter logic, add materialized views, partition tables |
-| **Filter not applying** | All users see all data | Check filter is set on table | Run `DESCRIBE TABLE EXTENDED` to verify filter |
-| **Permission denied** | Error accessing table | Missing GRANTs | Grant USE CATALOG, USE SCHEMA, and SELECT in order |
+### Agent Bricks Integration
 
-### Diagnostic Queries
+| Use Case | Auth Pattern | UC Integration |
+|----------|--------------|----------------|
+| Knowledge Assistant | Pattern 1 or 2 | Vector indexes governed by UC |
+| Multi-Agent Supervisor | Pattern 2 (OBO) | Orchestrates Genie + agents |
+| Code Your Own | Pattern 1, 2, or 3 | Full UC access via SDK |
 
-```sql
--- 1. Check if user has table permissions
-SHOW GRANTS ON TABLE catalog.schema.table;
-
--- 2. Check if row filter is applied
-DESCRIBE TABLE EXTENDED catalog.schema.table;
--- Look for: Row Filter: catalog.schema.filter_name
-
--- 3. Check user's group membership
-SELECT * FROM system.access.users WHERE email = 'user@company.com';
-
--- 4. Check if any rows match filter
--- (Run as admin to see unfiltered data)
-SELECT COUNT(*) FROM catalog.schema.table
-WHERE owner_email = 'user@company.com';
-
--- 5. View filter function logic
-SHOW CREATE FUNCTION catalog.schema.filter_name;
-
--- 6. Test is_member() for user
-SELECT is_member('group_name') AS user_in_group;
-```
-
-### Debugging Flowchart
-
-```mermaid
-flowchart TD
-    Start[User reports access issue]
-
-    Q1{Can user query<br/>the table at all?}
-    Q2{Does query<br/>return 0 rows?}
-    Q3{Are columns<br/>masked?}
-
-    Q1 -->|No, error| CheckGrants[Check GRANTs:<br/>SHOW GRANTS ON TABLE]
-    Q1 -->|Yes, but wrong data| Q2
-
-    Q2 -->|Yes, 0 rows| CheckFilter[Check row filter:<br/>DESCRIBE TABLE EXTENDED]
-    Q2 -->|No, some rows| Q3
-
-    Q3 -->|Yes, incorrectly| CheckMask[Check column mask:<br/>DESCRIBE TABLE<br/>SHOW CREATE FUNCTION]
-    Q3 -->|No mask issue| CheckPerf[Check performance:<br/>Query execution time]
-
-    CheckGrants --> FixGrants[Grant missing permissions:<br/>USE CATALOG, USE SCHEMA, SELECT]
-    CheckFilter --> FixFilter[Fix filter logic or<br/>check group membership]
-    CheckMask --> FixMask[Fix mask function or<br/>check is_member conditions]
-    CheckPerf --> Optimize[Optimize with<br/>materialized views or partitioning]
-
-    style Start fill:#ebf5fb,stroke:#3498db,stroke-width:2px
-    style FixGrants fill:#d5f5e3,stroke:#27ae60,stroke-width:2px
-    style FixFilter fill:#d5f5e3,stroke:#27ae60,stroke-width:2px
-    style FixMask fill:#d5f5e3,stroke:#27ae60,stroke-width:2px
-    style Optimize fill:#fef5e7,stroke:#f39c12,stroke-width:2px
-```
-
-**Documentation:** [Troubleshooting Unity Catalog](https://docs.databricks.com/aws/en/data-governance/unity-catalog/troubleshooting.html)
+**Docs**: [Agent Authentication](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication)
 
 ---
 
-## 📚 Next Steps
+## Performance Considerations
 
-Now that you understand Unity Catalog authorization:
+| Operation | Overhead | Mitigation |
+|-----------|----------|------------|
+| Simple row filter | Low (5-10%) | Acceptable for most cases |
+| Complex row filter | Medium (10-30%) | Simplify logic, use indexes |
+| Multiple row filters | High (30%+) | Consolidate into single filter |
+| Column mask | Low-Medium | Minimal impact |
+| Dynamic view with aggregations | High | Use materialized views |
 
-### 1. Review Product Integration
-**[03-PRODUCT-INTEGRATION.md →](03-PRODUCT-INTEGRATION.md)**
-
-Learn how specific AI products use UC:
-- Genie Space (always enforces UC with user context)
-- Agent Bricks (configurable UC enforcement)
-- Databricks Apps (UC enforcement based on auth mode)
-- Model Serving (UC enforcement for data access)
-
-### 2. Hands-On Setup
-**[examples/ →](examples/)** *(Coming Soon)*
-
-> **Note**: Practical, copy-paste ready examples are currently being developed. These will include step-by-step SQL scripts and UI instructions for:
-> - Row-level security setup
-> - Column-level security and masking
-> - ABAC patterns
-> - Genie Space curation with UC governance
-
-### 3. Review Best Practices
-**[Best Practices →](../guides/)** *(See related guides)*
-
-> **Note**: Dedicated best-practices section is planned for future release. For now, this document includes production-ready patterns in the sections above.
-
-For additional guidance, see:
-- [Authentication Guide](../guides/authentication.md) - Secure authentication patterns
-- [Networking Guide](../guides/networking.md) - Multi-cloud networking best practices
+**Optimization strategies**: Partition tables by commonly filtered columns. Use materialized views for pre-filtered aggregates. Simplify filter logic (prefer `is_member(dept)` over complex concatenation patterns). Index commonly filtered columns.
 
 ---
 
-## 🔖 Quick Reference
+## Best Practices
 
-### UC Authorization Layers
-
-| Layer | Control Type | Configured With | Example |
-|-------|-------------|-----------------|---------|
-| **Object** | Table access | GRANT statements | `GRANT SELECT ON TABLE` |
-| **Row** | Which rows visible | Row filter functions | `current_user() = owner` |
-| **Column** | Column value masking | Column mask functions | `WHEN is_member() THEN VALUE` |
-
-### Key SQL Patterns
-
-**Grant Permissions:**
-```sql
-GRANT USE CATALOG ON CATALOG catalog_name TO `group`;
-GRANT SELECT ON TABLE catalog.schema.table TO `group`;
-```
-
-**Row Filter:**
-```sql
-CREATE FUNCTION catalog.schema.filter(col DATA_TYPE) RETURNS BOOLEAN RETURN condition;
-ALTER TABLE catalog.schema.table SET ROW FILTER catalog.schema.filter ON (column);
-```
-
-**Column Mask:**
-```sql
-CREATE FUNCTION catalog.schema.mask() RETURNS DATA_TYPE RETURN CASE WHEN condition THEN VALUE ELSE mask END;
-ALTER TABLE catalog.schema.table ALTER COLUMN column SET MASK catalog.schema.mask;
-```
-
-### UC Functions
-
-| Function | Use For |
-|----------|---------|
-| `current_user()` | Row filters based on user identity |
-| `is_member('group')` | Column masks and row filters based on group |
-| `current_catalog()` | Context-aware policies |
-| `current_timestamp()` | Time-based access control |
+1. **Least privilege**: Grant minimum required permissions per group, not `ALL PRIVILEGES`
+2. **Use groups, not individual users**: Manage group membership in IdP
+3. **Document filter/mask logic**: Add `COMMENT` to filter functions explaining the access tiers
+4. **Separate access control from business logic**: Row filters handle who sees what; queries handle what is relevant
+5. **Test with multiple personas**: Regular user, manager, limited user, admin/compliance
+6. **Regular audits**: Quarterly review of GRANT, row filter, and column mask configurations
 
 ---
+
+## Troubleshooting
+
+| Issue | Diagnosis | Fix |
+|-------|-----------|-----|
+| User sees 0 rows | Check GRANTs, row filter logic, group membership | Verify USE CATALOG + USE SCHEMA + SELECT; check filter function |
+| Wrong mask applied | Check mask function conditions | Verify `is_member()` conditions and group membership |
+| Performance degraded | Check filter complexity | Simplify, add materialized views, partition tables |
+| Filter not applying | All users see all data | Run `DESCRIBE TABLE EXTENDED` to verify filter is set |
 
 ---
 
 ## Industry Vertical ABAC Patterns
 
-The following patterns show how to implement fine-grained access control for common industry scenarios using UC row filters and column masks. Each vertical demonstrates governance column design, group-to-filter mapping, and column masking strategies.
-
 ### Data Model Patterns for Access Control
 
-Access control effectiveness depends on how the underlying data is modeled. Choose the right pattern based on the granularity of control required.
-
-| Pattern | Description | Best For | Data Model Requirement |
-|---|---|---|---|
-| **Team/Region-level** | Rows contain a territory or team column; access granted via group membership | Channel partners, regional sales, geographic compliance | Explicit `region` or `team` column on every governed table |
-| **Individual-level** | Rows tied to a specific user (email, user ID); only the owner sees their records | CRM "my accounts" views, patient-provider assignments | `owner_email` or `assigned_to` column mapping to authenticated identity |
-| **Hierarchical** | Managers see direct reports' data; directors see managers' data | Management dashboards, approval workflows | Separate hierarchy/org-chart lookup table |
-| **Attribute-based (ABAC)** | Decisions combine multiple attributes: role + department + clearance + data sensitivity | Regulated industries, multi-dimensional security | Governance columns on data + subject attribute lookups |
+| Pattern | Description | Best For |
+|---|---|---|
+| **Team/Region-level** | Rows contain territory or team column; access via group membership | Regional sales, geographic compliance |
+| **Individual-level** | Rows tied to a specific user (email); only owner sees records | CRM "my accounts", patient-provider |
+| **Hierarchical** | Managers see reports' data; directors see managers' data | Management dashboards |
+| **Attribute-based (ABAC)** | Decisions combine role + department + clearance + sensitivity | Regulated industries |
 
 ### The Governance Column Pattern
 
-Add explicit columns whose sole purpose is supporting access control policies:
-
-```sql
-CREATE TABLE catalog.schema.sales_pipeline (
-  -- Business columns
-  deal_id           STRING,
-  account_name      STRING,
-  amount            DOUBLE,
-  stage             STRING,
-
-  -- Governance columns
-  region            STRING,       -- maps to group-based row filter
-  sensitivity_level STRING,       -- maps to ABAC tag policy
-  data_owner_email  STRING,       -- maps to individual-level filter
-  department        STRING        -- maps to department-level filter
-);
-```
-
-**Principles:**
-- Governance columns should be NOT NULL with constrained values
-- Populate governance columns at ingestion time, not retroactively
-- For tables that will have row filters, prefer denormalizing governance columns onto the table rather than requiring JOINs in filter functions
+Add explicit columns whose sole purpose is supporting access control policies (`region`, `sensitivity_level`, `data_owner_email`, `department`). Populate at ingestion time, not retroactively. Denormalize governance columns onto the table rather than requiring JOINs in filter functions.
 
 ### Healthcare (HIPAA)
 
-**Access tiers:**
-
 | Role | Row Access | Column Access |
 |---|---|---|
-| Treating provider | Their assigned patients only | Full clinical data |
+| Treating provider | Assigned patients only | Full clinical data |
 | Department nurse | Same department patients | Clinical, no billing |
-| Billing specialist | All patients in their facility | Billing only, no clinical notes |
+| Billing specialist | All patients in facility | Billing only, no clinical notes |
 | Hospital admin | All patients, all facilities | Aggregates only, no PHI |
 | External auditor | Sampled records | De-identified |
 
-**Implementation:**
-
-```sql
--- Governance columns on patient_encounters table:
---   facility_id, department_id, treating_provider_id, sensitivity_level
-
-CREATE OR REPLACE FUNCTION catalog.schema.hipaa_row_filter(
-  dept_id STRING, facility_id STRING
-)
-  RETURNS BOOLEAN
-  RETURN (
-    CASE
-      WHEN is_account_group_member('hospital-admin') THEN TRUE
-      WHEN is_account_group_member('billing') THEN TRUE
-      WHEN is_account_group_member('dept-nursing')
-        THEN dept_id = 'NURSING'
-      ELSE FALSE
-    END
-  );
-
--- Column mask: redact patient name for billing
-CREATE OR REPLACE FUNCTION catalog.schema.mask_patient_name(name_val STRING)
-  RETURNS STRING
-  RETURN (
-    CASE
-      WHEN is_account_group_member('clinical') THEN name_val
-      WHEN is_account_group_member('billing') THEN 'REDACTED'
-      ELSE 'REDACTED'
-    END
-  );
-```
+Row filter pattern: CASE expression checking `is_account_group_member()` for each role tier, matching on `dept_id` and `facility_id`. Column mask: redact patient name for billing roles, show to clinical roles.
 
 ### Financial Services
-
-**Access tiers:**
 
 | Role | Row Access | Column Access |
 |---|---|---|
 | Branch advisor | Their clients only | Full account details |
-| Branch manager | All clients in their branch | Full account details |
+| Branch manager | All clients in branch | Full account details |
 | Regional director | All branches in region | Aggregated, no PII |
-| Compliance officer | All accounts, all branches | Full (audit purpose) |
-| External auditor (federated) | Sampled accounts | De-identified |
+| Compliance officer | All accounts | Full (audit purpose) |
 
-**Implementation:**
-
-```sql
--- Governance columns: branch_id, region, advisor_email, risk_rating
-
-CREATE OR REPLACE FUNCTION catalog.schema.finserv_row_filter(
-  region_col STRING, branch_col STRING
-)
-  RETURNS BOOLEAN
-  RETURN (
-    CASE
-      WHEN is_account_group_member('compliance') THEN TRUE
-      WHEN is_account_group_member('region-northeast')
-        THEN region_col = 'NORTHEAST'
-      WHEN is_account_group_member('region-southeast')
-        THEN region_col = 'SOUTHEAST'
-      ELSE FALSE
-    END
-  );
-
--- Column mask: hide account numbers except last 4
-CREATE OR REPLACE FUNCTION catalog.schema.mask_account_number(acct STRING)
-  RETURNS STRING
-  RETURN (
-    CASE
-      WHEN is_account_group_member('compliance') THEN acct
-      WHEN is_account_group_member('branch-advisors') THEN acct
-      ELSE CONCAT('****-****-', RIGHT(acct, 4))
-    END
-  );
-```
+Row filter pattern: region-based CASE matching `is_account_group_member('region-*')`. Column mask: account numbers show last 4 digits except for compliance and advisors.
 
 ### Retail / CPG
-
-**Access tiers:**
 
 | Role | Row Access | Column Access |
 |---|---|---|
@@ -1510,258 +319,71 @@ CREATE OR REPLACE FUNCTION catalog.schema.mask_account_number(acct STRING)
 | District manager | All stores in district | Full metrics |
 | Regional VP | All stores in region | Full metrics |
 | Franchise partner (federated) | Their franchise stores | Revenue, no cost data |
-| Vendor/supplier (federated) | Their product categories | Sell-through, no margin |
 
-**Implementation:**
-
-```sql
--- Governance columns: store_id, district, region, franchise_id, category
-
-CREATE OR REPLACE FUNCTION catalog.schema.retail_row_filter(
-  region_col STRING, franchise_col STRING
-)
-  RETURNS BOOLEAN
-  RETURN (
-    CASE
-      WHEN is_account_group_member('corporate') THEN TRUE
-      WHEN is_account_group_member('region-west') THEN region_col = 'WEST'
-      WHEN is_account_group_member('franchise-acme')
-        THEN franchise_col = 'ACME'
-      ELSE FALSE
-    END
-  );
-
--- Mask cost/margin from franchise partners
-CREATE OR REPLACE FUNCTION catalog.schema.mask_cost(cost_val DOUBLE)
-  RETURNS DOUBLE
-  RETURN (
-    CASE
-      WHEN is_account_group_member('corporate') THEN cost_val
-      ELSE -1.0
-    END
-  );
-```
+Row filter pattern: region and franchise-based CASE. Column mask: hide cost/margin from franchise partners.
 
 ### SaaS Multi-Tenant
 
-**Access tiers:**
+Every table has `tenant_id` as a non-nullable governance column. Row filter maps `is_account_group_member('tenant-*')` to `tenant_id`. Column mask gates premium metrics by subscription tier group membership.
 
-| Role | Row Access | Column Access |
-|---|---|---|
-| Tenant user | Their tenant only | Based on subscription tier |
-| Tenant admin | Their tenant only | Full |
-| Platform ops | All tenants | Full |
-| Partner reseller (federated) | Their managed tenants | Usage metrics only |
+### Channel Partner / Federation
 
-**Implementation:**
-
-```sql
--- Every table has tenant_id as governance column (non-nullable)
-
-CREATE OR REPLACE FUNCTION catalog.schema.tenant_isolation_filter(tenant_id_col STRING)
-  RETURNS BOOLEAN
-  RETURN (
-    CASE
-      WHEN is_account_group_member('platform-ops') THEN TRUE
-      WHEN is_account_group_member('tenant-acme') THEN tenant_id_col = 'acme'
-      WHEN is_account_group_member('tenant-globex') THEN tenant_id_col = 'globex'
-      ELSE FALSE
-    END
-  );
-
--- Feature-gate: premium columns masked for free tier
-CREATE OR REPLACE FUNCTION catalog.schema.mask_premium_metric(val DOUBLE)
-  RETURNS DOUBLE
-  RETURN (
-    CASE
-      WHEN is_account_group_member('tier-premium') THEN val
-      WHEN is_account_group_member('tier-enterprise') THEN val
-      ELSE NULL  -- free tier sees NULL for premium metrics
-    END
-  );
-```
-
-### Channel Partner / Reseller (Federation Scenario)
-
-This pattern is most relevant when external users authenticate via token exchange through an external IDP and map to Databricks service principals.
-
-**Access tiers:**
-
-| Role | IDP Group | Databricks SP | Row Access | Column Access |
-|---|---|---|---|---|
-| Territory rep | sales-west | `<sp-application-id>` | WEST region | No margin |
-| Territory rep | sales-east | `<sp-application-id>` | EAST region | No margin |
-| Partner manager | managers | `<sp-application-id>` | All regions | No margin |
-| Partner exec | executives | `<sp-application-id>` | All regions | Full |
-| External auditor | finance | `<sp-application-id>` | All regions | Full (incl. margin) |
-
-**Implementation:**
-
-```sql
--- Row filter
-CREATE OR REPLACE FUNCTION catalog.schema.region_filter(region_col STRING)
-  RETURNS BOOLEAN
-  RETURN (
-    CASE
-      WHEN is_account_group_member('executives') THEN TRUE
-      WHEN is_account_group_member('finance') THEN TRUE
-      WHEN is_account_group_member('managers') THEN TRUE
-      WHEN is_account_group_member('sales-west') THEN region_col = 'WEST'
-      WHEN is_account_group_member('sales-east') THEN region_col = 'EAST'
-      ELSE FALSE
-    END
-  );
-
--- Column mask for margin (only finance and executives see real values)
-CREATE OR REPLACE FUNCTION catalog.schema.mask_margin(margin_val DOUBLE)
-  RETURNS DOUBLE
-  RETURN (
-    CASE
-      WHEN is_account_group_member('finance') THEN margin_val
-      WHEN is_account_group_member('executives') THEN margin_val
-      ELSE -1.0
-    END
-  );
-
--- Apply both
-ALTER TABLE catalog.schema.sales_pipeline
-  SET ROW FILTER catalog.schema.region_filter ON (region);
-
-ALTER TABLE catalog.schema.sales_pipeline
-  ALTER COLUMN margin SET MASK catalog.schema.mask_margin;
-```
+When external users authenticate via token exchange, they map to a Databricks SP. `current_user()` returns the SP UUID, not the original email. Use `is_account_group_member()` for group-based row filters (SP can be in Databricks groups). For individual-level filtering, use a mapping table with `session_user()` lookup.
 
 ---
 
 ## Service Principal Identity Under Token Exchange
 
-When external users authenticate via token exchange (e.g., through Auth0 or Entra ID), they map to a Databricks service principal. This is an important design consideration for access control.
-
-### How It Works
-
-```
-External User (sarah@partner.com)
-    --> IDP login --> IDP JWT
-    --> Token exchange --> Databricks token (SP: <sp-application-id>)
-    --> Query: SELECT * FROM sales_pipeline
-
-Inside Databricks:
-    session_user()  -->  "<sp-application-id>" (SP UUID)
-    current_user()  -->  "<sp-application-id>" (SP UUID)
-
-    Row filter checks: WHERE owner_email = current_user()
-    Result: 0 rows (no rows match SP UUID)
-```
-
-The original user's email is **not available** inside Unity Catalog filter functions when access is via a service principal.
-
 ### Access Pattern Compatibility
 
 | Access Pattern | Works with SP Token Exchange? | Why |
 |---|---|---|
-| `is_account_group_member('sales-west')` | YES | SP can be a member of Databricks groups |
-| `session_user() = 'sarah@partner.com'` | NO | Returns SP UUID, not federated email |
-| `owner_email = current_user()` | NO | Same -- returns SP UUID |
-| Parameter passing via app layer | YES | App sends user context as query parameters |
+| `is_account_group_member('group')` | YES | SP can be a member of groups |
+| `session_user() = 'user@partner.com'` | NO | Returns SP UUID |
+| `owner_email = current_user()` | NO | Returns SP UUID |
+| Parameter passing via app layer | YES | App sends user context |
 
 ### Strategy Decision Framework
 
 ```
 Do all users in the same role see the same rows?
-  |
-  +-- YES --> Strategy A (Group-Based)
-  |           Use is_account_group_member() in row filters.
-  |           Simplest, most secure, best-performing.
-  |
-  +-- NO --> Does the user need to see only "their" records?
-              |
-              +-- YES, and platform enforcement required
-              |   --> Strategy C (Mapping Table + EXISTS)
-              |     Accept the JOIN cost. Maintain the mapping table.
-              |
-              +-- YES, and app-layer enforcement acceptable
-              |   --> Strategy B (App Parameter Passing)
-              |     App adds WHERE clauses. Document the trust boundary.
-              |
-              +-- MIXED (some rows by role, some by individual)
-                  --> Strategy D (Hybrid)
-                    Row filter for role-based. App for individual-level.
-```
-
-### Mapping Table Pattern (Strategy C)
-
-When individual-level platform-enforced filtering is required with service principals:
-
-```sql
--- Mapping table (maintained by governance team)
-CREATE TABLE catalog.schema.user_access_map (
-  external_email    STRING,
-  sp_application_id STRING,
-  authorized_region STRING,
-  authorized_accounts ARRAY<STRING>
-);
-
--- Row filter using the mapping table
-CREATE OR REPLACE FUNCTION catalog.schema.mapped_filter(
-  region_col STRING,
-  account_id_col STRING
-)
-  RETURNS BOOLEAN
-  RETURN EXISTS (
-    SELECT 1 FROM catalog.schema.user_access_map m
-    WHERE m.sp_application_id = session_user()
-      AND (m.authorized_region = region_col
-           OR array_contains(m.authorized_accounts, account_id_col))
-  );
+  +-- YES --> Group-Based: is_account_group_member() in row filters
+  +-- NO  --> Does the user need to see only "their" records?
+               +-- YES, platform enforcement required --> Mapping Table + EXISTS
+               +-- YES, app-layer enforcement OK --> App Parameter Passing
+               +-- MIXED --> Hybrid (row filter for role, app for individual)
 ```
 
 ---
 
-## UDF Best Practices for Filter/Mask Functions
+## UDF Best Practices
 
-### Do
+**Do**: Simple CASE statements, deterministic logic, SQL UDFs, test on 1M+ rows.
 
-- Use simple `CASE` statements and boolean expressions
-- Keep functions deterministic (same input, same output)
-- Prefer SQL UDFs over Python UDFs
-- Reference only columns from the target table
-- Test performance on 1M+ rows before deploying
-
-### Do Not
-
-- Call external APIs from filter functions
-- Use complex subqueries or JOINs (mapping table pattern is the exception, with accepted cost)
-- Use heavy regex on large text fields
-- Nest UDFs within UDFs
-- Use non-deterministic logic that breaks query caching
+**Do not**: External API calls, nested UDFs, complex subqueries (mapping table is the accepted exception), Python UDFs (10-100x slower), non-deterministic logic.
 
 ### Performance Hierarchy
 
 ```
-Fastest --> Slowest:
-
-1. is_account_group_member('group')     ~0ms (cached per session)
-2. Simple column comparison              ~0ms per row
-3. CASE with 5-10 branches              ~0ms per row
-4. EXISTS with small lookup table        ~1-10ms per query
-5. EXISTS with large mapping table       ~10-100ms per query
-6. Python UDF                            10-100x slower than SQL
-7. External API call                     DO NOT DO THIS
+Fastest to slowest:
+1. is_account_group_member()    ~0ms (cached per session)
+2. Simple column comparison     ~0ms per row
+3. CASE with 5-10 branches     ~0ms per row
+4. EXISTS with small lookup     ~1-10ms per query
+5. EXISTS with large mapping    ~10-100ms per query
+6. Python UDF                   10-100x slower than SQL
+7. External API call            DO NOT DO THIS
 ```
 
 ---
 
 ## Access Control Pattern Comparison
 
-| Pattern | Granularity | Complexity | Query Performance | Works with SPs? | Platform Enforced? |
+| Pattern | Granularity | Complexity | Performance | Works with SPs? | Platform Enforced? |
 |---|---|---|---|---|---|
-| **Group + is_account_group_member()** | Team / Region | Low | Good (simple boolean) | Yes | Yes |
-| **current_user() / session_user()** | Individual | Low | Good | No (returns SP UUID) | Yes |
-| **App-layer parameter passing** | Individual | Medium | Good (simple WHERE) | Yes (app-enforced) | No |
-| **Mapping table + EXISTS** | Individual | High | Moderate (JOIN per query) | Partial (per-SP) | Yes |
-| **ABAC via governed tags** | Flexible | High (initial setup) | Moderate | Yes | Yes |
+| **Group + is_account_group_member()** | Team/Region | Low | Good | Yes | Yes |
+| **current_user() / session_user()** | Individual | Low | Good | No (SP UUID) | Yes |
+| **App-layer parameter passing** | Individual | Medium | Good | Yes (app-enforced) | No |
+| **Mapping table + EXISTS** | Individual | High | Moderate | Partial (per-SP) | Yes |
+| **ABAC via governed tags** | Flexible | High (initial) | Moderate | Yes | Yes |
 | **Dynamic views** | Flexible | Medium | Good | Yes | Yes |
-
----
-
-**Questions?** See troubleshooting above or continue to [03-PRODUCT-INTEGRATION.md](03-PRODUCT-INTEGRATION.md) to learn how AI products use Unity Catalog.
