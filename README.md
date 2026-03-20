@@ -25,7 +25,7 @@ Network, developer guardrails, and policy/compliance pillars are defined in the 
 
 1. [Authentication](identity/authentication.md): AuthN is delegated to IdPs (brief overview + official doc links)
 2. [Authorization](identity/authorization.md): The three token patterns, UC governance, OAuth scopes, service principals
-3. [UC Authorization](data-governance/uc-authorization.md): Row filters, column masks, ABAC, governed tags
+3. [UC Authorization](data-governance/uc-governance.md): Row filters, column masks, ABAC, governed tags
 
 ---
 
@@ -50,10 +50,10 @@ Browse all decks: [Presentations](https://bhavink.github.io/applied-ai-governanc
 A: See the decision table in [Authorization](identity/authorization.md#choosing-the-right-pattern).
 
 **Q: How do I enforce per-user data access?**
-A: Use OBO + UC row filters. See [UC Authorization](data-governance/uc-authorization.md).
+A: Use OBO + UC row filters. See [UC Authorization](data-governance/uc-governance.md).
 
 **Q: How do I secure a Genie Space for multiple teams?**
-A: See the [Genie Authorization Cookbook](data-governance/genie-authorization-cookbook.md).
+A: See the Genie patterns section in [UC Governance](data-governance/uc-governance.md#genie-space-patterns).
 
 **Q: My custom MCP server always shows the SP identity, not the user. Why?**
 A: This is the two-proxy problem. See [Authorization](identity/authorization.md#the-three-token-patterns).
