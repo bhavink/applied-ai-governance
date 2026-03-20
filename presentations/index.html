@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presentations -- Applied AI Governance</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+:root {
+    --bg: #ffffff;
+    --surface: #f8f8f8;
+    --border: #e5e5e5;
+    --ink: #1a1a1a;
+    --muted: #666666;
+    --red: #cc3311;
+    --red-bg: rgba(204,51,17,0.06);
+    --green: #16a34a;
+    --blue: #1d4ed8;
+    --font: 'Space Grotesk', system-ui, sans-serif;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 900px; margin: 0 auto; padding: clamp(2rem, 5vw, 4rem); }
+
+/* Header */
+.back { display: inline-block; color: var(--muted); text-decoration: none; font-size: 0.85rem; margin-bottom: 1.5rem; }
+.back:hover { color: var(--red); }
+h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+h1 span { color: var(--red); }
+.subtitle { color: var(--muted); font-size: 1.05rem; margin-top: 8px; }
+.red-line { width: 60px; height: 3px; background: var(--red); margin-top: 16px; }
+
+/* Cards */
+.deck-grid { display: flex; flex-direction: column; gap: 16px; margin-top: 2rem; }
+.deck-card {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--ink);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.deck-card:hover {
+    border-color: var(--red);
+    box-shadow: 0 2px 12px rgba(204,51,17,0.08);
+}
+.deck-num {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 4px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.deck-body h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; }
+.deck-body p { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+.deck-meta { text-align: right; white-space: nowrap; }
+.badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+}
+.badge-exec { background: var(--red-bg); color: var(--red); }
+.badge-tech { background: rgba(29,78,216,0.08); color: var(--blue); }
+.slide-count { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+/* Section headers */
+.section-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--red);
+    font-weight: 600;
+    margin-top: 2.5rem;
+    margin-bottom: 8px;
+}
+
+/* Footer */
+.footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+.footer a { color: var(--red); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+@media (max-width: 600px) {
+    .deck-card { grid-template-columns: 40px 1fr; }
+    .deck-meta { display: none; }
+}
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <a href="../" class="back">&larr; Back to Applied AI Governance</a>
+
+    <h1>Presentation <span>Decks</span></h1>
+    <p class="subtitle">Slide decks covering identity, federation, and AI governance patterns on Databricks.</p>
+    <div class="red-line"></div>
+
+    <div class="section-label">Executive</div>
+
+    <div class="deck-grid">
+        <a href="identity-governance-overview.html" class="deck-card">
+            <div class="deck-num">01</div>
+            <div class="deck-body">
+                <h3>Identity & Governance Overview</h3>
+                <p>OBO vs M2M vs Federation, shared UC governance, scope-based access model, supervisor integration</p>
+            </div>
+            <div class="deck-meta">
+                <span class="badge badge-exec">Exec</span>
+                <div class="slide-count">18 slides</div>
+            </div>
+        </a>
+
+        <a href="federation-animation.html" class="deck-card">
+            <div class="deck-num">02</div>
+            <div class="deck-body">
+                <h3>Federation Token Flow</h3>
+                <p>Interactive animated visualization of the 10-step token exchange with JWT inspector at each stage</p>
+            </div>
+            <div class="deck-meta">
+                <span class="badge badge-exec">Exec</span>
+                <div class="slide-count">Interactive</div>
+            </div>
+        </a>
+    </div>
+
+    <div class="section-label">Technical</div>
+
+    <div class="deck-grid">
+        <a href="federation-deep-dive.html" class="deck-card">
+            <div class="deck-num">03</div>
+            <div class="deck-body">
+                <h3>Federation Exchange Deep Dive</h3>
+                <p>Token anatomy at each stage, 7 governance enforcement points, UC grants checklist, embedded animation</p>
+            </div>
+            <div class="deck-meta">
+                <span class="badge badge-tech">Technical</span>
+                <div class="slide-count">21 slides</div>
+            </div>
+        </a>
+
+        <a href="ai-gateway-patterns-v2.html" class="deck-card">
+            <div class="deck-num">04</div>
+            <div class="deck-body">
+                <h3>AI Gateway Patterns</h3>
+                <p>When to use Databricks AI Gateway vs external gateway vs UC-native controls. Four traffic patterns.</p>
+            </div>
+            <div class="deck-meta">
+                <span class="badge badge-tech">Technical</span>
+                <div class="slide-count">Slides</div>
+            </div>
+        </a>
+    </div>
+
+    <div class="footer">
+        <p>Part of <a href="https://github.com/bhavink/applied-ai-governance">Applied AI Governance</a> &middot; <a href="../interactive/">Interactive Visualizations</a> &middot; <a href="../GOVERNANCE-FRAMEWORK.md">Governance Framework</a></p>
+    </div>
+
+</div>
+</body>
+</html>
