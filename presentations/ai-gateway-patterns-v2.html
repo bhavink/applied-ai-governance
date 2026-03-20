@@ -431,11 +431,30 @@
             </div>
         </div>
     </div>
-    <div class="slide-num">01 / 13</div>
+    <div class="slide-num">01 / 14</div>
 </section>
 
-<!-- ─── SLIDE 02 — CORE PRINCIPLE ───────────────────────── -->
+<!-- ─── SLIDE 02 — THE CHALLENGE ────────────────────────── -->
 <section class="slide" id="s2">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">The Challenge</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0;">Your AI platform calls external models. Who controls that traffic?</h2>
+        <div class="rule reveal"></div>
+
+        <div class="cols-2 reveal" style="margin-top: var(--gap);">
+            <div class="card" style="border-left:4px solid var(--red);">
+                <p>Agents, knowledge retrieval, and orchestration workflows all call LLM endpoints -- both internal foundation models and external providers like OpenAI or Anthropic. Each call carries cost, latency, and compliance implications. Without a control point, there is no rate limiting, no usage tracking, no guardrails, and no fallback routing.</p>
+            </div>
+            <div class="card" style="border-left:4px solid var(--ink);">
+                <p>But not every deployment needs a gateway. Some traffic is purely internal and already governed by Unity Catalog. The question is <strong>where to place the control point</strong> -- and whether you need one at all. This deck walks through four patterns and helps you decide.</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-num">02 / 14</div>
+</section>
+
+<!-- ─── SLIDE 03 — CORE PRINCIPLE ───────────────────────── -->
+<section class="slide" id="s3">
     <div class="slide-inner">
         <div class="eyebrow reveal">Core Principle</div>
         <h2 class="reveal" style="margin: var(--gap-sm) 0;">Two options. Neither replaces the other.<br>Neither is mandatory.</h2>
@@ -456,11 +475,11 @@
             <strong>What neither should govern:</strong> internal Databricks traffic between agents, Genie, custom MCP servers, and serving endpoints. That traffic is governed by Unity Catalog at the data plane — inserting a gateway into that path breaks the OBO token chain.
         </div>
     </div>
-    <div class="slide-num">02 / 13</div>
+    <div class="slide-num">03 / 14</div>
 </section>
 
-<!-- ─── SLIDE 03 — FOUR PATTERNS OVERVIEW ───────────────── -->
-<section class="slide" id="s3">
+<!-- ─── SLIDE 04 — FOUR PATTERNS OVERVIEW ───────────────── -->
+<section class="slide" id="s4">
     <div class="slide-inner">
         <div class="eyebrow reveal">Overview</div>
         <h2 class="reveal" style="margin-bottom: var(--gap);">The Four Traffic Patterns</h2>
@@ -500,11 +519,11 @@
             </div>
         </div>
     </div>
-    <div class="slide-num">03 / 13</div>
+    <div class="slide-num">04 / 14</div>
 </section>
 
-<!-- ─── SLIDE 04 — PATTERN 1: NO GATEWAY ────────────────── -->
-<section class="slide" id="s4" data-pattern="1">
+<!-- ─── SLIDE 05 — PATTERN 1: NO GATEWAY ────────────────── -->
+<section class="slide" id="s5" data-pattern="1">
     <div class="slide-inner">
         <div style="display:flex; align-items:center; gap:var(--gap-sm); margin-bottom:var(--gap-sm);" class="reveal">
             <div class="eyebrow">Pattern 1</div>
@@ -537,11 +556,11 @@
             </div>
         </div>
     </div>
-    <div class="slide-num">04 / 13</div>
+    <div class="slide-num">05 / 14</div>
 </section>
 
-<!-- ─── SLIDE 05 — THE OBO TOKEN CHAIN ──────────────────── -->
-<section class="slide" id="s5" data-pattern="1">
+<!-- ─── SLIDE 06 — THE OBO TOKEN CHAIN ──────────────────── -->
+<section class="slide" id="s6" data-pattern="1">
     <div class="slide-inner">
         <div class="eyebrow reveal">Pattern 1 — Why No Gateway</div>
         <h2 class="reveal" style="margin-bottom: var(--gap);">A gateway in the OBO path breaks governance</h2>
@@ -591,11 +610,11 @@
             <strong>Key principle:</strong> UC enforcement happens at query execution time, inside the compute layer. A gateway observes HTTP traffic — it cannot observe which rows were filtered or what <code>current_user()</code> returned.
         </div>
     </div>
-    <div class="slide-num">05 / 13</div>
+    <div class="slide-num">06 / 14</div>
 </section>
 
-<!-- ─── SLIDE 06 — PATTERN 2: AI GATEWAY ────────────────── -->
-<section class="slide" id="s6" data-pattern="2">
+<!-- ─── SLIDE 07 — PATTERN 2: AI GATEWAY ────────────────── -->
+<section class="slide" id="s7" data-pattern="2">
     <div class="slide-inner">
         <div style="display:flex; align-items:center; gap:var(--gap-sm); margin-bottom:var(--gap-sm);" class="reveal">
             <div class="eyebrow">Pattern 2</div>
@@ -626,11 +645,11 @@
             Configured <em>directly on</em> the serving endpoint — not a separate infrastructure hop. Works with OBO and M2M token flows. Compatible with FM API, custom models, and external models via AI Gateway.
         </div>
     </div>
-    <div class="slide-num">06 / 13</div>
+    <div class="slide-num">07 / 14</div>
 </section>
 
-<!-- ─── SLIDE 07 — PATTERN 3: UC CONNECTIONS ────────────── -->
-<section class="slide" id="s7" data-pattern="3">
+<!-- ─── SLIDE 08 — PATTERN 3: UC CONNECTIONS ────────────── -->
+<section class="slide" id="s8" data-pattern="3">
     <div class="slide-inner">
         <div style="display:flex; align-items:center; gap:var(--gap-sm); margin-bottom:var(--gap-sm);" class="reveal">
             <div class="eyebrow">Pattern 3</div>
@@ -670,11 +689,11 @@
             </div>
         </div>
     </div>
-    <div class="slide-num">07 / 13</div>
+    <div class="slide-num">08 / 14</div>
 </section>
 
-<!-- ─── SLIDE 08 — DEFENSE IN DEPTH ─────────────────────── -->
-<section class="slide" id="s8" data-pattern="3">
+<!-- ─── SLIDE 09 — DEFENSE IN DEPTH ─────────────────────── -->
+<section class="slide" id="s9" data-pattern="3">
     <div class="slide-inner">
         <div class="eyebrow reveal">Pattern 3 — Defense-in-Depth</div>
         <h2 class="reveal" style="margin-bottom: var(--gap);">Two independent layers of control</h2>
@@ -715,11 +734,11 @@
             </table>
         </div>
     </div>
-    <div class="slide-num">08 / 13</div>
+    <div class="slide-num">09 / 14</div>
 </section>
 
-<!-- ─── SLIDE 09 — PATTERN 4: INBOUND EXTERNAL ──────────── -->
-<section class="slide" id="s9" data-pattern="4">
+<!-- ─── SLIDE 10 — PATTERN 4: INBOUND EXTERNAL ──────────── -->
+<section class="slide" id="s10" data-pattern="4">
     <div class="slide-inner">
         <div style="display:flex; align-items:center; gap:var(--gap-sm); margin-bottom:var(--gap-sm);" class="reveal">
             <div class="eyebrow">Pattern 4</div>
@@ -759,11 +778,11 @@
             Options: Azure APIM · AWS API Gateway · Kong · Apigee · Any OpenAPI-compatible gateway. The external gateway is additive — it can sit in front of a Databricks endpoint that also has Pattern 2 AI Gateway configured.
         </div>
     </div>
-    <div class="slide-num">09 / 13</div>
+    <div class="slide-num">10 / 14</div>
 </section>
 
-<!-- ─── SLIDE 10 — COMPARISON TABLE ─────────────────────── -->
-<section class="slide" id="s10">
+<!-- ─── SLIDE 11 — COMPARISON TABLE ─────────────────────── -->
+<section class="slide" id="s11">
     <div class="slide-inner">
         <div class="eyebrow reveal">Comparison</div>
         <h2 class="reveal" style="margin-bottom: var(--gap);">Databricks AI Gateway vs External API Gateway</h2>
@@ -793,11 +812,11 @@
             <strong>Additive by design:</strong> external gateway handles boundary crossing (external identity → Databricks token); AI Gateway handles LLM governance at the endpoint; Unity Catalog handles data access. Each layer governs what it owns.
         </div>
     </div>
-    <div class="slide-num">10 / 13</div>
+    <div class="slide-num">11 / 14</div>
 </section>
 
-<!-- ─── SLIDE 11 — REFERENCE SCENARIO ───────────────────── -->
-<section class="slide" id="s11">
+<!-- ─── SLIDE 12 — REFERENCE SCENARIO ───────────────────── -->
+<section class="slide" id="s12">
     <div class="slide-inner">
         <div class="eyebrow reveal">Reference Scenario</div>
         <h2 class="reveal" style="margin-bottom:clamp(0.25rem,0.6vw,0.6rem);">Prior Authorization Appeals Agent</h2>
@@ -840,11 +859,11 @@
             </table>
         </div>
     </div>
-    <div class="slide-num">11 / 13</div>
+    <div class="slide-num">12 / 14</div>
 </section>
 
-<!-- ─── SLIDE 12 — DECISION FRAMEWORK ───────────────────── -->
-<section class="slide" id="s12">
+<!-- ─── SLIDE 13 — DECISION FRAMEWORK ───────────────────── -->
+<section class="slide" id="s13">
     <div class="slide-inner">
         <div class="eyebrow reveal">Decision Framework</div>
         <h2 class="reveal" style="margin-bottom: var(--gap);">Which pattern for which traffic?</h2>
@@ -884,11 +903,11 @@
             </div>
         </div>
     </div>
-    <div class="slide-num">12 / 13</div>
+    <div class="slide-num">13 / 14</div>
 </section>
 
-<!-- ─── SLIDE 13 — SUMMARY ───────────────────────────────── -->
-<section class="slide" id="s13">
+<!-- ─── SLIDE 14 — SUMMARY ───────────────────────────────── -->
+<section class="slide" id="s14">
     <div class="slide-inner">
         <div class="eyebrow reveal">Summary</div>
         <h2 class="reveal" style="margin-bottom: var(--gap);">Quick Reference</h2>
@@ -936,7 +955,7 @@
             <span style="font-size:var(--sz-label); color:var(--border);">Reference: AI-GATEWAY-PATTERNS.md · Interactive: interactive/orchestration/ai-gateway-patterns.html</span>
         </div>
     </div>
-    <div class="slide-num">13 / 13</div>
+    <div class="slide-num">14 / 14</div>
 </section>
 
 <script>
@@ -944,7 +963,7 @@
    SLIDE PRESENTATION CONTROLLER
    =========================================== */
 (function () {
-    const TOTAL = 13;
+    const TOTAL = 14;
     const slides = [...document.querySelectorAll('.slide')];
     const progress = document.getElementById('progress');
     const navDots = document.getElementById('navDots');

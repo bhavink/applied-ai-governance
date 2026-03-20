@@ -19,6 +19,21 @@ Any AI governance architecture that answers these six questions at every layer -
 
 ## Design Principles
 
+### 0. Lead with the business need, not the technology
+
+Technology is a means, not the end. Every pillar, presentation, and document in this repository must start with the business challenge it solves -- not the Databricks feature that implements it.
+
+The pattern:
+
+1. **The need** -- What does the business require? Plain-English analytics, knowledge retrieval, multi-agent orchestration, governed access for partners. Real, specific, relatable.
+2. **The tension** -- What makes this hard? Two identity worlds, external users without platform accounts, compliance across organizational boundaries.
+3. **The platform** -- Databricks resolves the tension. *Now* you name Genie, Vector Search, Agent Bricks, Unity Catalog, AI Gateway. The reader arrives at the technology naturally because the business need led them there.
+4. **The how** -- The rest of the content delivers the implementation.
+
+A pillar that opens with "Unity Catalog row filters let you..." is doing it wrong. A pillar that opens with "Sales reps should only see their region's pipeline, partners should see aggregated metrics but never individual records..." is doing it right. The reader should feel the problem before they hear about the solution.
+
+**The test:** If you removed every Databricks product name from the first two paragraphs, would the content still resonate with a business leader? If yes, the framing is right.
+
 ### 1. Govern at the data layer, not the application layer
 
 Applications change. Data governance doesn't. If your access control lives in application code, every new AI tool requires new governance code. If it lives in the data platform, every new AI tool inherits governance automatically.

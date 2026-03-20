@@ -98,7 +98,7 @@ tr:hover td{background:var(--surface)}
 
 <div class="topbar">
   <div class="title">Unity Catalog <span>Governance</span></div>
-  <div class="counter" id="counter">01 / 14</div>
+  <div class="counter" id="counter">01 / 15</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 <div class="nav-hint">&larr; &rarr; arrow keys</div>
@@ -113,9 +113,24 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 2: UC HIERARCHY -->
+<!-- SLIDE 2: THE CHALLENGE -->
 <!-- ================================================================ -->
 <div class="slide" data-slide="2">
+  <div class="label reveal">The Challenge</div>
+  <h2 class="reveal">Once identity is resolved, what can each user actually see?</h2>
+  <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--red)">
+    <p>Your AI platform answers questions from live data -- but not every user should see every answer. <strong>Sales reps</strong> should only see their own region's pipeline. <strong>Partners</strong> should see aggregated metrics but never individual customer records. <strong>Auditors</strong> need read access to compliance tables but nothing else.</p>
+  </div>
+  <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--ink)">
+    <p>These rules must apply consistently whether the question comes from a Genie space, a Vector Search query, an agent workflow, or a direct SQL call. <strong>Unity Catalog</strong> is the single enforcement layer that makes this possible -- row filters, column masks, attribute-based access control, all resolved from the caller's identity.</p>
+    <p class="mt-1"><strong>This deck shows you the four layers of data access control and how they compose.</strong></p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 3: UC HIERARCHY -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="3">
   <div class="label reveal">Foundation</div>
   <h2 class="reveal">The UC Hierarchy</h2>
   <p class="reveal" style="color:var(--muted)">Every securable object lives in a three-level namespace. Permissions propagate downward.</p>
@@ -144,9 +159,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 3: FOUR LAYERS OVERVIEW -->
+<!-- SLIDE 4: FOUR LAYERS OVERVIEW -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="3">
+<div class="slide" data-slide="4">
   <div class="label reveal">Access Control</div>
   <h2 class="reveal">Four Complementary Layers</h2>
   <p class="reveal" style="color:var(--muted)">UC evaluates all four layers in sequence before returning any data. Each answers a different question.</p>
@@ -178,9 +193,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 4: WORKSPACE + PRIVILEGES -->
+<!-- SLIDE 5: WORKSPACE + PRIVILEGES -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="4">
+<div class="slide" data-slide="5">
   <div class="label reveal">Layers 1 + 2</div>
   <h2 class="reveal">Workspace Restrictions & Privileges</h2>
   <div class="two-col mt-2">
@@ -212,9 +227,9 @@ GRANT USE SCHEMA ON SCHEMA
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 5: ROW FILTERS - HOW THEY WORK -->
+<!-- SLIDE 6: ROW FILTERS - HOW THEY WORK -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="5">
+<div class="slide" data-slide="6">
   <div class="label reveal">Layer 4a</div>
   <h2 class="reveal">Row Filters: How They Work</h2>
   <p class="reveal" style="color:var(--muted)">Row filters automatically restrict which rows a user sees. Applied at query time by the SQL engine.</p>
@@ -250,9 +265,9 @@ ALTER TABLE deals
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 6: ROW FILTERS - IDENTITY FUNCTIONS -->
+<!-- SLIDE 7: ROW FILTERS - IDENTITY FUNCTIONS -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="6">
+<div class="slide" data-slide="7">
   <div class="label reveal">Row Filters</div>
   <h2 class="reveal">current_user() vs is_member()</h2>
   <p class="reveal" style="color:var(--muted)">Two identity functions, different propagation behavior. Choose based on your token pattern.</p>
@@ -287,9 +302,9 @@ WHERE is_member('west_sales')
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 7: COLUMN MASKS - HOW THEY WORK -->
+<!-- SLIDE 8: COLUMN MASKS - HOW THEY WORK -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="7">
+<div class="slide" data-slide="8">
   <div class="label reveal">Layer 4b</div>
   <h2 class="reveal">Column Masks: How They Work</h2>
   <p class="reveal" style="color:var(--muted)">Column masks transform sensitive values at query time. Users see the row but with masked column values.</p>
@@ -334,9 +349,9 @@ ALTER TABLE customers
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 8: COLUMN MASKS - OBO GOTCHA -->
+<!-- SLIDE 9: COLUMN MASKS - OBO GOTCHA -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="8">
+<div class="slide" data-slide="9">
   <div class="label reveal">Column Masks</div>
   <h2 class="reveal">is_member() in OBO Chains</h2>
   <p class="reveal" style="color:var(--muted)">A critical distinction when column masks use is_member() in different token patterns.</p>
@@ -368,9 +383,9 @@ END</pre>
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 9: ABAC + GOVERNED TAGS -->
+<!-- SLIDE 10: ABAC + GOVERNED TAGS -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="9">
+<div class="slide" data-slide="10">
   <div class="label reveal">Layer 3</div>
   <h2 class="reveal">ABAC with Governed Tags</h2>
   <p class="reveal" style="color:var(--muted)">Attribute-Based Access Control uses tags to enforce dynamic, scalable policies without per-object permissions.</p>
@@ -403,9 +418,9 @@ CREATE ACCESS POLICY high_sens_policy
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 10: ABAC BENEFITS -->
+<!-- SLIDE 11: ABAC BENEFITS -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="10">
+<div class="slide" data-slide="11">
   <div class="label reveal">ABAC</div>
   <h2 class="reveal">Why ABAC at Scale</h2>
   <div class="two-col mt-2">
@@ -445,9 +460,9 @@ CREATE ACCESS POLICY high_sens_policy
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 11: ROW FILTER + COLUMN MASK TOGETHER -->
+<!-- SLIDE 12: ROW FILTER + COLUMN MASK TOGETHER -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="11">
+<div class="slide" data-slide="12">
   <div class="label reveal">Combined</div>
   <h2 class="reveal">Row Filters + Column Masks Together</h2>
   <p class="reveal" style="color:var(--muted)">Both can apply to the same table. The row filter runs first, then column masks apply to surviving rows.</p>
@@ -492,9 +507,9 @@ ALTER TABLE deals ALTER COLUMN margin_pct SET MASK mask_margin;</pre>
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 12: DECISION TABLE -->
+<!-- SLIDE 13: DECISION TABLE -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="12">
+<div class="slide" data-slide="13">
   <div class="label reveal">Decision Guide</div>
   <h2 class="reveal">When to Use Which Pattern</h2>
   <div class="flex-1 mt-2 reveal" style="max-width:850px">
@@ -545,9 +560,9 @@ ALTER TABLE deals ALTER COLUMN margin_pct SET MASK mask_margin;</pre>
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 13: ENFORCEMENT SUMMARY -->
+<!-- SLIDE 14: ENFORCEMENT SUMMARY -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="13">
+<div class="slide" data-slide="14">
   <div class="label reveal">Enforcement</div>
   <h2 class="reveal">All Enforced by the SQL Engine</h2>
   <p class="reveal" style="color:var(--muted)">Not application code. Not middleware. The SQL engine itself enforces every layer.</p>
@@ -572,9 +587,9 @@ ALTER TABLE deals ALTER COLUMN margin_pct SET MASK mask_margin;</pre>
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 14: SUMMARY -->
+<!-- SLIDE 15: SUMMARY -->
 <!-- ================================================================ -->
-<div class="slide slide-title" data-slide="14">
+<div class="slide slide-title" data-slide="15">
   <div class="label reveal">Summary</div>
   <h1 class="reveal" style="font-size:var(--sz-h1)">Unity Catalog Governance</h1>
   <div style="max-width:700px;text-align:left;margin:24px auto 0" class="reveal">

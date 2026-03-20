@@ -105,7 +105,7 @@ tr:hover td{background:var(--surface)}
 
 <div class="topbar">
   <div class="title">Identity <span>Patterns</span> for AI Applications</div>
-  <div class="counter" id="counter">01 / 14</div>
+  <div class="counter" id="counter">01 / 15</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 <div class="nav-hint">&larr; &rarr; arrow keys</div>
@@ -121,9 +121,24 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 2: AuthN vs AuthZ -->
+<!-- SLIDE 2: THE CHALLENGE -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="2">
+  <div class="label reveal">The Challenge</div>
+  <h2 class="reveal">You need an AI platform that serves two identity worlds</h2>
+  <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--red)">
+    <p><strong>Business users</strong> need plain-English answers from live data. <strong>Knowledge workers</strong> need natural language search across documents and institutional memory. <strong>AI agents</strong> need to collaborate -- retrieval, reasoning, and action -- coordinated by a supervisor. A <strong>tool layer</strong> connects it all to your data and APIs.</p>
+  </div>
+  <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--amber)">
+    <p>Internal teams authenticate through your corporate IdP. But partners and customers authenticate through <em>their own</em> identity providers -- and they need the same governed access without Databricks accounts.</p>
+    <p class="mt-1"><strong>Each identity pattern -- OBO, M2M, Federation -- solves a different piece of this puzzle. This deck shows you when to use which.</strong></p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3: AuthN vs AuthZ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
   <div class="label">Foundations</div>
   <h2>Authentication vs Authorization</h2>
   <p style="color:var(--muted)">Two distinct questions, enforced at different layers.</p>
@@ -152,9 +167,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 3: THREE TOKEN PATTERNS -->
+<!-- SLIDE 4: THREE TOKEN PATTERNS -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="3">
+<div class="slide" data-slide="4">
   <div class="label">Identity Models</div>
   <h2>Three token patterns</h2>
   <div class="three-col mt-2">
@@ -207,9 +222,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 4: OBO FLOW -->
+<!-- SLIDE 5: OBO FLOW -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="4">
+<div class="slide" data-slide="5">
   <div class="label">Pattern 1</div>
   <h2>On-Behalf-Of (OBO) Flow</h2>
   <div class="flow-h mt-3">
@@ -245,9 +260,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 5: M2M PATTERN -->
+<!-- SLIDE 6: M2M PATTERN -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="5">
+<div class="slide" data-slide="6">
   <div class="label">Pattern 2</div>
   <h2>Machine-to-Machine (Service Principal)</h2>
   <div class="flow-h mt-3">
@@ -280,9 +295,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 6: FEDERATION FLOW -->
+<!-- SLIDE 7: FEDERATION FLOW -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="6">
+<div class="slide" data-slide="7">
   <div class="label">Pattern 3</div>
   <h2>Federation Token Exchange</h2>
   <div class="flow-h mt-3">
@@ -320,9 +335,9 @@ scope=sql genie serving</pre>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 7: FEDERATION DEEP DIVE -->
+<!-- SLIDE 8: FEDERATION DEEP DIVE -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="7">
+<div class="slide" data-slide="8">
   <div class="label">Federation Details</div>
   <h2>The trust boundary</h2>
   <div class="two-col mt-2">
@@ -353,9 +368,9 @@ scope=sql genie serving</pre>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 8: DECISION GUIDE -->
+<!-- SLIDE 9: DECISION GUIDE -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="8">
+<div class="slide" data-slide="9">
   <div class="label">Decision Guide</div>
   <h2>When to use which pattern</h2>
   <div class="flex-1 mt-2" style="max-width:800px">
@@ -401,9 +416,9 @@ scope=sql genie serving</pre>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 9: OAUTH SCOPES -->
+<!-- SLIDE 10: OAUTH SCOPES -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="9">
+<div class="slide" data-slide="10">
   <div class="label">Least Privilege</div>
   <h2>OAuth scopes: the capability ceiling</h2>
   <p style="color:var(--muted)">Scopes limit what the token can do. UC grants limit what the identity can access. Both enforce independently.</p>
@@ -433,9 +448,9 @@ scope=sql genie serving</pre>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 10: SERVICE PRINCIPALS -->
+<!-- SLIDE 11: SERVICE PRINCIPALS -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="10">
+<div class="slide" data-slide="11">
   <div class="label">Service Principals</div>
   <h2>Account vs workspace, two identifiers</h2>
   <div class="two-col mt-2">
@@ -467,9 +482,9 @@ scope=sql genie serving</pre>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 11: SHARED GOVERNANCE -->
+<!-- SLIDE 12: SHARED GOVERNANCE -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="11">
+<div class="slide" data-slide="12">
   <div class="label">UC Governance</div>
   <h2>One governance model, all patterns</h2>
   <p style="color:var(--muted)">Unity Catalog enforcement is identical. Only the identity source differs.</p>
@@ -505,9 +520,9 @@ scope=sql genie serving</pre>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 12: ACCESS CONTROL MATRIX -->
+<!-- SLIDE 13: ACCESS CONTROL MATRIX -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="12">
+<div class="slide" data-slide="13">
   <div class="label">Access Control</div>
   <h2>9 Tools x 6 Roles</h2>
   <p style="color:var(--muted)">Federation uses RBAC matrix + UC governance. OBO uses UC governance only (no matrix needed).</p>
@@ -532,9 +547,9 @@ scope=sql genie serving</pre>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 13: SECURITY CHECKLIST -->
+<!-- SLIDE 14: SECURITY CHECKLIST -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="13">
+<div class="slide" data-slide="14">
   <div class="label">Production Ready</div>
   <h2>Security Checklist</h2>
   <div class="check-grid mt-2 flex-1">
@@ -552,9 +567,9 @@ scope=sql genie serving</pre>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 14: SUMMARY -->
+<!-- SLIDE 15: SUMMARY -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<div class="slide slide-title" data-slide="14">
+<div class="slide slide-title" data-slide="15">
   <div class="label">Summary</div>
   <h1 style="font-size:var(--sz-h1)">Three Patterns, One Governance Model</h1>
   <div style="max-width:700px;text-align:left;margin:24px auto 0">

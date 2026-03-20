@@ -116,7 +116,7 @@ tr:hover td{background:var(--surface)}
 
 <div class="topbar">
   <div class="title">AI <span>Orchestration</span> &amp; Governance on Databricks</div>
-  <div class="counter" id="counter">01 / 17</div>
+  <div class="counter" id="counter">01 / 18</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 <div class="nav-hint">&larr; &rarr; arrow keys</div>
@@ -132,9 +132,24 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 2: THE ORCHESTRATION LANDSCAPE -->
+<!-- SLIDE 2: THE CHALLENGE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="2">
+  <div class="label reveal">The Challenge</div>
+  <h2 class="reveal">AI capabilities are easy to build. Governing them at scale is not.</h2>
+  <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--red)">
+    <p>You have agents that retrieve data, reason over it, and take action. You have natural language interfaces, document search, and tool integrations. Each of these needs to <strong>call models</strong>, <strong>access data</strong>, and <strong>invoke tools</strong> -- all while preserving the caller's identity and enforcing access policies at every hop.</p>
+  </div>
+  <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--ink)">
+    <p>The orchestration layer is where identity meets infrastructure: serving endpoints, MCP servers, AI Gateway, and Databricks Apps each play a role. The question is how they compose -- and how governance flows through the entire chain without gaps.</p>
+    <p class="mt-1"><strong>This deck maps the four pillars of AI orchestration and shows where governance is enforced at each layer.</strong></p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3: THE ORCHESTRATION LANDSCAPE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
   <div class="label reveal">Landscape</div>
   <h2 class="reveal">Four pillars of AI orchestration on Databricks</h2>
   <p class="reveal" style="color:var(--muted)">Each solves a different problem. All governed by Unity Catalog.</p>
@@ -162,9 +177,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 3: AGENT AUTH METHODS - OVERVIEW -->
+<!-- SLIDE 4: AGENT AUTH METHODS - OVERVIEW -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="3">
+<div class="slide" data-slide="4">
   <div class="label reveal">Agent Auth</div>
   <h2 class="reveal">Three authentication methods for agents on Model Serving</h2>
   <div class="three-col mt-2">
@@ -214,9 +229,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 4: AGENT AUTH - DECISION FLOW -->
+<!-- SLIDE 5: AGENT AUTH - DECISION FLOW -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="4">
+<div class="slide" data-slide="5">
   <div class="label reveal">Agent Auth</div>
   <h2 class="reveal">Which auth method for which resource?</h2>
   <div class="flex-1 mt-2 reveal" style="max-width:800px">
@@ -264,9 +279,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 5: DATABRICKS APPS -->
+<!-- SLIDE 6: DATABRICKS APPS -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="5">
+<div class="slide" data-slide="6">
   <div class="label reveal">Databricks Apps</div>
   <h2 class="reveal">Managed hosting with automatic OAuth and UC integration</h2>
   <div class="flow-h mt-3 reveal">
@@ -305,9 +320,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 6: MCP INTEGRATION - THREE TYPES -->
+<!-- SLIDE 7: MCP INTEGRATION - THREE TYPES -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="6">
+<div class="slide" data-slide="7">
   <div class="label reveal">MCP Integration</div>
   <h2 class="reveal">Three types of MCP servers, all governed by UC</h2>
   <p class="reveal" style="color:var(--muted)">Model Context Protocol standardizes tool calling for agents. Databricks supports three flavors.</p>
@@ -353,9 +368,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 7: MCP - AUTH + SCOPES -->
+<!-- SLIDE 8: MCP - AUTH + SCOPES -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="7">
+<div class="slide" data-slide="8">
   <div class="label reveal">MCP Auth</div>
   <h2 class="reveal">MCP authentication and required scopes</h2>
   <div class="two-col mt-2">
@@ -386,9 +401,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 8: EXTERNAL APP AUTH - TOKEN FEDERATION -->
+<!-- SLIDE 9: EXTERNAL APP AUTH - TOKEN FEDERATION -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="8">
+<div class="slide" data-slide="9">
   <div class="label reveal">External App Auth</div>
   <h2 class="reveal">Token Federation for apps outside Databricks</h2>
   <p class="reveal" style="color:var(--muted)">Bring your own IdP. No Databricks secrets required.</p>
@@ -417,9 +432,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 9: TOKEN EXCHANGE MECHANICS -->
+<!-- SLIDE 10: TOKEN EXCHANGE MECHANICS -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="9">
+<div class="slide" data-slide="10">
   <div class="label reveal">Token Exchange</div>
   <h2 class="reveal">RFC 8693 token exchange in four steps</h2>
   <div class="two-col mt-2">
@@ -448,9 +463,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 10: AI GATEWAY - WHEN TO USE -->
+<!-- SLIDE 11: AI GATEWAY - WHEN TO USE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="10">
+<div class="slide" data-slide="11">
   <div class="label reveal">AI Gateway</div>
   <h2 class="reveal">Mosaic AI Gateway: centralized governance for serving endpoints</h2>
   <p class="reveal" style="color:var(--muted)">Configured directly on Model Serving endpoints. Governs LLM traffic at the point of consumption.</p>
@@ -481,9 +496,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 11: AI GATEWAY - ENDPOINT SUPPORT MATRIX -->
+<!-- SLIDE 12: AI GATEWAY - ENDPOINT SUPPORT MATRIX -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="11">
+<div class="slide" data-slide="12">
   <div class="label reveal">AI Gateway</div>
   <h2 class="reveal">Feature support by endpoint type</h2>
   <div class="flex-1 mt-2 reveal">
@@ -512,9 +527,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 12: AI GATEWAY PATTERNS - FOUR PATTERNS -->
+<!-- SLIDE 13: AI GATEWAY PATTERNS - FOUR PATTERNS -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="12">
+<div class="slide" data-slide="13">
   <div class="label reveal">Gateway Patterns</div>
   <h2 class="reveal">Four traffic patterns, four governance layers</h2>
   <div class="flex-1 mt-2 reveal" style="max-width:800px">
@@ -545,9 +560,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 13: GATEWAY PATTERNS - WHY NO GATEWAY FOR OBO -->
+<!-- SLIDE 14: GATEWAY PATTERNS - WHY NO GATEWAY FOR OBO -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="13">
+<div class="slide" data-slide="14">
   <div class="label reveal">Pattern 1 Deep Dive</div>
   <h2 class="reveal">Internal traffic: why a gateway breaks governance</h2>
   <div class="two-col mt-2">
@@ -576,9 +591,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 14: UC CONNECTIONS AS GOVERNANCE PRIMITIVE -->
+<!-- SLIDE 15: UC CONNECTIONS AS GOVERNANCE PRIMITIVE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="14">
+<div class="slide" data-slide="15">
   <div class="label reveal">UC Connections</div>
   <h2 class="reveal">UC Connections: the outbound governance primitive</h2>
   <p class="reveal" style="color:var(--muted)">Application code never calls external services directly. UC proxies the call, checks authorization, injects credentials.</p>
@@ -610,9 +625,9 @@ REVOKE USE CONNECTION
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 15: SCOPE-BASED ACCESS MODEL -->
+<!-- SLIDE 16: SCOPE-BASED ACCESS MODEL -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="15">
+<div class="slide" data-slide="16">
   <div class="label reveal">Least Privilege</div>
   <h2 class="reveal">Scope-based access model</h2>
   <div class="flex-1 mt-2 reveal">
@@ -642,9 +657,9 @@ REVOKE USE CONNECTION
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 16: DECISION GUIDE -->
+<!-- SLIDE 17: DECISION GUIDE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="16">
+<div class="slide" data-slide="17">
   <div class="label reveal">Decision Guide</div>
   <h2 class="reveal">Choosing the right pattern</h2>
   <div class="flex-1 mt-2 reveal" style="max-width:800px">
@@ -687,9 +702,9 @@ REVOKE USE CONNECTION
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 17: SUMMARY -->
+<!-- SLIDE 18: SUMMARY -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide slide-title" data-slide="17">
+<div class="slide slide-title" data-slide="18">
   <div class="label reveal">Summary</div>
   <h1 class="reveal" style="font-size:var(--sz-h1)">What We Covered</h1>
   <div style="max-width:700px;text-align:left;margin:24px auto 0" class="reveal">

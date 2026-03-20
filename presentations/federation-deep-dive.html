@@ -108,7 +108,7 @@ tr:hover td{background:var(--surface)}
 
 <div class="topbar">
   <div class="title">Federation <span>Exchange</span> Deep Dive</div>
-  <div class="counter" id="counter">01 / 21</div>
+  <div class="counter" id="counter">01 / 22</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 
@@ -125,9 +125,24 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 2: WHY SERVICE PRINCIPALS -->
+<!-- SLIDE 2: THE CHALLENGE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="2">
+  <div class="label reveal">The Challenge</div>
+  <h2 class="reveal">Your AI platform works for internal teams. Now the business needs it to work for everyone else.</h2>
+  <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--red)">
+    <p>Channel partners need the same governed analytics your internal sales team uses. External auditors need read access to compliance data without seeing customer records. Consultants need to query project data for the three months they are engaged -- and lose access the day the contract ends.</p>
+    <p class="mt-1">None of these people are in your corporate directory. They authenticate through their own identity providers -- Auth0, Okta, Entra, whatever their organization uses. They will never have accounts on your platform.</p>
+  </div>
+  <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--ink)">
+    <p>Federation Exchange is how you bridge this gap: an external identity provider's JWT is exchanged for a scoped platform token, mapped to a role, and governed by the same Unity Catalog policies that protect your internal users. <strong>This deck takes you through exactly how the token flows, where governance is enforced, and what can go wrong.</strong></p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3: WHY SERVICE PRINCIPALS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
   <div class="label reveal">The Decision</div>
   <h2 class="reveal">Two Paths for External Users &mdash; and Why SPs Win</h2>
 
@@ -197,7 +212,7 @@ tr:hover td{background:var(--surface)}
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 3: THREE ACTORS — THE MENTAL MODEL -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="3">
+<div class="slide" data-slide="4">
   <div class="label reveal">The Mental Model</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">Three Actors Make Federation Work</h2>
   <p class="reveal mt-1" style="font-size:var(--sz-body);color:var(--ink-60)">Every OIDC IDP has these three components. The names differ, the roles don't.</p>
@@ -284,7 +299,7 @@ token.claims["/email"] = user.email;
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 4: THE ARCHITECTURE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="4">
+<div class="slide" data-slide="5">
   <div class="label reveal">The Architecture</div>
   <h2 class="reveal">External User &rarr; IDP Token &rarr; Databricks Token</h2>
   <p class="reveal mt-2">The external user authenticates with their own IDP. Their JWT is exchanged for a Databricks OAuth token scoped to a role-specific Service Principal. UC row filters, column masks, and connection grants enforce governance. The real external identity is preserved end-to-end for audit.</p>
@@ -316,7 +331,7 @@ token.claims["/email"] = user.email;
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 3: COMPLETE SEQUENCE DIAGRAM -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="5">
+<div class="slide" data-slide="6">
   <div class="label reveal">End-to-End Sequence</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">From Login to Governed Data Access</h2>
 
@@ -350,7 +365,7 @@ token.claims["/email"] = user.email;
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 4: TOKEN ANATOMY AT EACH STAGE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="6">
+<div class="slide" data-slide="7">
   <div class="label reveal">Token Anatomy</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">What's in Each Token at Each Stage</h2>
 
@@ -408,7 +423,7 @@ token.claims["/email"] = user.email;
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 5: GOVERNANCE ENFORCEMENT POINTS -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="7">
+<div class="slide" data-slide="8">
   <div class="label reveal">Governance Enforcement</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">7 Enforcement Points in the Chain</h2>
 
@@ -438,7 +453,7 @@ token.claims["/email"] = user.email;
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 6: ERROR CODES REFERENCE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="8">
+<div class="slide" data-slide="9">
   <div class="label reveal">Error Reference</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">What Goes Wrong and What It Means</h2>
 
@@ -469,7 +484,7 @@ token.claims["/email"] = user.email;
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 7: TROUBLESHOOTING DECISION TREE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="9">
+<div class="slide" data-slide="10">
   <div class="label reveal">Troubleshooting</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">Decision Tree: Where Is It Failing?</h2>
 
@@ -510,7 +525,7 @@ token.claims["/email"] = user.email;
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 9: SETUP CHECKLIST — WHAT TO CONFIGURE -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="10">
+<div class="slide" data-slide="11">
   <div class="label reveal">Setup Guide</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">What to Configure &mdash; In Order</h2>
 
@@ -587,7 +602,7 @@ token.claims["/email"] = user.email;
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 10: HOW IDP CONFIG MAPS TO DATABRICKS CONFIG -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="11">
+<div class="slide" data-slide="12">
   <div class="label reveal">The Connection</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">How IDP Config Maps to Databricks Config</h2>
 
@@ -633,7 +648,7 @@ POST accounts/{account_id}
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 11b: ROLE SP MAP + GRANTS CHECKLIST -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="12">
+<div class="slide" data-slide="13">
   <div class="label reveal">Runtime Config</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">Role &rarr; SP Mapping + Grants Checklist</h2>
 
@@ -693,7 +708,7 @@ ROLE_SP_MAP = {
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 11: FEDERATION POLICY — TWO LEVELS -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="13">
+<div class="slide" data-slide="14">
   <div class="label reveal">The Databricks Side</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">Federation Policy &mdash; Two Levels</h2>
 
@@ -773,7 +788,7 @@ scope=<span class="str">all-apis</span></pre>
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 9: AUTH0 CONFIGURATION -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="14">
+<div class="slide" data-slide="15">
   <div class="label reveal">IDP: Auth0</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">Auth0 Configuration</h2>
 
@@ -850,7 +865,7 @@ api.accessToken.setCustomClaim(
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 10: OKTA CONFIGURATION -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="15">
+<div class="slide" data-slide="16">
   <div class="label reveal">IDP: Okta</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">Okta Configuration</h2>
 
@@ -928,7 +943,7 @@ Scope:      Any scope</pre>
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 11: ENTRA ID CONFIGURATION -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="16">
+<div class="slide" data-slide="17">
   <div class="label reveal">IDP: Microsoft Entra ID</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">Entra ID Configuration</h2>
 
@@ -1010,7 +1025,7 @@ Scope:      Any scope</pre>
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 12: SIDE-BY-SIDE COMPARISON -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="17">
+<div class="slide" data-slide="18">
   <div class="label reveal">Comparison</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">Auth0 vs Okta vs Entra &mdash; Side by Side</h2>
 
@@ -1110,7 +1125,7 @@ Scope:      Any scope</pre>
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 13: MIGRATION CHECKLIST -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="18">
+<div class="slide" data-slide="19">
   <div class="label reveal">Migration</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">Swapping IDP &mdash; Checklist</h2>
 
@@ -1154,7 +1169,7 @@ Scope:      Any scope</pre>
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 14: KEY TAKEAWAYS -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="19">
+<div class="slide" data-slide="20">
   <div class="label reveal">Takeaways</div>
   <h2 class="reveal">The Identity Chain Is the Architecture</h2>
 
@@ -1193,7 +1208,7 @@ Scope:      Any scope</pre>
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 18: PERSONAS & ACCESS MATRIX -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="20">
+<div class="slide" data-slide="21">
   <div class="label reveal">Demo Reference</div>
   <h2 class="reveal" style="font-size:var(--sz-h2)">6 Personas &times; 9 Tools &mdash; Access Matrix</h2>
 
@@ -1255,7 +1270,7 @@ Scope:      Any scope</pre>
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <!-- SLIDE 19: CLOSING — IMPACT -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide slide-title" data-slide="21">
+<div class="slide slide-title" data-slide="22">
   <div class="label reveal" style="margin-bottom:16px">Impact</div>
   <h1 class="reveal" style="font-size:clamp(1.8rem,4vw,3rem)">External users get governed access.<br><span style="color:var(--red)">Without ever touching Databricks.</span></h1>
 
