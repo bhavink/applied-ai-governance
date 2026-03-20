@@ -2,7 +2,7 @@
 
 > *The tools will change. The principles won't. Govern the invariants.*
 
-Your business needs an AI platform where users get governed answers from live data, knowledge workers search across institutional memory, and agents orchestrate complex workflows -- all while partners and customers access the same capabilities through their own identity providers without platform accounts. This repository shows you how to build and govern that platform on Databricks.
+Your business needs an AI platform where users get governed answers from live data, knowledge workers search across institutional memory, and agents orchestrate complex workflows, all while partners and customers access the same capabilities through their own identity providers without platform accounts. This repository shows you how to build and govern that platform on Databricks.
 
 **Start here:** [Governance Framework](GOVERNANCE-FRAMEWORK.md) defines the seven pillars, design principles, and adaptability model.
 

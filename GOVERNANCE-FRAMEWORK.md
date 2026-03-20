@@ -13,7 +13,7 @@ What endures are principles. Identity doesn't change. Least privilege doesn't ch
 5. **What did they do?** (Audit)
 6. **Can you prove it?** (Compliance)
 
-Any AI governance architecture that answers these six questions at every layer -- and can absorb new AI capabilities without redesign -- will outlast the tools it governs.
+Any AI governance architecture that answers these six questions at every layer, absorbing new AI capabilities without redesign, will outlast the tools it governs.
 
 ---
 
@@ -21,14 +21,14 @@ Any AI governance architecture that answers these six questions at every layer -
 
 ### 0. Lead with the business need, not the technology
 
-Technology is a means, not the end. Every pillar, presentation, and document in this repository must start with the business challenge it solves -- not the Databricks feature that implements it.
+Technology is a means, not the end. Every pillar, presentation, and document in this repository must start with the business challenge it solves, not the Databricks feature that implements it.
 
 The pattern:
 
-1. **The need** -- What does the business require? Plain-English analytics, knowledge retrieval, multi-agent orchestration, governed access for partners. Real, specific, relatable.
-2. **The tension** -- What makes this hard? Two identity worlds, external users without platform accounts, compliance across organizational boundaries.
-3. **The platform** -- Databricks resolves the tension. *Now* you name Genie, Vector Search, Agent Bricks, Unity Catalog, AI Gateway. The reader arrives at the technology naturally because the business need led them there.
-4. **The how** -- The rest of the content delivers the implementation.
+1. **The need:** What does the business require? Plain-English analytics, knowledge retrieval, multi-agent orchestration, governed access for partners. Real, specific, relatable.
+2. **The tension:** What makes this hard? Two identity worlds, external users without platform accounts, compliance across organizational boundaries.
+3. **The platform:** Databricks resolves the tension. *Now* you name Genie, Vector Search, Agent Bricks, Unity Catalog, AI Gateway. The reader arrives at the technology naturally because the business need led them there.
+4. **The how:** The rest of the content delivers the implementation.
 
 A pillar that opens with "Unity Catalog row filters let you..." is doing it wrong. A pillar that opens with "Sales reps should only see their region's pipeline, partners should see aggregated metrics but never individual records..." is doing it right. The reader should feel the problem before they hear about the solution.
 
@@ -38,7 +38,7 @@ A pillar that opens with "Unity Catalog row filters let you..." is doing it wron
 
 Applications change. Data governance doesn't. If your access control lives in application code, every new AI tool requires new governance code. If it lives in the data platform, every new AI tool inherits governance automatically.
 
-Row filters, column masks, and connection grants are enforced by the SQL engine. No application can bypass them. No new AI service needs to "integrate" with them -- it just issues SQL and governance fires.
+Row filters, column masks, and connection grants are enforced by the SQL engine. No application can bypass them. No new AI service needs to "integrate" with them: it just issues SQL and governance fires.
 
 **The test:** Can you add a new AI tool to your stack tomorrow without writing a single line of governance code? If yes, you're governing at the right layer.
 
@@ -46,9 +46,9 @@ Row filters, column masks, and connection grants are enforced by the SQL engine.
 
 Tools change. Protocols change. Identity is the one constant across every governance decision. Design everything around identity:
 
-- **Human identity** propagates through OBO tokens -- `current_user()` is the human's email at every layer
-- **Role identity** maps to service principals via group membership -- `is_member()` evaluates at the SQL engine
-- **Service identity** authenticates via M2M credentials -- background jobs, pipelines, audit writers
+- **Human identity** propagates through OBO tokens: `current_user()` is the human's email at every layer
+- **Role identity** maps to service principals via group membership: `is_member()` evaluates at the SQL engine
+- **Service identity** authenticates via M2M credentials: background jobs, pipelines, audit writers
 
 Every governance decision reduces to: given this identity, is this action allowed on this resource? The mechanism for establishing identity (OAuth, SAML, Federation, PAT) is an implementation detail. The identity itself is the invariant.
 
@@ -68,9 +68,9 @@ Each layer is independently sufficient to deny. An attacker must compromise ALL 
 
 ### 4. Silent enforcement over loud failure
 
-The most secure governance is invisible to the user. Row filters don't return errors -- they return fewer rows. Column masks don't block queries -- they return NULL for sensitive fields. The user never sees an "access denied" on data they shouldn't know exists.
+The most secure governance is invisible to the user. Row filters don't return errors; they return fewer rows. Column masks don't block queries; they return NULL for sensitive fields. The user never sees an "access denied" on data they shouldn't know exists.
 
-Loud failures (HTTP 403, permission errors) are appropriate for capability boundaries -- you can't call a tool you don't have access to. But within the data layer, silence is the correct behavior. A query that returns 0 rows is governance working, not a bug.
+Loud failures (HTTP 403, permission errors) are appropriate for capability boundaries: you can't call a tool you don't have access to. But within the data layer, silence is the correct behavior. A query that returns 0 rows is governance working, not a bug.
 
 ### 5. Audit everything, trust nothing
 
@@ -78,7 +78,7 @@ Platform audit captures what the system sees. Application audit captures what th
 
 - Platform audit records the SP identity but not the human behind a federated request
 - Application audit records the human email but can be tampered with by a compromised app
-- Only the correlation of both -- joined on request_id and timestamp -- gives the full chain of custody
+- Only the correlation of both, joined on request_id and timestamp, gives the full chain of custody
 
 Design for forensics, not just monitoring. The question isn't "what happened today" but "can you reconstruct exactly what happened 90 days ago for a specific user on a specific dataset?"
 
@@ -86,7 +86,7 @@ Design for forensics, not just monitoring. The question isn't "what happened tod
 
 Traditional data governance asks: can this identity SELECT from this table? AI governance adds a new question: can this identity call this external service?
 
-UC Connections are the governance primitive for external tool access. `GRANT USE CONNECTION` is the on/off switch. `REVOKE USE CONNECTION` is instant, requires no redeployment, and is audited. This is how you prevent the confused deputy -- a pattern where a privileged service blindly executes requests from untrusted callers.
+UC Connections are the governance primitive for external tool access. `GRANT USE CONNECTION` is the on/off switch. `REVOKE USE CONNECTION` is instant, requires no redeployment, and is audited. This is how you prevent the confused deputy, a pattern where a privileged service blindly executes requests from untrusted callers.
 
 The confused deputy defense: if an untrusted identity cannot USE the connection, no amount of prompt injection or tool manipulation can exfiltrate data through that connection.
 
@@ -121,14 +121,14 @@ No YAML. No policy engines. No deployment pipelines. SQL is the policy language.
 |                                                                    |
 |  [1] Network         Private connectivity, IP access lists,       |
 |      Access          firewall rules, VPC-SC, serverless NCC.      |
-|      Controls        The perimeter -- before identity fires.      |
+|      Controls        The perimeter, before identity fires.        |
 |                                                                    |
 |  [2] Identity &      OBO (U2M), M2M, Federation. Three models,   |
 |      Access          one governance plane. OAuth scopes enforce   |
 |      Control         least privilege per token.                   |
 |                                                                    |
 |  [3] Data            Row filters, column masks, ABAC governed     |
-|      Governance      tags. Enforced by the SQL engine -- no app   |
+|      Governance      tags. Enforced by the SQL engine; no app     |
 |                      can bypass, no new tool needs integration.   |
 |                                                                    |
 |  [4] Tool & API      UC Connections govern external service       |
@@ -157,9 +157,9 @@ The newest attack surface. AI coding tools (Claude Code, Copilot, Cursor) have s
 - `git push --force` to shared branches
 - Write backdoors into startup scripts
 
-This pillar sits outside the Databricks platform -- it governs the development process itself. Context-aware tool interception (classifying each operation by what it actually does, not what tool it uses) is the pattern. Allow/deny lists don't scale; contextual classification does.
+This pillar sits outside the Databricks platform; it governs the development process itself. Context-aware tool interception (classifying each operation by what it actually does, not what tool it uses) is the pattern. Allow/deny lists don't scale; contextual classification does.
 
-**Future-proof because:** Every new AI coding tool will have the same attack surface -- file access, shell access, network access. The classification model adapts; the threat categories are stable.
+**Future-proof because:** Every new AI coding tool will have the same attack surface: file access, shell access, network access. The classification model adapts; the threat categories are stable.
 
 ### Pillar 1: Network Access Controls
 
@@ -174,9 +174,9 @@ This pillar sits outside the Databricks platform -- it governs the development p
 | NSG / Firewall Rules | Restrict egress from compute to approved destinations |
 | Apps Networking | Databricks Apps run in control plane with managed private endpoints |
 
-This is the foundation. If the network doesn't allow it, nothing else matters. Every AI service on Databricks (SQL Warehouse, Model Serving, Genie, Apps) can be fully private -- zero public endpoints.
+This is the foundation. If the network doesn't allow it, nothing else matters. Every AI service on Databricks (SQL Warehouse, Model Serving, Genie, Apps) can be fully private, with zero public endpoints.
 
-**Future-proof because:** Network isolation is a physical property, not a software feature. New AI services inherit the workspace's network configuration automatically. You never need to "add firewall rules for Genie" -- it runs on the same private infrastructure.
+**Future-proof because:** Network isolation is a physical property, not a software feature. New AI services inherit the workspace's network configuration automatically. You never need to "add firewall rules for Genie": it runs on the same private infrastructure.
 
 ### Pillar 2: Identity & Access Control
 
@@ -190,7 +190,7 @@ Three identity models, one governance plane:
 | **M2M** | SP client credentials | SP application ID | Background jobs, pipelines, audit |
 | **Federation** | External IDP JWT exchanged for SP token | SP application ID | Partner portals, external users |
 
-OAuth scopes enforce least privilege per token: `sql`, `genie`, `serving` -- never `all-apis`. The scope is the maximum capability; UC grants are the actual authorization.
+OAuth scopes enforce least privilege per token: `sql`, `genie`, `serving`, never `all-apis`. The scope is the maximum capability; UC grants are the actual authorization.
 
 **Future-proof because:** Every new Databricks AI service will support OAuth tokens and UC identity. The three models cover all possible caller types (human-with-account, machine, human-without-account). New services don't require new identity patterns.
 
@@ -200,12 +200,12 @@ OAuth scopes enforce least privilege per token: `sql`, `genie`, `serving` -- nev
 
 Four layers, all enforced by the SQL engine:
 
-1. **Catalog/Schema privileges** -- `GRANT USE CATALOG`, `GRANT SELECT`
-2. **ABAC governed tags** -- dynamic access based on classification tags
-3. **Row filters** -- `is_member('west_sales')` restricts rows by group
-4. **Column masks** -- `CASE WHEN is_member('finance') THEN margin_pct ELSE NULL END`
+1. **Catalog/Schema privileges:** `GRANT USE CATALOG`, `GRANT SELECT`
+2. **ABAC governed tags:** dynamic access based on classification tags
+3. **Row filters:** `is_member('west_sales')` restricts rows by group
+4. **Column masks:** `CASE WHEN is_member('finance') THEN margin_pct ELSE NULL END`
 
-The key insight: these fire automatically for every query, regardless of which AI service issues the SQL. Genie, Agent Bricks, custom MCP servers, Model Serving -- all get the same governance because all ultimately issue SQL.
+The key insight: these fire automatically for every query, regardless of which AI service issues the SQL. Genie, Agent Bricks, custom MCP servers, Model Serving: all get the same governance because all ultimately issue SQL.
 
 **Future-proof because:** Any AI service that reads data must go through the SQL engine. The SQL engine enforces governance. New AI services inherit data governance on day one, with zero integration work.
 
@@ -226,12 +226,12 @@ REVOKE USE CONNECTION ON CONNECTION github_api FROM `sp-role-sales`;
 This prevents the confused deputy attack: a privileged MCP server cannot be tricked into calling external APIs on behalf of an unauthorized user, because the SQL engine checks `USE CONNECTION` before the HTTP request fires.
 
 Two layers of defense:
-1. **Application RBAC** -- tool-level access matrix (which roles can call which tools)
-2. **Platform enforcement** -- UC `USE CONNECTION` (which identities can use which connections)
+1. **Application RBAC:** tool-level access matrix (which roles can call which tools)
+2. **Platform enforcement:** UC `USE CONNECTION` (which identities can use which connections)
 
 Either layer is sufficient to deny. Both must pass for access.
 
-**Future-proof because:** The pattern "can this identity call this external service?" applies to any external integration -- REST APIs, MCP servers, database connections, SaaS tools. The connection type changes; the governance primitive doesn't.
+**Future-proof because:** The pattern "can this identity call this external service?" applies to any external integration: REST APIs, MCP servers, database connections, SaaS tools. The connection type changes; the governance primitive doesn't.
 
 ### Pillar 5: Observability & Audit
 
@@ -262,7 +262,7 @@ Governance-as-SQL means:
 - **Instant**: Changes take effect immediately, no redeployment
 - **Declarative**: The policy IS the SQL, not a translation of policy into code
 
-Federation policies, row filter functions, column mask functions, connection grants -- all are SQL objects managed through Unity Catalog. The governance state is always introspectable.
+Federation policies, row filter functions, column mask functions, and connection grants are all SQL objects managed through Unity Catalog. The governance state is always introspectable.
 
 **Future-proof because:** SQL has been the lingua franca of data access control for 50 years. It will outlast any policy engine, any YAML schema, any proprietary policy language.
 
@@ -274,14 +274,14 @@ The framework is designed to absorb change at every layer:
 
 | What changes | What stays the same | How it adapts |
 |---|---|---|
-| New AI service (e.g., Databricks adds a new agent type) | UC governance, identity model, audit surface | New service issues SQL -- governance fires automatically |
-| New external tool (e.g., new MCP server) | Connection governance, confused deputy defense | `CREATE CONNECTION` + `GRANT USE CONNECTION` -- one SQL command |
-| New identity source (e.g., new IDP) | Token exchange, SP mapping, UC groups | Update federation policy -- same SP architecture, same UC groups |
-| New compliance requirement (e.g., new data classification) | ABAC framework, governed tags | Add tag + row filter -- no code changes |
-| New attack surface (e.g., prompt injection via tool) | Defense in depth -- each layer denies independently | UC enforcement at SQL layer is immune to prompt injection |
-| New AI coding tool | Developer guardrail patterns | Context-aware classification adapts -- threat categories are stable |
+| New AI service (e.g., Databricks adds a new agent type) | UC governance, identity model, audit surface | New service issues SQL; governance fires automatically |
+| New external tool (e.g., new MCP server) | Connection governance, confused deputy defense | `CREATE CONNECTION` + `GRANT USE CONNECTION`: one SQL command |
+| New identity source (e.g., new IDP) | Token exchange, SP mapping, UC groups | Update federation policy; same SP architecture, same UC groups |
+| New compliance requirement (e.g., new data classification) | ABAC framework, governed tags | Add tag + row filter; no code changes |
+| New attack surface (e.g., prompt injection via tool) | Defense in depth: each layer denies independently | UC enforcement at SQL layer is immune to prompt injection |
+| New AI coding tool | Developer guardrail patterns | Context-aware classification adapts; threat categories are stable |
 
-The pattern: **new capabilities are additive, not architectural**. You never redesign the governance framework -- you extend it by adding a connection, a grant, a tag, or a policy.
+The pattern: **new capabilities are additive, not architectural**. You never redesign the governance framework. You extend it by adding a connection, a grant, a tag, or a policy.
 
 ---
 
@@ -289,9 +289,9 @@ The pattern: **new capabilities are additive, not architectural**. You never red
 
 Databricks is not a governance vendor. It's a data and AI platform that happens to have governance built into its execution layer. This distinction matters:
 
-- **Unity Catalog is not a policy engine bolted on top** -- it's the execution layer. Row filters fire inside the SQL engine, not in a proxy. They cannot be bypassed.
-- **OAuth scopes are not an authorization system** -- they're a capability ceiling. UC grants are the actual authorization. Scopes limit what the token CAN do; grants determine what the identity MAY do.
-- **`system.access.audit` is not a logging feature** -- it's a record of every governance decision the platform made. It's the ground truth.
+- **Unity Catalog is not a policy engine bolted on top:** it's the execution layer. Row filters fire inside the SQL engine, not in a proxy. They cannot be bypassed.
+- **OAuth scopes are not an authorization system:** they're a capability ceiling. UC grants are the actual authorization. Scopes limit what the token CAN do; grants determine what the identity MAY do.
+- **`system.access.audit` is not a logging feature:** it's a record of every governance decision the platform made. It's the ground truth.
 
 The competitive moat: no other platform has a single governance plane that spans SQL, AI agents, model serving, vector search, external connections, and serverless compute. Competitors have pieces (Snowflake has data governance, Azure has network controls, AWS has IAM). Databricks has the unified plane.
 

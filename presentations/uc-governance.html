@@ -119,10 +119,10 @@ tr:hover td{background:var(--surface)}
   <div class="label reveal">The Challenge</div>
   <h2 class="reveal">Once identity is resolved, what can each user actually see?</h2>
   <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--red)">
-    <p>Your AI platform answers questions from live data -- but not every user should see every answer. <strong>Sales reps</strong> should only see their own region's pipeline. <strong>Partners</strong> should see aggregated metrics but never individual customer records. <strong>Auditors</strong> need read access to compliance tables but nothing else.</p>
+    <p>Your AI platform answers questions from live data, but not every user should see every answer. <strong>Sales reps</strong> should only see their own region's pipeline. <strong>Partners</strong> should see aggregated metrics but never individual customer records. <strong>Auditors</strong> need read access to compliance tables but nothing else.</p>
   </div>
   <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--ink)">
-    <p>These rules must apply consistently whether the question comes from a Genie space, a Vector Search query, an agent workflow, or a direct SQL call. <strong>Unity Catalog</strong> is the single enforcement layer that makes this possible -- row filters, column masks, attribute-based access control, all resolved from the caller's identity.</p>
+    <p>These rules must apply consistently whether the question comes from a Genie space, a Vector Search query, an agent workflow, or a direct SQL call. <strong>Unity Catalog</strong> is the single enforcement layer that makes this possible: row filters, column masks, attribute-based access control, all resolved from the caller's identity.</p>
     <p class="mt-1"><strong>This deck shows you the four layers of data access control and how they compose.</strong></p>
   </div>
 </div>
@@ -150,7 +150,7 @@ tr:hover td{background:var(--surface)}
         <tr><td style="font-weight:600">GRANT on schema</td><td>Applies to all tables within</td></tr>
         <tr><td style="font-weight:600">GRANT on table</td><td>Applies to that table only</td></tr>
       </table>
-      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Grants are additive. A GRANT at the catalog level gives access to everything below. There is no implicit access -- every identity starts with zero privileges.</p>
+      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Grants are additive. A GRANT at the catalog level gives access to everything below. There is no implicit access: every identity starts with zero privileges.</p>
     </div>
   </div>
   <div class="card card-red mt-2 reveal" style="text-align:center">
@@ -297,7 +297,7 @@ WHERE is_member('west_sales')
     </div>
   </div>
   <div class="card mt-2 reveal" style="text-align:center;border-left:4px solid var(--ink)">
-    <p><strong>OBO pattern:</strong> prefer <code>current_user()</code> -- it propagates the human identity end-to-end. <strong>Federation pattern:</strong> use <code>is_member()</code> -- role-based SPs map to workspace groups.</p>
+    <p><strong>OBO pattern:</strong> prefer <code>current_user()</code>, which propagates the human identity end-to-end. <strong>Federation pattern:</strong> use <code>is_member()</code>, where role-based SPs map to workspace groups.</p>
   </div>
 </div>
 
@@ -596,7 +596,7 @@ ALTER TABLE deals ALTER COLUMN margin_pct SET MASK mask_margin;</pre>
     <table>
       <tr><td style="font-weight:700;color:var(--red);width:40px;font-size:1.4em;text-align:center">4</td><td>Complementary access control layers, evaluated in sequence</td></tr>
       <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">2</td><td>Identity functions: <code>current_user()</code> for OBO, <code>is_member()</code> for federation</td></tr>
-      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">1</td><td>SQL engine enforces everything -- no application code changes</td></tr>
+      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">1</td><td>SQL engine enforces everything, with no application code changes</td></tr>
       <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">&infin;</td><td>ABAC scales to thousands of tables with governed tags + policies</td></tr>
     </table>
   </div>

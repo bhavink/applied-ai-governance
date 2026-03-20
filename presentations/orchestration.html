@@ -138,10 +138,10 @@ tr:hover td{background:var(--surface)}
   <div class="label reveal">The Challenge</div>
   <h2 class="reveal">AI capabilities are easy to build. Governing them at scale is not.</h2>
   <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--red)">
-    <p>You have agents that retrieve data, reason over it, and take action. You have natural language interfaces, document search, and tool integrations. Each of these needs to <strong>call models</strong>, <strong>access data</strong>, and <strong>invoke tools</strong> -- all while preserving the caller's identity and enforcing access policies at every hop.</p>
+    <p>You have agents that retrieve data, reason over it, and take action. You have natural language interfaces, document search, and tool integrations. Each of these needs to <strong>call models</strong>, <strong>access data</strong>, and <strong>invoke tools</strong>, all while preserving the caller's identity and enforcing access policies at every hop.</p>
   </div>
   <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--ink)">
-    <p>The orchestration layer is where identity meets infrastructure: serving endpoints, MCP servers, AI Gateway, and Databricks Apps each play a role. The question is how they compose -- and how governance flows through the entire chain without gaps.</p>
+    <p>The orchestration layer is where identity meets infrastructure: serving endpoints, MCP servers, AI Gateway, and Databricks Apps each play a role. The question is how they compose, and how governance flows through the entire chain without gaps.</p>
     <p class="mt-1"><strong>This deck maps the four pillars of AI orchestration and shows where governance is enforced at each layer.</strong></p>
   </div>
 </div>
@@ -224,7 +224,7 @@ tr:hover td{background:var(--surface)}
     </div>
   </div>
   <div class="card mt-2 reveal" style="text-align:center">
-    <p><strong>Mix and match:</strong> Use automatic for Vector Search, OBO for Genie, and manual for external APIs -- all in the same agent.</p>
+    <p><strong>Mix and match:</strong> Use automatic for Vector Search, OBO for Genie, and manual for external APIs, all in the same agent.</p>
   </div>
 </div>
 
@@ -300,17 +300,17 @@ tr:hover td{background:var(--surface)}
         <li>Authenticates user via workspace IdP (Entra, Cloud Identity, SSO)</li>
         <li>Creates scoped OAuth token limited to configured permissions</li>
         <li>Forwards request with user identity in HTTP headers</li>
-        <li>Your app reads <code>x-forwarded-access-token</code> -- no login flows</li>
+        <li>Your app reads <code>x-forwarded-access-token</code> with no login flows required</li>
       </ul>
     </div>
     <div class="card reveal">
       <h4>What you get</h4>
       <ul style="padding-left:1.2em;font-size:var(--sz-small)">
         <li><strong>Direct access</strong> to SQL Warehouses, Model Serving, UC, Jobs</li>
-        <li><strong>Per-user governance</strong> -- row filters, column masks fire automatically</li>
-        <li><strong>Serverless</strong> -- no infrastructure to manage</li>
-        <li><strong>Multi-framework</strong> -- Streamlit, Dash, Gradio, React, Angular</li>
-        <li><strong>CI/CD ready</strong> -- <code>databricks apps deploy</code> from Git</li>
+        <li><strong>Per-user governance:</strong> row filters and column masks fire automatically</li>
+        <li><strong>Serverless:</strong> no infrastructure to manage</li>
+        <li><strong>Multi-framework:</strong> Streamlit, Dash, Gradio, React, Angular</li>
+        <li><strong>CI/CD ready:</strong> <code>databricks apps deploy</code> from Git</li>
       </ul>
     </div>
   </div>
@@ -349,7 +349,7 @@ tr:hover td{background:var(--surface)}
         <tr><td style="font-weight:600">Access</td><td><code>USE CONNECTION</code> grant</td></tr>
       </table>
       <div class="mt-1" style="font-size:var(--sz-label);padding:6px;background:rgba(204,51,17,0.06);border-radius:4px">
-        Agent never sees external credentials -- UC handles the proxy securely
+        Agent never sees external credentials; UC handles the proxy securely
       </div>
     </div>
     <div class="card reveal" style="border-left:4px solid var(--ink)">
@@ -377,9 +377,9 @@ tr:hover td{background:var(--surface)}
     <div class="card reveal">
       <h4>Auth methods apply to MCP</h4>
       <ul style="padding-left:1.2em;font-size:var(--sz-small)">
-        <li><strong>Automatic Passthrough</strong> -- declare MCP servers at logging time, system SP handles auth</li>
-        <li><strong>OBO</strong> -- agent calls MCP with user identity via <code>DatabricksMCPClient</code></li>
-        <li><strong>Manual</strong> -- required for custom MCP (OAuth only)</li>
+        <li><strong>Automatic Passthrough:</strong> declare MCP servers at logging time, system SP handles auth</li>
+        <li><strong>OBO:</strong> agent calls MCP with user identity via <code>DatabricksMCPClient</code></li>
+        <li><strong>Manual:</strong> required for custom MCP (OAuth only)</li>
       </ul>
       <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Declare MCP URLs and scopes when logging your agent for verification at deploy time.</p>
     </div>
@@ -392,7 +392,7 @@ tr:hover td{background:var(--surface)}
         <tr><td><code>mcp.sql</code> + <code>sql.*</code></td><td>DBSQL</td></tr>
         <tr><td><code>mcp.external</code></td><td>External MCP via UC connections</td></tr>
       </table>
-      <p class="mt-1" style="font-size:var(--sz-label);color:var(--muted)">Minimize scopes -- only request what your agent actually needs.</p>
+      <p class="mt-1" style="font-size:var(--sz-label);color:var(--muted)">Minimize scopes: only request what your agent actually needs.</p>
     </div>
   </div>
   <div class="card card-green mt-2 reveal" style="text-align:center">
@@ -427,7 +427,7 @@ tr:hover td{background:var(--surface)}
     </div>
   </div>
   <div class="card mt-2 reveal" style="text-align:center;border-left:4px solid var(--amber)">
-    <p><strong>Azure special case:</strong> Entra tokens work directly with Azure Databricks -- no exchange needed. Use MSAL with scope <code>2ff814a6-.../.default</code>.</p>
+    <p><strong>Azure special case:</strong> Entra tokens work directly with Azure Databricks, with no exchange needed. Use MSAL with scope <code>2ff814a6-.../.default</code>.</p>
   </div>
 </div>
 
@@ -616,7 +616,7 @@ GRANT USE CONNECTION
 REVOKE USE CONNECTION
   ON CONNECTION github_api
   FROM `sp-billing`;</pre>
-      <p style="font-size:var(--sz-label);color:var(--muted);margin-top:6px">No redeploy, no code change. Credential stored encrypted in UC -- app code never receives raw value.</p>
+      <p style="font-size:var(--sz-label);color:var(--muted);margin-top:6px">No redeploy, no code change. Credential stored encrypted in UC; app code never receives the raw value.</p>
     </div>
   </div>
   <div class="card card-amber mt-2 reveal" style="text-align:center">
@@ -710,7 +710,7 @@ REVOKE USE CONNECTION
   <div style="max-width:700px;text-align:left;margin:24px auto 0" class="reveal">
     <table>
       <tr><td style="font-weight:700;color:var(--red);width:40px;font-size:1.4em;text-align:center">3</td><td>Agent auth methods: Automatic Passthrough, OBO, Manual</td></tr>
-      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">3</td><td>MCP types: Managed, External, Custom -- all UC-governed</td></tr>
+      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">3</td><td>MCP types: Managed, External, and Custom, all UC-governed</td></tr>
       <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">4</td><td>Gateway patterns: No Gateway, AI Gateway, UC Connections, External</td></tr>
       <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">2</td><td>Federation types: Account-wide (users) and Workload Identity (automation)</td></tr>
       <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">1</td><td>Governance model: UC scopes, grants, row filters, column masks, connections</td></tr>
@@ -718,7 +718,7 @@ REVOKE USE CONNECTION
   </div>
   <div class="card card-green mt-3 reveal" style="max-width:700px;margin:0 auto;text-align:center">
     <p style="font-size:var(--sz-h3);font-weight:600">Unity Catalog is the common denominator.</p>
-    <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">Regardless of orchestration path -- Apps, MCP, Gateway, Federation -- UC enforces governance at the data plane.</p>
+    <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">Regardless of orchestration path (Apps, MCP, Gateway, or Federation), UC enforces governance at the data plane.</p>
   </div>
   <div class="red-line reveal" style="margin-top:24px"></div>
   <p class="reveal" style="font-size:var(--sz-label);color:var(--muted);margin-top:16px;text-align:center"><a href="https://github.com/bhavink/applied-ai-governance" target="_blank" style="color:var(--muted);text-decoration:underline">github.com/bhavink/applied-ai-governance</a></p>
