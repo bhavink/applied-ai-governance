@@ -288,7 +288,7 @@ This repository is organized around the pillars:
 
 | Pillar | Key Documents |
 |--------|--------------|
-| Identity & Access | [Authentication Patterns](identity/authentication-patterns.md), [OBO vs M2M Matrix](identity/obo-vs-m2m-decision-matrix.md) |
+| Identity & Access | [Authentication](identity/authentication.md), [Authorization](identity/authorization.md), [Federation](identity/federation.md) |
 | Data Governance | [UC Authorization](data-governance/uc-authorization.md), [UC Policy Design](data-governance/uc-policy-design.md) |
 | Tool Governance | [AI Gateway Patterns](tool-governance/ai-gateway-patterns.md), [Federation Exchange](identity/federation-exchange.md) |
 | Observability | [Audit Reference](observability/audit-reference.md), [Genie Observability](observability/genie-aibi/) |

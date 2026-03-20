@@ -26,9 +26,9 @@ Production-ready governance patterns for AI applications on Databricks -- identi
 
 New to Databricks AI governance? Read these in order:
 
-1. [Authentication Patterns](identity/authentication-patterns.md) -- Three universal patterns (M2M, OBO, Federation)
-2. [UC Authorization](data-governance/uc-authorization.md) -- UC governance: privileges, ABAC, row filters, column masks
-3. [UC Policy Design](data-governance/uc-policy-design.md) -- `current_user()` vs `is_member()` across all execution contexts
+1. [Authentication](identity/authentication.md): AuthN is delegated to IdPs (brief overview + official doc links)
+2. [Authorization](identity/authorization.md): The three token patterns, UC governance, OAuth scopes, service principals
+3. [UC Authorization](data-governance/uc-authorization.md): Row filters, column masks, ABAC, governed tags
 
 ---
 
@@ -36,10 +36,9 @@ New to Databricks AI governance? Read these in order:
 
 | Document | Pillar | Contents |
 |----------|--------|----------|
-| [Identity Reference](identity/identity-reference.md) | Identity | Per-service identity map, token flows, OAuth scope map, audit patterns |
-| [OBO vs M2M Matrix](identity/obo-vs-m2m-decision-matrix.md) | Identity | Decision tree, per-service examples, anti-patterns |
-| [Authorization Flows](identity/authorization-flows.md) | Identity | Hop-by-hop header traces, proxy architectures |
-| [Federation Exchange](identity/federation-exchange.md) | Identity | IDP swap guide, enforcement points, role-based SPs |
+| [Authentication](identity/authentication.md) | Identity | AuthN delegation to IdPs, unified client auth, cloud differences |
+| [Authorization](identity/authorization.md) | Identity | OBO/M2M/Federation patterns, UC model, scopes, service principals |
+| [Federation Exchange](identity/federation.md) | Identity | External IdP token exchange, role-based SPs, enforcement points |
 | [Genie Cookbook](data-governance/genie-authorization-cookbook.md) | Data | Multi-team Genie access for 1000+ users |
 | [AI Gateway Patterns](tool-governance/ai-gateway-patterns.md) | Tools | Databricks AI Gateway vs external gateway vs UC-native |
 | [Orchestration Architecture](tool-governance/orchestration-architecture.md) | Tools | Model Serving, MCP, AI Gateway, Lakebase |

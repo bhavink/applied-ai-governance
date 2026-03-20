@@ -1,27 +1,39 @@
 # Identity & Access Control
 
-> **Pillar 2** -- Who is making the request, and what capabilities does their token grant?
+> **Pillar 2**: Who is making the request, and what can they do?
 
-Three identity models, one governance plane. Every AI service on Databricks uses one of these patterns to establish who the caller is.
+Two distinct concepts, often conflated:
+
+- **Authentication (AuthN)**: Who are you? Delegated to Identity Providers. Databricks does not manage passwords or user directories.
+- **Authorization (AuthZ)**: What can you do? This is where Databricks plays. Unity Catalog is the authorization engine for all AI services.
 
 ## Reading Order
 
-1. [Authentication Patterns](authentication-patterns.md) -- The three universal patterns (OBO, M2M, Federation) with code examples
-2. [OBO vs M2M Decision Matrix](obo-vs-m2m-decision-matrix.md) -- Quick decision tree, per-service examples, anti-patterns
-3. [Authorization Flows](authorization-flows.md) -- Hop-by-hop header traces for single/dual/triple proxy architectures
-4. [Federation Exchange](federation-exchange.md) -- External IDP token exchange, role-based SPs, governance enforcement points
-5. [Identity Reference](identity-reference.md) -- Per-service identity map, audit decorator, chain-of-custody SQL
+1. [Authentication](authentication.md): How AuthN works across clouds (brief, links to official docs)
+2. [Authorization](authorization.md): The three token patterns, UC governance, OAuth scopes, service principals
+3. [Federation Exchange](federation.md): Bridging external identity providers to Databricks for users who don't have workspace accounts
 
-## Key Concepts
+## The Key Insight
 
-- **OBO (U2M)**: Platform acts on behalf of a known human. `current_user()` = human email.
-- **M2M**: Service principal authenticates with its own credentials. No human in the loop.
-- **Federation**: External IDP token exchanged for a role-based SP token. Users don't have Databricks accounts.
-- **OAuth Scopes**: Capability ceiling per token (`sql`, `genie`, `serving` -- never `all-apis`).
-- **Confused Deputy Defense**: Two independent enforcement layers (app RBAC + UC grants).
+AuthN establishes identity. AuthZ enforces policy. They compose but never substitute for each other:
+
+```
+User authenticates via IdP (AuthN)
+       |
+       v
+Token carries identity to Databricks (OAuth, SAML, OIDC)
+       |
+       v
+Unity Catalog evaluates: can this identity access this resource? (AuthZ)
+       |
+       v
+Row filters, column masks, grants fire at the SQL engine level
+```
+
+Every AI service on Databricks (Genie, Agent Bricks, Model Serving, Apps, custom MCP) ultimately issues SQL. The SQL engine enforces AuthZ. New AI services inherit authorization on day one.
 
 ## Related Pillars
 
-- [Data Governance](../data-governance/) -- Once identity is established, what data can they see?
-- [Tool Governance](../tool-governance/) -- Once identity is established, what tools can they use?
-- [Observability](../observability/) -- How do you audit what each identity did?
+- [Data Governance](../data-governance/): Row filters, column masks, ABAC that fire after identity is established
+- [Tool Governance](../tool-governance/): USE CONNECTION controls which identities can call external services
+- [Observability](../observability/): Audit records which identity did what
