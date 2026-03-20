@@ -80,7 +80,7 @@ New to Databricks AI governance? Read these in order:
 ## Common Questions
 
 **Q: Which authentication pattern should I use?**
-A: See the [OBO vs M2M Decision Matrix](identity/obo-vs-m2m-decision-matrix.md).
+A: See the decision table in [Authorization](identity/authorization.md#choosing-the-right-pattern).
 
 **Q: How do I enforce per-user data access?**
 A: Use OBO + UC row filters. See [UC Authorization](data-governance/uc-authorization.md).
@@ -89,7 +89,7 @@ A: Use OBO + UC row filters. See [UC Authorization](data-governance/uc-authoriza
 A: See the [Genie Authorization Cookbook](data-governance/genie-authorization-cookbook.md).
 
 **Q: My custom MCP server always shows the SP identity, not the user. Why?**
-A: This is the two-proxy problem. See [Identity Reference](identity/identity-reference.md).
+A: This is the two-proxy problem. See [Authorization](identity/authorization.md#the-three-token-patterns).
 
 **Q: Why does `is_member()` return the same result for all Genie users?**
 A: Under OBO, `is_member()` may evaluate the execution identity, not the calling user. Use `current_user()` + allowlist table. See [UC Policy Design](data-governance/uc-policy-design.md).
@@ -98,7 +98,7 @@ A: Under OBO, `is_member()` may evaluate the execution identity, not the calling
 A: Platform audit records the SP UUID. You need app-level logging with `X-Forwarded-Email` for human identity. See [Audit Reference](observability/audit-reference.md).
 
 **Q: How do I give external users governed access to Databricks AI tools?**
-A: Use Federation Exchange: external IDP JWT -> Databricks token exchange -> role-based SPs -> UC governance. See [Federation Exchange](identity/federation-exchange.md).
+A: Use Federation Exchange: external IDP JWT -> Databricks token exchange -> role-based SPs -> UC governance. See [Federation](identity/federation.md).
 
 **Q: What's the difference between OBO and Federation?**
 A: OBO = apps ON Databricks (user has a workspace account). Federation = apps OUTSIDE Databricks (user has no Databricks account, authenticates via external IDP). See the [Identity & Governance presentation](presentations/identity-governance-overview.html).

@@ -727,8 +727,8 @@ AI/BI Dashboard (visualization)
 ### Dashboard Files
 
 - **Production:** `/Workspace/Shared/genie-analytics/Genie Observability Dashboard v1.0.lvdash.json`
-- **Repo:** `databricks/ai-governance/audit-logging/genie-aibi/dashboards/genie_observability_dashboard_v1.0.json`
-- **Backups:** `databricks/ai-governance/audit-logging/genie-aibi/dashboards/backups/`
+- **Repo:** `applied-ai-governance/observability/genie-aibi/dashboards/genie_observability_dashboard_v1.0.json`
+- **Backups:** `applied-ai-governance/observability/genie-aibi/dashboards/backups/`
 
 ---
 

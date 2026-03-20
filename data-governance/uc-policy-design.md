@@ -173,7 +173,7 @@ RETURN (
 
 ## Further Reading
 
-- [Authentication Patterns](01-AUTHENTICATION-PATTERNS.md) — OBO vs M2M decision
-- [Authorization with UC](02-AUTHORIZATION-WITH-UC.md) — four-layer access control model
-- [Identity and Auth Reference](reference/identity-and-auth-reference.md) — token flows, two-proxy problem, OAuth scope map
-- [OBO vs M2M Decision Matrix](reference/obo-vs-m2m-decision-matrix.md) — detailed decision framework with audit implications
+- [Authorization](../identity/authorization.md) - OBO vs M2M decision
+- [UC Authorization](uc-authorization.md) - four-layer access control model
+- [Authorization](../identity/authorization.md) - token flows, OAuth scopes, identity patterns
+- [Federation](../identity/federation.md) - token exchange and role-based SP patterns

@@ -2,7 +2,7 @@
 
 > **Reference architecture for Unity Catalog governance across Databricks AI products.**
 >
-> **Prerequisite**: Read [UC Policy Design Principles](UC-POLICY-DESIGN-PRINCIPLES.md) for how `current_user()` and `is_member()` behave across all execution contexts (Genie OBO, Agent Bricks, M2M, direct SQL).
+> **Prerequisite**: Read [UC Policy Design](uc-policy-design.md) for how `current_user()` and `is_member()` behave across all execution contexts (Genie OBO, Agent Bricks, M2M, direct SQL).
 
 ---
 

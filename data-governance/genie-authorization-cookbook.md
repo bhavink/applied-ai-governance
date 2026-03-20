@@ -6,7 +6,7 @@
 >
 > **Last updated**: 2026-03-12
 >
-> **Prerequisite**: Read [UC Policy Design Principles](../UC-POLICY-DESIGN-PRINCIPLES.md) for how `current_user()` and `is_member()` behave in Genie OBO contexts.
+> **Prerequisite**: Read [UC Policy Design](uc-policy-design.md) for how `current_user()` and `is_member()` behave in Genie OBO contexts.
 
 ---
 
@@ -185,7 +185,7 @@ Each domain uses a CASE-based row filter: Portfolio uses hierarchical client > a
 
 Track daily active users by team from `system.access.audit` filtering on `action_name = 'commandSubmit'`. Monitor permission denied spikes (status_code 403, threshold > 10 failures per user per day). Track compute hours by date for cost attribution.
 
-For comprehensive Genie monitoring, see [audit-logging/genie-aibi/](../audit-logging/genie-aibi/).
+For comprehensive Genie monitoring, see [Genie Observability](../observability/genie-aibi/).
 
 ---
 
@@ -203,8 +203,7 @@ For comprehensive Genie monitoring, see [audit-logging/genie-aibi/](../audit-log
 
 ## Related Documents
 
-- [UC Policy Design Principles](../UC-POLICY-DESIGN-PRINCIPLES.md) - `current_user()` vs `is_member()` across all execution contexts
-- [Identity and Auth Reference](identity-and-auth-reference.md) - Auth patterns, token flows, scope reference
-- [Authorization Flows](authorization-flows.md) - UC four-layer access control diagrams
-- [audit-logging/genie-aibi/](../audit-logging/genie-aibi/) - Genie monitoring and analytics suite
-- Databricks docs: [Genie Space](https://docs.databricks.com/aws/en/genie/), [Row Filters](https://docs.databricks.com/en/data-governance/unity-catalog/row-and-column-filters.html), [ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac)
+- [UC Policy Design](uc-policy-design.md) - `current_user()` vs `is_member()` across execution contexts
+- [Authorization](../identity/authorization.md) - Auth patterns, token flows, scope reference
+- [Genie Observability](../observability/genie-aibi/) - Genie monitoring and analytics suite
+- Databricks docs: [Genie Space](https://docs.databricks.com/aws/en/genie/), [Row Filters](https://docs.databricks.com/en/data-governance/unity-catalog/row-and-column-filters.html), [ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/tutorial)
