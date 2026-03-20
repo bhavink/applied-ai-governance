@@ -1,10 +1,10 @@
-# AI Governance: Authentication & Authorization for Databricks AI
+# Applied AI Governance
 
-> **Note:** This repository was previously part of [`bhavink/databricks`](https://github.com/bhavink/databricks) (under the `ai-governance/` directory). It has been extracted into a standalone repo for easier discovery and contribution.
+> *The tools will change. The principles won't. Govern the invariants.*
 
-> **Production-ready authentication and authorization patterns for Databricks AI products**
->
-> Covers Genie Space, Agent Bricks, Databricks Apps, Model Serving, and custom MCP servers
+Production-ready governance patterns for AI applications on Databricks -- identity, data, tools, network, and audit across Genie, Agent Bricks, Apps, Model Serving, and custom MCP servers.
+
+**Start here:** [Governance Framework](GOVERNANCE-FRAMEWORK.md) -- the seven pillars, design principles, and adaptability model that underpin everything in this repo.
 
 ---
 
@@ -121,4 +121,4 @@ A: OBO = apps ON Databricks (user has a workspace account). Federation = apps OU
 
 ---
 
-*Last updated: 2026-03-20 -- Extracted to standalone repo from bhavink/databricks*
+*Last updated: 2026-03-20*
