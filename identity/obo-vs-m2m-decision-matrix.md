@@ -106,7 +106,7 @@ With the `sql` scope configured via the Account Console UI:
 - `session_user()` returns the human email
 - UC row filters and column masks fire as the human user
 - `system.access.audit` records the human email
-- The M2M audit gap is solved for SQL queries
+- Human identity is captured in audit for SQL queries
 
 ---
 

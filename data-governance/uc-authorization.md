@@ -1633,11 +1633,11 @@ ALTER TABLE catalog.schema.sales_pipeline
 
 ---
 
-## The Service Principal Identity Gap
+## Service Principal Identity Under Token Exchange
 
-When external users authenticate via token exchange (e.g., through Auth0 or Entra ID), they map to a Databricks service principal. This creates a fundamental tension for access control.
+When external users authenticate via token exchange (e.g., through Auth0 or Entra ID), they map to a Databricks service principal. This is an important design consideration for access control.
 
-### The Problem
+### How It Works
 
 ```
 External User (sarah@partner.com)
@@ -1655,7 +1655,7 @@ Inside Databricks:
 
 The original user's email is **not available** inside Unity Catalog filter functions when access is via a service principal.
 
-### What Works and What Does Not
+### Access Pattern Compatibility
 
 | Access Pattern | Works with SP Token Exchange? | Why |
 |---|---|---|

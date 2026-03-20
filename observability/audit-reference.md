@@ -1,6 +1,6 @@
 # Observability and Audit Reference
 
-> **Purpose**: Canonical reference for the two-layer observability model in Databricks AI applications -- app-level traces (MLflow) and platform-level audit (`system.access.audit`). Documents the gap between them and how to bridge it.
+> **Purpose**: Canonical reference for the two-layer observability model in Databricks AI applications -- app-level traces (MLflow) and platform-level audit (`system.access.audit`). Documents how to correlate them.
 >
 > **Audience**: Field Engineers building production observability for Databricks AI apps. Security reviewers assessing audit posture.
 >
@@ -13,9 +13,9 @@
 1. [The Two-Layer Model](#1-the-two-layer-model)
 2. [App-Plane Audit (MLflow Traces)](#2-app-plane-audit-mlflow-traces)
 3. [Data-Plane Audit (system.access.audit)](#3-data-plane-audit-systemaccessaudit)
-4. [Correlation: Bridging the Gap](#4-correlation-bridging-the-gap)
+4. [Correlation: Bridging the Two Layers](#4-correlation-bridging-the-two-layers)
 5. [Genie-Specific Observability](#5-genie-specific-observability)
-6. [Known Gaps and Limitations](#6-known-gaps-and-limitations)
+6. [Design Considerations](#6-design-considerations)
 
 ---
 
@@ -52,7 +52,7 @@ Databricks AI applications generate audit data in two separate planes. Neither p
 +------------------------------------------------------------------+
 ```
 
-**The core gap**: When an app uses M2M for SQL queries, the data plane records the SP UUID as the executing identity. The human who triggered the request is only visible in the app plane. There is no platform-built join between these two layers.
+**Key design consideration**: When an app uses M2M for SQL queries, the data plane records the SP UUID as the executing identity. The human who triggered the request is only visible in the app plane. Correlating these two layers requires a shared identifier (trace ID or timestamp window).
 
 ---
 
@@ -185,18 +185,18 @@ System tables have eventual consistency:
 
 ---
 
-## 4. Correlation: Bridging the Gap
+## 4. Correlation: Bridging the Two Layers
 
-### The Problem
+### The Challenge
 
 A single user interaction may generate:
 - An MLflow trace with the human's email and tool calls (app plane)
 - Multiple `system.access.audit` entries with the SP UUID for M2M SQL (data plane)
 - A Genie audit entry with the human's email (data plane)
 
-There is no built-in key to join these records.
+Correlating these records requires a shared identifier.
 
-### Manual Correlation Strategy
+### Correlation Strategy
 
 1. **Generate a `trace_id`** at the agent or app entry point
 2. **Pass it through tool calls** as a parameter or context variable
@@ -282,11 +282,11 @@ For the full Genie monitoring implementation, see [audit-logging/genie-aibi/](..
 
 ---
 
-## 6. Known Gaps and Limitations
+## 6. Design Considerations
 
-### No Platform-Built Correlation
+### Cross-Layer Correlation
 
-The biggest gap: there is no built-in way to join MLflow traces with `system.access.audit` entries for the same user request. You must build this correlation yourself using shared identifiers (trace IDs, timestamps, SQL comments).
+MLflow traces and `system.access.audit` entries for the same user request are correlated using shared identifiers (trace IDs, timestamps, SQL comments). See Section 4 for the recommended approach.
 
 ### W3C Trace Context Not Propagated
 
@@ -641,7 +641,7 @@ System tables have eventual consistency:
 
 ---
 
-## 12. Additional Known Limitations
+## 12. Implementation Notes
 
 ### mlflow-tracing vs mlflow (lightweight vs full)
 

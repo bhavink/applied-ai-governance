@@ -2,7 +2,7 @@
 
 > **Technical overview for authentication and authorization across Databricks AI products**
 >
-> For the complete token flows, OAuth scope reference, identity models, and known gaps, see the canonical reference: [reference/identity-and-auth-reference.md](reference/identity-and-auth-reference.md)
+> For the complete token flows, OAuth scope reference, and identity models, see the canonical reference: [reference/identity-and-auth-reference.md](reference/identity-and-auth-reference.md)
 >
 > For the OBO vs M2M decision framework, see: [reference/obo-vs-m2m-decision-matrix.md](reference/obo-vs-m2m-decision-matrix.md)
 
@@ -54,7 +54,7 @@ Every Databricks AI application uses one or more of these three patterns:
 
 | Topic | Document |
 |---|---|
-| Complete auth reference (token flows, scopes, identity models, gaps) | [reference/identity-and-auth-reference.md](reference/identity-and-auth-reference.md) |
+| Complete auth reference (token flows, scopes, identity models) | [reference/identity-and-auth-reference.md](reference/identity-and-auth-reference.md) |
 | OBO vs M2M decision framework | [reference/obo-vs-m2m-decision-matrix.md](reference/obo-vs-m2m-decision-matrix.md) |
 | UC authorization layers | [02-AUTHORIZATION-WITH-UC.md](02-AUTHORIZATION-WITH-UC.md) |
 | UC policy design (`current_user()` vs `is_member()`) | [UC-POLICY-DESIGN-PRINCIPLES.md](UC-POLICY-DESIGN-PRINCIPLES.md) |
@@ -84,7 +84,7 @@ The agent or app runs as the end user. UC enforces row filters, column masks, an
 - **Scope requirement**: Declare required scopes (`sql`, `dashboards.genie`, `model-serving`, etc.)
 - **Docs**: [OBO Auth](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication#on-behalf-of-user-authentication), [OAuth U2M](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-u2m.html)
 
-> For the complete OAuth scope map (including undocumented Azure-specific scopes, the `sql` scope gotcha, and the two configuration paths), see [reference/identity-and-auth-reference.md](reference/identity-and-auth-reference.md#4-oauth-scope-reference).
+> For the complete OAuth scope map (including Azure-specific scopes, the `sql` scope configuration paths, and UI vs CLI differences), see [reference/identity-and-auth-reference.md](reference/identity-and-auth-reference.md#4-oauth-scope-reference).
 
 ---
 

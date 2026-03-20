@@ -14,8 +14,14 @@
 2. [Token Flows and the Two-Proxy Problem](#2-token-flows-and-the-two-proxy-problem)
 3. [Identity Models per Service](#3-identity-models-per-service)
 4. [OAuth Scope Reference](#4-oauth-scope-reference)
-5. [Identity Fragmentation and Known Gaps](#5-identity-fragmentation-and-known-gaps)
+5. [Identity Design Considerations](#5-identity-design-considerations)
 6. [Quick Decision Guide](#6-quick-decision-guide)
+7. [Complete Service Identity Map](#7-complete-service-identity-map)
+8. [Audit Decorator Pattern](#8-audit-decorator-pattern)
+9. [Chain-of-Custody Query](#9-chain-of-custody-query)
+10. [Confused Deputy Prevention -- SP Isolation](#10-confused-deputy-prevention----sp-isolation)
+11. [Alert Views for Audit Monitoring](#11-alert-views-for-audit-monitoring)
+12. [System Tables -- Complete Inventory](#12-system-tables----complete-inventory)
 
 ---
 
@@ -171,7 +177,7 @@ Each Databricks AI service resolves identity differently. This table shows what 
 | Custom MCP (UC proxy) | Three-proxy | Calling identity at UC layer | Partially |
 | External APIs | Manual credentials | External service logs | N/A |
 
-**The identity fragmentation problem**: In a single user interaction, `system.access.audit` may show the human email for Genie queries but the SP UUID for M2M SQL queries. There is no platform-built join between these records.
+**Identity across services**: In a single user interaction, `system.access.audit` may show the human email for Genie queries (OBO) but the SP UUID for M2M SQL queries. See Section 5 for best practices on correlating these records.
 
 ---
 
@@ -184,10 +190,10 @@ Each Databricks AI service resolves identity differently. This table shows what 
 | Scope | Required for | Notes |
 |---|---|---|
 | `dashboards.genie` | Genie Conversation API (all clouds) | Must be in `user_authorized_scopes` |
-| `genie` | Genie Conversation API on **Azure** | Undocumented Azure-specific requirement -- UI does not show this scope |
+| `genie` | Genie Conversation API on **Azure** | Azure-specific requirement -- add via CLI since the UI does not show this scope |
 | `model-serving` | Agent Bricks / Model Serving OBO | |
 | `sql` | Statement Execution API | Adding via CLI does NOT embed it in the JWT -- use UI "User authorization" or M2M for SQL |
-| `unity-catalog` | External MCP proxy `/api/2.0/mcp/external/...` | Undocumented -- proxy checks USE CONNECTION privilege; missing = 403 |
+| `unity-catalog` | External MCP proxy `/api/2.0/mcp/external/...` | Required -- proxy checks USE CONNECTION privilege; missing = 403 |
 | `all-apis` | General Databricks REST APIs | Catch-all |
 | `offline_access`, `email`, `openid`, `profile`, `iam.*` | OIDC identity baseline | Always required |
 
@@ -245,9 +251,9 @@ Adding a scope to `user_authorized_scopes` does NOT affect existing refresh toke
 
 ---
 
-## 5. Identity Fragmentation and Known Gaps
+## 5. Identity Design Considerations
 
-### The Problem
+### Multi-Service Identity Fragmentation
 
 Databricks AI applications use multiple services, each with a different identity model. In a single user interaction:
 
@@ -256,18 +262,18 @@ Databricks AI applications use multiple services, each with a different identity
 3. **MLflow trace**: Records the human email in trace tags (app-level)
 4. **Custom MCP tool**: Logs caller via `X-Forwarded-Email` (app-level)
 
-The human who triggered the M2M SQL query is invisible in the data-plane audit log.
+When M2M is used for SQL, the human who triggered the query is only visible in the application plane, not the data-plane audit log.
 
-### Known Gaps
+### Best Practices
 
-| Gap | Description | Impact | Workaround |
-|---|---|---|---|
-| **M2M audit loses human identity** | When an app uses M2M for SQL, `system.access.audit` records the SP UUID, not the human | Cannot determine which user triggered which query | Use OBO SQL (UI "User authorization" with `sql` scope) where possible; add app-level audit for M2M paths |
-| **No MLflow-to-audit join** | MLflow traces and `system.access.audit` are separate systems | Cannot trace from agent invocation to data access | Generate a `trace_id` at the agent entry point, pass through tool calls, log in both systems, join manually |
-| **Scope overexposure** | OAuth integrations default to `all-apis` | User token has access to every workspace service | Declare minimum required scopes explicitly |
-| **`is_member()` under OBO** | In some OBO contexts (Genie), `is_member()` evaluates the SQL execution identity, not the calling user | Row filters using `is_member()` return the same result for all users | Use `current_user()` + allowlist table lookup instead of `is_member()` |
+| Design consideration | Best practice |
+|---|---|
+| **Preserving human identity in M2M audit paths** | Use OBO SQL (UI "User authorization" with `sql` scope) where possible; add app-level audit for M2M paths |
+| **Correlating MLflow traces with platform audit** | Generate a `trace_id` at the agent entry point, pass through tool calls, log in both systems, join on shared `trace_id` or timestamp window |
+| **Minimizing token scope** | Declare minimum required scopes explicitly rather than relying on `all-apis` |
+| **`is_member()` behavior under OBO** | In OBO contexts (e.g., Genie), `is_member()` evaluates the SQL execution identity. Use `current_user()` + allowlist table lookup instead |
 
-### Proposed Two-Layer Audit Architecture
+### Two-Layer Audit Architecture
 
 ```
 Application Plane (build it yourself):
@@ -278,7 +284,6 @@ Data Plane (platform-provided):
 
 Correlation:
   JOIN on shared trace_id or timestamp window
-  Gap: No platform-built join exists
 ```
 
 For details on building the app-level audit layer, see [Observability and Audit](observability-and-audit.md).
@@ -328,7 +333,7 @@ Do you need per-user row filter enforcement at the SQL layer?
 
 ---
 
-## 7. Complete Service Identity Map (16 Services)
+## 7. Complete Service Identity Map
 
 This table covers every Databricks AI service and how identity resolves in each. The three identity models are:
 
@@ -361,77 +366,19 @@ This table covers every Databricks AI service and how identity resolves in each.
 
 **Governance boundary for External MCP (#13, #14)**: `USE CONNECTION` grant controls who can invoke. The MCP server itself needs zero data permissions -- UC manages the credential lifecycle.
 
-### Audit gap summary
+### Audit coverage by identity model
 
-| Identity model | UC audit captures human? | Application-plane audit required? |
+| Identity model | UC audit captures human? | Application-plane audit recommended? |
 |---|---|---|
 | True OBO (#1, 2, 3, 4, 5, 9) | **Yes** -- automatic | Optional (enrichment) |
-| Proxy identity + M2M (#7, 15) | **No** -- shows SP UUID. **Solvable** with UI User Authorization + `sql` scope for the OBO SQL path. | **Required** for M2M path; not required when using OBO SQL via UI User Auth |
-| Pure M2M (#6, 8, 10, 11) | **No** -- shows SP UUID | **Required** if per-user attribution matters |
+| Proxy identity + M2M (#7, 15) | **No** -- shows SP UUID. Use UI User Authorization + `sql` scope for OBO SQL to get human identity. | **Yes** for M2M path; not needed when using OBO SQL via UI User Auth |
+| Pure M2M (#6, 8, 10, 11) | **No** -- shows SP UUID | **Yes** if per-user attribution matters |
 | Delegated (#3, 12) | **Yes** -- but shows owner, not end user | Depends on use case |
-| External MCP (#13, 14) | N/A -- external service | **Required** -- Databricks audit shows proxy call, not external action |
+| External MCP (#13, 14) | N/A -- external service | **Yes** -- Databricks audit shows proxy call, not external action |
 
 ---
 
-## 8. Product Gaps -- Detailed Evidence
-
-### GAP 1: M2M audit trail loses human identity -- SOLVABLE via OBO SQL
-
-**Status**: Solvable. With UI User Authorization (Public Preview) + `sql` scope, Custom MCP apps can execute OBO SQL where `current_user()` returns the human email and UC audit records the human identity directly.
-
-```sql
--- What UC audit shows for an M2M query:
-SELECT event_time, user_identity.email, action_name, service_name
-FROM system.access.audit
-WHERE service_name = 'unityCatalog'
-  AND event_time > current_timestamp() - INTERVAL 1 HOUR;
-
--- M2M path result:
--- user_identity.email = <sp-application-id>  (SP UUID, not human)
-
--- OBO SQL via UI User Auth result:
--- user_identity.email = user@example.com     (human email -- gap closed)
-```
-
-**Affected services (M2M path only)**: Custom MCP (#7 when not using OBO SQL), UC Functions via M2M (#8), Vector Search (#10), any M2M SQL path (#6).
-
-### GAP 2: No platform-built join between MLflow traces and UC audit
-
-`mlflow.traces` and `system.access.audit` are separate system tables with no foreign key relationship. The join requires matching on SP UUID + time window -- an approximation, not a precise correlation.
-
-### GAP 3: `sql` scope in JWT -- RESOLVED (configuration issue)
-
-Adding `sql` to `user_authorized_scopes` via CLI did not result in the `sql` claim appearing in the JWT. The resolution: configure `sql` scope via the Databricks Apps UI "User authorization" panel. The resulting `X-Forwarded-Access-Token` is a real OBO JWT with the `sql` scope claim. Track configured scopes via `effective_user_api_scopes` on the app object.
-
-### GAP 4: `is_member()` broken in OBO contexts through Genie/Agent Bricks
-
-`is_member()` in a row filter or column mask evaluates the SQL **execution identity** (Genie service, Agent Bricks runtime), not the OBO caller's workspace groups. Needs re-test under UI User Authorization where the SQL session identity is the actual user.
-
-**Workaround**: Use `current_user()` + allowlist table lookup instead of `is_member()`.
-
-### GAP 5: `unity-catalog` scope requirement for External MCP -- undocumented
-
-Calling `/api/2.0/mcp/external/{connection_name}` without the `unity-catalog` scope returns `403: "Provided OAuth token does not have required scopes: unity-catalog"`. This scope is not mentioned in the External MCP documentation.
-
-### GAP 6: Token scope refresh requires full app rebuild
-
-Adding scopes to an existing OAuth integration does not propagate to existing refresh tokens. Users must re-authorize via a new authorization code flow. The only reliable method: delete and recreate the Databricks App (creates a new OAuth integration, new SP, new client_id). Every scope change is a destructive operation that requires re-granting the new SP's UC access.
-
-### GAP 7: `authorization: disabled` cannot serve both app-to-app and external clients
-
-App-to-app calls need auth disabled (to preserve upstream token). External clients need auth enabled (to trigger proxy identity injection). No single setting works for both.
-
-### GAP 8: Connection owner has implicit `USE CONNECTION`
-
-The owner of a UC HTTP connection has implicit `USE CONNECTION` permission. This permission does not appear in `SHOW GRANTS` for the owner -- making access audits incomplete if you only check explicit grants. When auditing who can access an External MCP server, check both explicit `USE CONNECTION` grants AND connection ownership.
-
-### GAP 9: Lakebase data-plane query audit undocumented
-
-Lakebase management audit is captured in `system.access.audit` under service `databaseInstances` (15 actions). What remains undocumented: whether data-plane Postgres SQL queries (SELECT/INSERT/UPDATE/DELETE) appear in `system.access.audit`, and if so, what identity is recorded.
-
----
-
-## 9. Audit Decorator Pattern
+## 8. Audit Decorator Pattern
 
 The `@audited` decorator wraps any MCP tool with audit logging. Zero changes to tool logic required.
 
@@ -588,7 +535,7 @@ def call_external_mcp(connection_name: str, tool: str, args: dict) -> dict:
 
 ---
 
-## 10. Chain-of-Custody Query
+## 9. Chain-of-Custody Query
 
 This query joins the application-plane audit table with the data-plane `system.access.audit` to produce a full chain of custody: human -> tool -> SQL -> data.
 
@@ -659,7 +606,7 @@ UC only knows `<sp-application-id>` ran queries. Your audit table proves Alice a
 
 ---
 
-## 11. Confused Deputy Prevention -- SP Isolation
+## 10. Confused Deputy Prevention -- SP Isolation
 
 ### The problem
 
@@ -698,7 +645,7 @@ Every deployed agent is a Service Principal. One SP per capability boundary -- n
 
 ---
 
-## 12. Alert Views for Audit Monitoring
+## 11. Alert Views for Audit Monitoring
 
 ```sql
 -- Alert: tool invocation by unknown caller (empty email = broken auth)
@@ -736,7 +683,7 @@ HAVING error_pct > 10;
 
 ---
 
-## 13. System Tables -- Complete Inventory
+## 12. System Tables -- Complete Inventory
 
 ### Access and audit
 
@@ -769,7 +716,7 @@ HAVING error_pct > 10;
 |---|---|---|
 | `mlflow.traces` | Agent conversation traces with spans | Application-plane audit -- what the agent decided, what tools it called |
 
-**Key limitation of `system.access.audit`**: Records the executing identity only. For M2M, this is the SP UUID -- not the human who triggered it. There is no `requested_by` or `on_behalf_of` field.
+**Design note for `system.access.audit`**: Records the executing identity only. For M2M, this is the SP UUID, not the human who triggered it. Use the two-layer audit architecture (Section 5) to correlate human identity with M2M queries.
 
 ---
 

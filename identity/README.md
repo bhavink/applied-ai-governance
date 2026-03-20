@@ -10,7 +10,7 @@ Three identity models, one governance plane. Every AI service on Databricks uses
 2. [OBO vs M2M Decision Matrix](obo-vs-m2m-decision-matrix.md) -- Quick decision tree, per-service examples, anti-patterns
 3. [Authorization Flows](authorization-flows.md) -- Hop-by-hop header traces for single/dual/triple proxy architectures
 4. [Federation Exchange](federation-exchange.md) -- External IDP token exchange, role-based SPs, governance enforcement points
-5. [Identity Reference](identity-reference.md) -- 16-service identity map, product gaps, audit decorator, chain-of-custody SQL
+5. [Identity Reference](identity-reference.md) -- Per-service identity map, audit decorator, chain-of-custody SQL
 
 ## Key Concepts
 

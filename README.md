@@ -36,7 +36,7 @@ New to Databricks AI governance? Read these in order:
 
 | Document | Pillar | Contents |
 |----------|--------|----------|
-| [Identity Reference](identity/identity-reference.md) | Identity | 16-service identity map, token flows, OAuth scope map, product gaps |
+| [Identity Reference](identity/identity-reference.md) | Identity | Per-service identity map, token flows, OAuth scope map, audit patterns |
 | [OBO vs M2M Matrix](identity/obo-vs-m2m-decision-matrix.md) | Identity | Decision tree, per-service examples, anti-patterns |
 | [Authorization Flows](identity/authorization-flows.md) | Identity | Hop-by-hop header traces, proxy architectures |
 | [Federation Exchange](identity/federation-exchange.md) | Identity | IDP swap guide, enforcement points, role-based SPs |
