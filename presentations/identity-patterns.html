@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Identity Patterns for AI Applications</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#ffffff;--ink:#1a1a1a;--red:#cc3311;
+  --surface:#f7f7f7;--border:#e0e0e0;--muted:#666;
+  --green:#1e7e34;--green-bg:#e6f4ea;--amber:#b45309;--amber-bg:#fef3c7;
+  --blue:#1d4ed8;--blue-bg:#eff6ff;
+  --font:'Space Grotesk',sans-serif;--mono:'DM Mono',monospace;
+  --pad:clamp(2rem,5vw,4.5rem);
+  --sz-h1:clamp(2rem,4.5vw,3.2rem);
+  --sz-h2:clamp(1.4rem,3vw,2.2rem);
+  --sz-h3:clamp(1rem,2vw,1.4rem);
+  --sz-body:clamp(0.85rem,1.4vw,1.05rem);
+  --sz-small:clamp(0.72rem,1.1vw,0.88rem);
+  --sz-label:clamp(0.62rem,0.85vw,0.72rem);
+  --sz-code:clamp(0.68rem,1vw,0.82rem);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:var(--font);background:var(--bg);color:var(--ink)}
+
+.topbar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--ink);color:#fff;z-index:100;font-size:var(--sz-small)}
+.topbar .title{font-weight:600;letter-spacing:-0.02em}
+.topbar .title span{color:var(--red)}
+.topbar .counter{font-variant-numeric:tabular-nums;opacity:0.7}
+.progress-track{position:fixed;top:48px;left:0;right:0;height:3px;background:var(--border);z-index:100}
+.progress-bar{height:100%;background:var(--red);transition:width 0.4s ease;width:0}
+
+.slide{position:absolute;top:48px;left:0;right:0;bottom:0;opacity:0;pointer-events:none;transform:translateX(60px);transition:opacity 0.4s ease,transform 0.4s ease;overflow-y:auto;display:flex;flex-direction:column;padding:var(--pad)}
+.slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+.slide.exit-left{opacity:0;transform:translateX(-60px)}
+.slide-title{justify-content:center;align-items:center;text-align:center}
+.slide-title h1{font-size:clamp(2.4rem,5vw,4rem);font-weight:700;letter-spacing:-0.03em;line-height:1.1;max-width:900px}
+.slide-title .subtitle{font-size:var(--sz-h3);color:var(--muted);margin-top:12px;font-weight:400}
+.slide-title .red-line{width:80px;height:4px;background:var(--red);margin:20px auto 0}
+
+.slide h2{font-size:var(--sz-h1);font-weight:700;letter-spacing:-0.03em;margin-bottom:8px}
+.slide h3{font-size:var(--sz-h2);font-weight:600;letter-spacing:-0.02em;margin-bottom:6px}
+.slide p,.slide li{font-size:var(--sz-body);line-height:1.65}
+.label{font-size:var(--sz-label);text-transform:uppercase;letter-spacing:0.1em;color:var(--red);font-weight:600;margin-bottom:6px}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.5rem,3vw,2.5rem);flex:1;min-height:0}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(1rem,2vw,1.5rem);flex:1;min-height:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(1rem,2vw,1.5rem);overflow:auto}
+.card h4{font-size:var(--sz-h3);font-weight:600;margin-bottom:8px}
+.card-red{border-left:4px solid var(--red)}
+.card-green{border-left:4px solid var(--green);background:var(--green-bg)}
+.card-amber{border-left:4px solid var(--amber);background:var(--amber-bg)}
+.card-blue{border-left:4px solid var(--blue);background:var(--blue-bg)}
+
+pre,code{font-family:var(--mono);font-size:var(--sz-code)}
+pre{background:var(--ink);color:#e0e0e0;border-radius:4px;padding:clamp(0.6rem,1.2vw,1rem);overflow-x:auto;line-height:1.55}
+code{background:var(--surface);padding:0.1em 0.4em;border-radius:3px;font-size:var(--sz-code)}
+
+table{width:100%;border-collapse:collapse;font-size:var(--sz-small)}
+th{text-align:left;font-weight:600;font-size:var(--sz-label);letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:2px solid var(--border)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface)}
+
+.badge{display:inline-block;font-size:var(--sz-label);font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 8px;border-radius:3px}
+.badge-red{background:rgba(204,51,17,0.1);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-ink{background:var(--ink);color:#fff}
+
+.flow-h{display:flex;align-items:center;gap:0;flex-wrap:wrap;justify-content:center}
+.flow-box{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 14px;text-align:center;font-size:var(--sz-small);font-weight:500;min-width:100px}
+.flow-box.customer{border-color:var(--blue);background:var(--blue-bg)}
+.flow-box.platform{border-color:var(--ink);background:var(--ink);color:#fff}
+.flow-box.app{border-color:var(--green);background:var(--green-bg)}
+.flow-box small{display:block;font-size:var(--sz-label);color:var(--muted);font-weight:400;margin-top:2px}
+.flow-arrow{font-size:var(--sz-body);color:var(--red);font-weight:700;padding:0 6px}
+.flow-owner{font-size:var(--sz-label);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;text-align:center}
+.flow-owner.cust{color:var(--blue)}
+.flow-owner.plat{color:var(--ink)}
+.flow-owner.apps{color:var(--green)}
+
+.dt-row{display:grid;grid-template-columns:1fr 40px 1fr;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.dt-cond{font-size:var(--sz-small);text-align:right;font-weight:500}
+.dt-arrow{text-align:center;color:var(--red);font-weight:700}
+.dt-result{font-size:var(--sz-small)}
+
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check-item{display:flex;align-items:flex-start;gap:8px;font-size:var(--sz-small);padding:6px 0}
+.check-icon{color:var(--green);font-weight:700;flex-shrink:0;font-size:var(--sz-body)}
+
+.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}
+.mb-1{margin-bottom:8px}.mb-2{margin-bottom:16px}
+.flex-1{flex:1 1 0;min-height:0;overflow-y:auto}
+
+.nav-hint{position:fixed;bottom:16px;left:24px;font-size:var(--sz-label);color:var(--muted);opacity:0.5;z-index:100}
+.repo-link{position:fixed;bottom:16px;right:24px;font-size:var(--sz-label);color:var(--muted);opacity:0.5;z-index:100;text-decoration:none}
+.repo-link:hover{opacity:0.8;color:var(--red)}
+
+@media(max-width:900px){.two-col,.three-col{grid-template-columns:1fr}.check-grid{grid-template-columns:1fr}}
+@media print{.slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always}.topbar,.progress-track,.nav-hint,.repo-link{display:none}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">Identity <span>Patterns</span> for AI Applications</div>
+  <div class="counter" id="counter">01 / 14</div>
+</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+<div class="nav-hint">&larr; &rarr; arrow keys</div>
+<a class="repo-link" href="https://github.com/bhavink/applied-ai-governance" target="_blank">github.com/bhavink/applied-ai-governance</a>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 1: TITLE -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide slide-title active" data-slide="1">
+  <h1>Identity Patterns<br>for <span style="color:var(--red)">AI Applications</span></h1>
+  <div class="subtitle">OBO, M2M, and Federation. Three token flows, one governance model.</div>
+  <div class="red-line"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 2: AuthN vs AuthZ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+  <div class="label">Foundations</div>
+  <h2>Authentication vs Authorization</h2>
+  <p style="color:var(--muted)">Two distinct questions, enforced at different layers.</p>
+  <div class="two-col mt-3">
+    <div class="card card-blue">
+      <h4>Authentication (AuthN)</h4>
+      <p><strong>Who are you?</strong></p>
+      <p class="mt-1" style="font-size:var(--sz-small)">Proves identity. Handled by OAuth tokens (OBO, M2M, or Federation exchange). The token carries the caller's identity through every layer of the stack.</p>
+      <table class="mt-2">
+        <tr><td style="font-weight:600;width:100px">OBO</td><td>User's OAuth token via Apps proxy</td></tr>
+        <tr><td style="font-weight:600">M2M</td><td>SP client credentials grant</td></tr>
+        <tr><td style="font-weight:600">Federation</td><td>IDP JWT exchanged for SP token</td></tr>
+      </table>
+    </div>
+    <div class="card card-red">
+      <h4>Authorization (AuthZ)</h4>
+      <p><strong>What can you do?</strong></p>
+      <p class="mt-1" style="font-size:var(--sz-small)">Enforces permissions. Unity Catalog evaluates grants at the SQL engine level. Row filters, column masks, USE CONNECTION, EXECUTE on functions. Application code cannot bypass these controls.</p>
+      <table class="mt-2">
+        <tr><td style="font-weight:600;width:100px">Scopes</td><td>Limit what the <em>token</em> can do</td></tr>
+        <tr><td style="font-weight:600">UC Grants</td><td>Limit what the <em>identity</em> can access</td></tr>
+        <tr><td style="font-weight:600">Both</td><td>Enforce independently; either can deny</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3: THREE TOKEN PATTERNS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="label">Identity Models</div>
+  <h2>Three token patterns</h2>
+  <div class="three-col mt-2">
+    <div class="card card-blue">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span class="badge badge-blue">OBO (U2M)</span>
+      </div>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">User-to-Machine. The platform acts on behalf of a known human.</p>
+      <table>
+        <tr><td style="font-weight:600;width:80px">Token</td><td>User's scoped OAuth via Apps proxy</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td><code>current_user()</code> = human email</td></tr>
+        <tr><td style="font-weight:600">UC fires</td><td>As the individual user</td></tr>
+        <tr><td style="font-weight:600">Audit</td><td>Full per-user attribution</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-small);padding:6px 8px;background:var(--blue-bg);border-radius:4px">
+        <strong>Best for:</strong> Internal apps where users have Databricks accounts.
+      </div>
+    </div>
+    <div class="card" style="border-left:4px solid var(--ink)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span class="badge badge-ink">M2M</span>
+      </div>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">Machine-to-Machine. A service principal with its own credentials. No human in the loop.</p>
+      <table>
+        <tr><td style="font-weight:600;width:80px">Token</td><td>SP OAuth client credentials</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td><code>current_user()</code> = SP app ID</td></tr>
+        <tr><td style="font-weight:600">UC fires</td><td>As the service principal</td></tr>
+        <tr><td style="font-weight:600">Audit</td><td>SP-level only (no human context)</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-small);padding:6px 8px;background:var(--surface);border-radius:4px">
+        <strong>Best for:</strong> Background jobs, scheduled pipelines, CI/CD, health checks.
+      </div>
+    </div>
+    <div class="card card-red">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span class="badge badge-red">FEDERATION</span>
+      </div>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">External IDP token exchanged for a role-based SP token. Users have no Databricks accounts.</p>
+      <table>
+        <tr><td style="font-weight:600;width:80px">Token</td><td>IDP JWT exchanged via RFC 8693</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td>Role-based SP (mapped from IDP)</td></tr>
+        <tr><td style="font-weight:600">UC fires</td><td><code>is_member()</code> per SP group</td></tr>
+        <tr><td style="font-weight:600">Audit</td><td>SP-level + app-layer human audit</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-small);padding:6px 8px;background:rgba(204,51,17,0.06);border-radius:4px">
+        <strong>Best for:</strong> Partner portals, customer-facing apps, multi-tenant SaaS.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 4: OBO FLOW -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+  <div class="label">Pattern 1</div>
+  <h2>On-Behalf-Of (OBO) Flow</h2>
+  <div class="flow-h mt-3">
+    <div><div class="flow-owner cust">User</div><div class="flow-box customer">Alice<small>alice@company.com</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Platform</div><div class="flow-box platform">Databricks Apps<small>authenticates + forwards</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Platform</div><div class="flow-box platform">OAuth Server<small>scoped user token (1h)</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner apps">Your Code</div><div class="flow-box app">App / MCP<small>receives user token</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Platform</div><div class="flow-box platform">Unity Catalog<small>fires as Alice</small></div></div>
+  </div>
+  <div class="two-col mt-3">
+    <div class="card" style="border-left:4px solid var(--ink)">
+      <h4>What the proxy does</h4>
+      <p style="font-size:var(--sz-small)">Databricks Apps handles the entire OAuth flow before your code runs:</p>
+      <ol style="font-size:var(--sz-small);padding-left:1.4em;margin-top:4px">
+        <li><strong>Authenticates</strong> the user via their workspace IdP</li>
+        <li><strong>Creates a scoped token</strong> limited to configured permissions</li>
+        <li><strong>Forwards</strong> the request with the token in <code>x-forwarded-access-token</code></li>
+      </ol>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)">Your app never handles login flows, passwords, or OAuth redirects.</p>
+    </div>
+    <div class="card card-green">
+      <h4>current_user() = human</h4>
+      <p style="font-size:var(--sz-small)">Every query carries Alice's identity. UC row filters evaluate:</p>
+      <pre style="font-size:var(--sz-code);margin-top:8px">WHERE owner = current_user()
+-- returns 'alice@company.com'</pre>
+      <p style="font-size:var(--sz-small);margin-top:8px">Column masks hide sensitive fields via <code>is_member('group')</code>. No app code changes needed. All access logged with Alice's email.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 5: M2M PATTERN -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label">Pattern 2</div>
+  <h2>Machine-to-Machine (Service Principal)</h2>
+  <div class="flow-h mt-3">
+    <div><div class="flow-owner plat">Trigger</div><div class="flow-box platform">Scheduled Job<small>cron / CI/CD / event</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Identity</div><div class="flow-box" style="border-color:var(--ink);border-width:2px">Service Principal<small>sp-agent-prod</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Platform</div><div class="flow-box platform">OAuth Server<small>M2M token (1h)</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Platform</div><div class="flow-box platform">Unity Catalog<small>checks SP GRANTs</small></div></div>
+  </div>
+  <div class="two-col mt-3">
+    <div class="card">
+      <h4>When to use</h4>
+      <ul style="padding-left:1.2em;font-size:var(--sz-small)">
+        <li>Batch processing and scheduled workflows</li>
+        <li>CI/CD pipelines deploying or testing</li>
+        <li>Background audit writes (fire-and-forget)</li>
+        <li>Health checks and monitoring</li>
+        <li>Any automation with no human in the loop</li>
+      </ul>
+    </div>
+    <div class="card card-amber">
+      <h4>Audit implications</h4>
+      <p style="font-size:var(--sz-small)">Every execution gets <strong>identical permissions</strong>. The SP's grants do not change between runs.</p>
+      <p style="font-size:var(--sz-small);margin-top:8px">All actions logged as <code>sp-agent-prod</code>. No individual user attribution in UC audit logs. If you need per-user trails, use OBO or Federation instead.</p>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)">Databricks handles token rotation automatically. No secrets to manage manually.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 6: FEDERATION FLOW -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label">Pattern 3</div>
+  <h2>Federation Token Exchange</h2>
+  <div class="flow-h mt-3">
+    <div><div class="flow-owner cust">Customer</div><div class="flow-box customer">External User<small>Auth0 / Okta / Entra</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner cust">Customer</div><div class="flow-box customer">Your App Server<small>verifies JWT, maps role</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Platform</div><div class="flow-box platform">/oidc/v1/token<small>validates federation policy</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner apps">Databricks App</div><div class="flow-box app">MCP Server<small>role-scoped SP token</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Platform</div><div class="flow-box platform">UC Governance<small>fires per SP group</small></div></div>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card card-red">
+      <h4>Token exchange in one call</h4>
+      <pre style="font-size:var(--sz-code)">POST /oidc/v1/token
+grant_type=urn:ietf:params:oauth
+  :grant-type:token-exchange
+subject_token=&lt;IDP_JWT&gt;
+scope=sql genie serving</pre>
+      <p style="font-size:var(--sz-small);margin-top:8px">Databricks validates the JWT's <code>iss</code>, <code>aud</code>, <code>sub</code> against the federation policy on the target SP. Mismatch = 401/403.</p>
+    </div>
+    <div class="card">
+      <h4>Role-based service principals</h4>
+      <table>
+        <tr><td style="font-weight:600;width:90px">JWT role</td><td>IDP injects <code>role</code> claim (sales-west, executive, etc.)</td></tr>
+        <tr><td style="font-weight:600">SP mapping</td><td>App server maps role to a Databricks SP</td></tr>
+        <tr><td style="font-weight:600">UC groups</td><td>Each SP belongs to workspace groups</td></tr>
+        <tr><td style="font-weight:600">Result</td><td>Row filters + column masks fire per SP group</td></tr>
+      </table>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)">IDP-agnostic. Swap Auth0, Okta, or Entra by changing the federation policy config.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 7: FEDERATION DEEP DIVE -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label">Federation Details</div>
+  <h2>The trust boundary</h2>
+  <div class="two-col mt-2">
+    <div class="card" style="border-left:4px solid var(--ink)">
+      <h4>Federation policy validation</h4>
+      <p style="font-size:var(--sz-small)">Three fields are checked on every exchange:</p>
+      <table class="mt-1">
+        <tr><td style="font-weight:600;width:70px"><code>iss</code></td><td>Must match the IDP's issuer URL exactly (trailing slash matters)</td></tr>
+        <tr><td style="font-weight:600"><code>aud</code></td><td>Must match the workspace URL registered in the policy</td></tr>
+        <tr><td style="font-weight:600"><code>sub</code></td><td>Must match the client ID registered on the SP</td></tr>
+      </table>
+      <p style="font-size:var(--sz-small);margin-top:8px">Databricks fetches the IDP's JWKS keys from <code>iss/.well-known/jwks.json</code> and verifies the RS256 signature. No proxy headers involved.</p>
+    </div>
+    <div class="card card-red">
+      <h4>Why the API server is the trust boundary</h4>
+      <ul style="padding-left:1.2em;font-size:var(--sz-small)">
+        <li><strong>Verifies JWT independently</strong> via JWKS (does not trust caller's DB token for SQL)</li>
+        <li><strong>Performs its own token exchange</strong> server-side, controlling which SP the token maps to</li>
+        <li><strong>Mitigates token replay</strong> by binding the exchange to the verified JWT role</li>
+        <li><strong>Prevents privilege escalation</strong> because the role claim is cryptographically verified</li>
+      </ul>
+      <p style="font-size:var(--sz-small);margin-top:8px">The API server is the only component that both verifies identity AND controls data access.</p>
+    </div>
+  </div>
+  <div class="card mt-2" style="text-align:center">
+    <p style="font-size:var(--sz-small)"><strong>Token lifetime:</strong> 1 hour, not refreshable. Must re-exchange. <strong>Scopes:</strong> <code>sql</code> + <code>genie</code> + <code>serving</code> (configurable per use case, least privilege).</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 8: DECISION GUIDE -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label">Decision Guide</div>
+  <h2>When to use which pattern</h2>
+  <div class="flex-1 mt-2" style="max-width:800px">
+    <div class="dt-row">
+      <div class="dt-cond">Internal Databricks users</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-blue">OBO</span> current_user() = human</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">External users with their own IDP</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">FEDERATION</span> IDP JWT &rarr; SP token</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">No user present (automation)</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-ink">M2M</span> SP client credentials</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Per-user audit trail required</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-blue">OBO</span> UC records human email</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Role-based access (6 roles, 100+ users)</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">FEDERATION</span> role &rarr; SP &rarr; group</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">No Databricks accounts for users</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">FEDERATION</span> SPs act as proxies</div>
+    </div>
+    <div class="dt-row" style="border-bottom:none">
+      <div class="dt-cond">Both internal + external users</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-blue">OBO</span> + <span class="badge badge-red">FED</span> same tools, same UC</div>
+    </div>
+  </div>
+  <div class="card card-green mt-2">
+    <p><strong>Key insight:</strong> All three patterns share the same UC governance, MCP tools, and audit infrastructure. The only difference is how the token reaches your app.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 9: OAUTH SCOPES -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label">Least Privilege</div>
+  <h2>OAuth scopes: the capability ceiling</h2>
+  <p style="color:var(--muted)">Scopes limit what the token can do. UC grants limit what the identity can access. Both enforce independently.</p>
+  <div class="flex-1 mt-2">
+    <table>
+      <thead>
+        <tr><th>Resource</th><th>OAuth Scope</th><th>UC Grant</th><th>Effect</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>SQL Warehouse</td><td><code>sql</code></td><td>CAN USE</td><td>Token + UC must both allow</td></tr>
+        <tr><td>Genie Space</td><td><code>genie</code> + <code>dashboards.genie</code></td><td>Space access + tables</td><td>Azure needs both scope values</td></tr>
+        <tr><td>Model Serving</td><td><code>serving</code></td><td>CAN QUERY on endpoint</td><td>Per-endpoint access control</td></tr>
+        <tr><td>Vector Search</td><td><code>sql</code></td><td>SELECT on VS index</td><td>Accessed via SQL interface</td></tr>
+        <tr><td>UC Connection</td><td><code>sql</code></td><td>USE CONNECTION</td><td>External API access gate</td></tr>
+        <tr><td>UC Function</td><td><code>sql</code></td><td>EXECUTE on function</td><td>Agent tool access control</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card card-amber">
+      <p><strong>Scopes are the ceiling.</strong> A token with only <code>sql</code> scope cannot call Model Serving, even if the identity has CAN QUERY grants. Revoking either layer blocks access.</p>
+    </div>
+    <div class="card">
+      <p style="font-size:var(--sz-small)"><strong>Configure only what your app needs.</strong> Our demo uses <code>sql</code> + <code>genie</code> + <code>serving</code>. Additional scopes (<code>files.files</code>, <code>apps</code>) are available as Databricks expands capabilities.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 10: SERVICE PRINCIPALS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label">Service Principals</div>
+  <h2>Account vs workspace, two identifiers</h2>
+  <div class="two-col mt-2">
+    <div class="card" style="border-left:4px solid var(--ink)">
+      <h4>Account-level SP</h4>
+      <p style="font-size:var(--sz-small)">Created at the Databricks account level. Can be assigned to multiple workspaces. Has a globally unique <strong>application_id</strong> (UUID).</p>
+      <table class="mt-1">
+        <tr><td style="font-weight:600;width:100px">application_id</td><td>UUID, globally unique, used in <code>current_user()</code></td></tr>
+        <tr><td style="font-weight:600">display_name</td><td>Human-readable (e.g., <code>fed-exchange-sp-west-sales</code>)</td></tr>
+        <tr><td style="font-weight:600">Scope</td><td>Account-wide. Assigned to workspaces.</td></tr>
+      </table>
+    </div>
+    <div class="card card-blue">
+      <h4>Workspace-level identity</h4>
+      <p style="font-size:var(--sz-small)">When assigned to a workspace, the SP gets a workspace-specific <strong>principal_id</strong> (integer). This is used for workspace-level permissions.</p>
+      <table class="mt-1">
+        <tr><td style="font-weight:600;width:100px">principal_id</td><td>Integer, workspace-specific, for ACLs</td></tr>
+        <tr><td style="font-weight:600">Groups</td><td>Added to workspace groups for UC governance</td></tr>
+        <tr><td style="font-weight:600">Grants</td><td>UC grants reference the application_id</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card mt-2" style="text-align:center">
+    <p style="font-size:var(--sz-small)"><strong>Common confusion:</strong> <code>application_id</code> (UUID) is what <code>current_user()</code> returns and what you use in UC GRANTs. <code>principal_id</code> (integer) is for workspace-level permissions like CAN USE on SQL warehouses. They are not interchangeable.</p>
+  </div>
+  <div class="card card-red mt-2">
+    <p style="font-size:var(--sz-small)"><strong>Federation pattern:</strong> Each role maps to a dedicated SP. <code>west_sales</code> role &rarr; <code>fed-exchange-sp-west-sales</code> SP &rarr; <code>west_sales</code> UC group. The JWT <code>role</code> claim drives which SP receives the exchanged token.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 11: SHARED GOVERNANCE -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label">UC Governance</div>
+  <h2>One governance model, all patterns</h2>
+  <p style="color:var(--muted)">Unity Catalog enforcement is identical. Only the identity source differs.</p>
+  <div class="three-col mt-2">
+    <div class="card card-green">
+      <h4>Row Filters</h4>
+      <p style="font-size:var(--sz-small)">Federation: <code>is_member('group')</code></p>
+      <p style="font-size:var(--sz-small)">OBO: <code>current_user()</code></p>
+      <p class="mt-1" style="color:var(--muted);font-size:var(--sz-small)">West sales rep sees only WEST region deals. Same table, different data.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Column Masks</h4>
+      <p style="font-size:var(--sz-small)"><code>margin_pct</code> masked for non-privileged roles</p>
+      <p class="mt-1" style="color:var(--muted);font-size:var(--sz-small)">Finance/exec/admin see real margins. Sales reps see NULL. Enforced at SQL engine.</p>
+    </div>
+    <div class="card card-green">
+      <h4>USE CONNECTION</h4>
+      <p style="font-size:var(--sz-small)">Controls external API access</p>
+      <p class="mt-1" style="color:var(--muted);font-size:var(--sz-small)">One SQL statement to GRANT or REVOKE access to external services per role.</p>
+    </div>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card">
+      <h4>EXECUTE on UC Functions</h4>
+      <p style="font-size:var(--sz-small)">Controls which identities can invoke UC functions as agent tools. Per-function, per-principal.</p>
+    </div>
+    <div class="card">
+      <h4>CAN QUERY on Serving</h4>
+      <p style="font-size:var(--sz-small)">Controls access to Model Serving endpoints (supervisor agent, FMAPI). Per-endpoint access control.</p>
+    </div>
+  </div>
+  <p class="mt-2" style="text-align:center;font-weight:600">All enforced by the SQL engine, not application code. Cannot be bypassed.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 12: ACCESS CONTROL MATRIX -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label">Access Control</div>
+  <h2>9 Tools x 6 Roles</h2>
+  <p style="color:var(--muted)">Federation uses RBAC matrix + UC governance. OBO uses UC governance only (no matrix needed).</p>
+  <div class="flex-1 mt-2">
+    <table>
+      <thead>
+        <tr><th>Tool</th><th>West Sales</th><th>East Sales</th><th>Managers</th><th>Executive</th><th>Finance</th><th>Admin</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>check_identity</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td></tr>
+        <tr><td>get_region_summary</td><td style="color:var(--green)">&#10003; WEST</td><td style="color:var(--green)">&#10003; EAST</td><td style="color:var(--green)">&#10003; ALL</td><td style="color:var(--green)">&#10003; ALL</td><td style="color:var(--green)">&#10003; ALL</td><td style="color:var(--green)">&#10003; ALL</td></tr>
+        <tr><td>query_sales_data</td><td style="color:var(--green)">&#10003; masked</td><td style="color:var(--green)">&#10003; masked</td><td style="color:var(--green)">&#10003; masked</td><td style="color:var(--green)">&#10003; real</td><td style="color:var(--green)">&#10003; real</td><td style="color:var(--green)">&#10003; real</td></tr>
+        <tr><td>genie_query</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td></tr>
+        <tr><td>query_knowledge_base</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td></tr>
+        <tr><td>query_audit_log</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td></tr>
+        <tr><td>ask_supervisor</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--green)">&#10003;</td></tr>
+        <tr><td>github_search</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--green)">&#10003;</td></tr>
+        <tr><td>external_api_call</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--red)">&#10007;</td><td style="color:var(--green)">&#10003;</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 13: SECURITY CHECKLIST -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="13">
+  <div class="label">Production Ready</div>
+  <h2>Security Checklist</h2>
+  <div class="check-grid mt-2 flex-1">
+    <div class="check-item"><span class="check-icon">&#10003;</span><div><strong>No secrets in env vars</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">UC connections hold external credentials. http_request() injects tokens at runtime.</span></div></div>
+    <div class="check-item"><span class="check-icon">&#10003;</span><div><strong>OAuth scopes enforce least privilege</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">sql + genie + serving. Never all-apis.</span></div></div>
+    <div class="check-item"><span class="check-icon">&#10003;</span><div><strong>UC governance at SQL engine level</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Row filters, column masks, USE CONNECTION, EXECUTE.</span></div></div>
+    <div class="check-item"><span class="check-icon">&#10003;</span><div><strong>Tool-level RBAC (defense in depth)</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">TOOL_ACCESS matrix on top of UC. Any layer sufficient to deny.</span></div></div>
+    <div class="check-item"><span class="check-icon">&#10003;</span><div><strong>Async audit (never blocks response)</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Fire-and-forget background thread. M2M SP credentials for writes.</span></div></div>
+    <div class="check-item"><span class="check-icon">&#10003;</span><div><strong>Tokens never logged</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Bearer tokens excluded from logs and error messages.</span></div></div>
+    <div class="check-item"><span class="check-icon">&#10003;</span><div><strong>Federation JWT verified server-side</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">JWKS signature check. Never trusted from headers alone.</span></div></div>
+    <div class="check-item"><span class="check-icon">&#10003;</span><div><strong>Retry with exponential backoff + jitter</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Prevents thundering herd on 429/503. Configurable limits.</span></div></div>
+    <div class="check-item"><span class="check-icon">&#10003;</span><div><strong>Structured logging + MLflow traces</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">JSON with request_id correlation. 100% tool coverage.</span></div></div>
+    <div class="check-item"><span class="check-icon">&#10003;</span><div><strong>Input validation + HTTPS-only</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">All tool params validated. External calls require HTTPS.</span></div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 14: SUMMARY -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="slide slide-title" data-slide="14">
+  <div class="label">Summary</div>
+  <h1 style="font-size:var(--sz-h1)">Three Patterns, One Governance Model</h1>
+  <div style="max-width:700px;text-align:left;margin:24px auto 0">
+    <table>
+      <tr><td style="font-weight:700;color:var(--blue);width:100px"><span class="badge badge-blue">OBO</span></td><td>Internal users. current_user() = human. Per-user row filters and audit trails.</td></tr>
+      <tr><td style="font-weight:700"><span class="badge badge-ink">M2M</span></td><td>Automation. SP credentials. Fixed permissions. Background jobs and pipelines.</td></tr>
+      <tr><td style="font-weight:700;color:var(--red)"><span class="badge badge-red">FED</span></td><td>External users. IDP JWT exchanged for role-scoped SP token. IDP-agnostic.</td></tr>
+    </table>
+  </div>
+  <div class="card card-green mt-3" style="max-width:700px;margin:0 auto;text-align:center">
+    <p style="font-size:var(--sz-h3);font-weight:600">Same UC governance. Same MCP tools. Same audit table.</p>
+    <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">Auth0. Okta. Entra. Any OIDC provider. Swap the IDP config, keep the architecture.</p>
+  </div>
+  <div class="red-line" style="margin-top:24px"></div>
+  <p style="margin-top:16px;font-size:var(--sz-small);color:var(--muted)"><a href="https://github.com/bhavink/applied-ai-governance" target="_blank" style="color:var(--red);text-decoration:none">github.com/bhavink/applied-ai-governance</a></p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- JS: Navigation -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+
+function goTo(n) {
+  if (n < 0 || n >= total) return;
+  slides[current].classList.remove('active');
+  slides[current].classList.add('exit-left');
+  const prev = current;
+  current = n;
+  slides[current].classList.add('active');
+  setTimeout(() => slides[prev].classList.remove('exit-left'), 400);
+  document.getElementById('counter').textContent = `${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+  document.getElementById('progressBar').style.width = `${((current + 1) / total) * 100}%`;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current - 1); }
+  if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+  if (e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+});
+
+goTo(0);
+</script>
+</body>
+</html>

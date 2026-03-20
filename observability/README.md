@@ -7,7 +7,6 @@ Three complementary audit layers. Platform audit captures what the system sees. 
 ## Reading Order
 
 1. [Audit Reference](audit-reference.md) -- Two-layer audit model, scorer patterns, dashboard guide, correlation queries, alert SQL
-2. [Genie Observability](genie-aibi/) -- System tables-based monitoring for Genie spaces with pipelines and dashboards
 
 ## Key Concepts
 

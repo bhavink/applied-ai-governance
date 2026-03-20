@@ -2,8 +2,6 @@
 
 A comprehensive guide to building governed AI applications on Databricks, covering authentication flows, MCP integration, Model Serving, AI Gateway, and Unity Catalog authorization.
 
-> **📺 Interactive Visualizations:** Explore these concepts with scrollytelling animations at [Interactive Orchestration Hub](interactive/orchestration/)
-
 ---
 
 ## Overview
@@ -113,7 +111,7 @@ sequenceDiagram
 - Call Azure Databricks APIs directly with Entra-issued tokens
 - No token exchange step required
 
-📚 [OAuth Federation Docs](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation) | 📺 [Interactive: External App Auth](interactive/orchestration/external-app-auth.html)
+📚 [OAuth Federation Docs](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation)
 
 ---
 
@@ -158,7 +156,7 @@ flowchart LR
 - Databricks validates permissions at deployment
 - Only request OAuth scopes your agent needs
 
-📚 [Agent Authentication Docs](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication) | 📺 [Interactive: Agent Auth Methods](interactive/orchestration/agent-auth-methods.html)
+📚 [Agent Authentication Docs](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication)
 
 ---
 
@@ -236,7 +234,7 @@ Deployed agents are accessible as Model Serving endpoints with multiple query me
 - Tools exposed under UC governance
 - Reference: `uc://connections/{connection_name}`
 
-📚 [MCP External Services Docs](https://docs.databricks.com/aws/en/generative-ai/mcp/connect-external-services) | 📺 [Interactive: MCP Integration](interactive/orchestration/mcp-integration.html)
+📚 [MCP External Services Docs](https://docs.databricks.com/aws/en/generative-ai/mcp/connect-external-services)
 
 ---
 
@@ -414,16 +412,3 @@ cred = w.database.generate_database_credential(
 - [Query Deployed Agents](https://docs.databricks.com/aws/en/generative-ai/agent-framework/query-agent)
 - [Lakebase Authentication](https://docs.databricks.com/aws/en/oltp/instances/authentication)
 
----
-
-## Interactive Visualizations
-
-Explore these concepts with animated scrollytelling:
-
-| Topic | Link |
-|-------|------|
-| **Orchestration Hub** | [interactive/orchestration/](interactive/orchestration/) |
-| **Agent Auth Methods** | [interactive/orchestration/agent-auth-methods.html](interactive/orchestration/agent-auth-methods.html) |
-| **External App Auth** | [interactive/orchestration/external-app-auth.html](interactive/orchestration/external-app-auth.html) |
-| **MCP Integration** | [interactive/orchestration/mcp-integration.html](interactive/orchestration/mcp-integration.html) |
-| **AI Gateway Governance** | [interactive/orchestration/ai-gateway-governance.html](interactive/orchestration/ai-gateway-governance.html) |

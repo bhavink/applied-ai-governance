@@ -24,8 +24,6 @@
 
 Layers evaluate top-down: workspace binding first, then GRANTs, then ABAC tag policies, then row/column filters. All four must pass for data to be returned.
 
-> [View interactive access control flow](https://bhavink.github.io/applied-ai-governance/interactive/uc-access-control-layers.html)
-
 **Docs**: [Access Control in UC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control), [UC Overview](https://docs.databricks.com/aws/en/data-governance/unity-catalog/index.html)
 
 ---
@@ -70,8 +68,6 @@ GRANT SELECT ON TABLE finance_prod.accounting.transactions TO `analysts`;
 
 Row filters restrict which rows a user sees. The filter function evaluates per row and returns TRUE/FALSE. Users are unaware of filtered-out rows.
 
-> [View interactive row filters flow](https://bhavink.github.io/applied-ai-governance/interactive/uc-row-filters.html)
-
 ```sql
 -- Pattern: create filter function, then apply to table
 CREATE FUNCTION schema.filter_fn(col DATA_TYPE)
@@ -101,8 +97,6 @@ ALTER TABLE schema.table
 
 Column masks transform column values based on user identity. The `VALUE` keyword represents the original column value.
 
-> [View interactive column masks flow](https://bhavink.github.io/applied-ai-governance/interactive/uc-column-masks.html)
-
 ```sql
 -- Pattern: CASE expression with group-based disclosure
 CREATE FUNCTION schema.mask_fn()
@@ -130,7 +124,7 @@ ALTER TABLE schema.table
 
 ## Attribute-Based Access Control (ABAC)
 
-> **Public Preview.** [View interactive ABAC + Governed Tags flow](https://bhavink.github.io/applied-ai-governance/interactive/uc-abac-governed-tags.html)
+> **Public Preview.**
 
 ABAC is a centralized, tag-based policy framework. Instead of configuring filters on each table, you define policies that reference governed tags. Databricks recommends ABAC for governance at scale.
 

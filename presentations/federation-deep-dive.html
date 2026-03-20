@@ -340,11 +340,11 @@ token.claims["/email"] = user.email;
         <div class="flow-step"><div class="flow-num">8</div><div class="flow-content"><strong>Audit with external identity</strong><p>Email, role, tool, latency recorded</p></div></div>
       </div>
     </div>
-    <div style="border:1px solid var(--border);border-radius:6px;overflow:hidden;min-height:0">
-      <iframe src="federation-animation.html" style="width:100%;height:100%;border:none" title="Federation Token Flow Animation"></iframe>
+    <div class="card" style="display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:0;text-align:center;padding:clamp(1rem,2vw,2rem)">
+      <h4 style="margin-bottom:8px">Token Flow Summary</h4>
+      <p style="font-size:var(--sz-small);color:var(--muted);max-width:300px">External IdP JWT is exchanged for a scoped Databricks SP token via RFC 8693. UC governance fires per SP group membership at every SQL query.</p>
     </div>
   </div>
-  <p class="reveal" style="font-size:var(--sz-label);color:var(--muted);margin-top:4px">Interactive animation &rarr; click Next to step through the token flow. Token Inspector shows JWT fields at each stage.</p>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->

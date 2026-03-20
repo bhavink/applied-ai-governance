@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AI Orchestration &amp; Governance on Databricks</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#ffffff;--ink:#1a1a1a;--red:#cc3311;
+  --surface:#f7f7f7;--border:#e0e0e0;--muted:#666;
+  --green:#1e7e34;--green-bg:#e6f4ea;--amber:#b45309;--amber-bg:#fef3c7;
+  --blue:#1d4ed8;--blue-bg:#eff6ff;
+  --font:'Space Grotesk',sans-serif;--mono:'DM Mono',monospace;
+  --pad:clamp(2rem,5vw,4.5rem);
+  --sz-h1:clamp(2rem,4.5vw,3.2rem);
+  --sz-h2:clamp(1.4rem,3vw,2.2rem);
+  --sz-h3:clamp(1rem,2vw,1.4rem);
+  --sz-body:clamp(0.85rem,1.4vw,1.05rem);
+  --sz-small:clamp(0.72rem,1.1vw,0.88rem);
+  --sz-label:clamp(0.62rem,0.85vw,0.72rem);
+  --sz-code:clamp(0.68rem,1vw,0.82rem);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:var(--font);background:var(--bg);color:var(--ink)}
+
+.topbar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--ink);color:#fff;z-index:100;font-size:var(--sz-small)}
+.topbar .title{font-weight:600;letter-spacing:-0.02em}
+.topbar .title span{color:var(--red)}
+.topbar .counter{font-variant-numeric:tabular-nums;opacity:0.7}
+.progress-track{position:fixed;top:48px;left:0;right:0;height:3px;background:var(--border);z-index:100}
+.progress-bar{height:100%;background:var(--red);transition:width 0.4s ease;width:0}
+
+.slide{position:absolute;top:48px;left:0;right:0;bottom:0;opacity:0;pointer-events:none;transform:translateX(60px);transition:opacity 0.4s ease,transform 0.4s ease;overflow-y:auto;display:flex;flex-direction:column;padding:var(--pad)}
+.slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+.slide.exit-left{opacity:0;transform:translateX(-60px)}
+.slide-title{justify-content:center;align-items:center;text-align:center}
+.slide-title h1{font-size:clamp(2.4rem,5vw,4rem);font-weight:700;letter-spacing:-0.03em;line-height:1.1;max-width:900px}
+.slide-title .subtitle{font-size:var(--sz-h3);color:var(--muted);margin-top:12px;font-weight:400}
+.slide-title .red-line{width:80px;height:4px;background:var(--red);margin:20px auto 0}
+
+.slide h2{font-size:var(--sz-h1);font-weight:700;letter-spacing:-0.03em;margin-bottom:8px}
+.slide h3{font-size:var(--sz-h2);font-weight:600;letter-spacing:-0.02em;margin-bottom:6px}
+.slide p,.slide li{font-size:var(--sz-body);line-height:1.65}
+.label{font-size:var(--sz-label);text-transform:uppercase;letter-spacing:0.1em;color:var(--red);font-weight:600;margin-bottom:6px}
+
+.reveal{opacity:0;transform:translateY(18px);transition:opacity 0.5s ease,transform 0.5s ease}
+.slide.active .reveal{opacity:1;transform:translateY(0)}
+.slide.active .reveal:nth-child(2){transition-delay:0.1s}
+.slide.active .reveal:nth-child(3){transition-delay:0.2s}
+.slide.active .reveal:nth-child(4){transition-delay:0.3s}
+.slide.active .reveal:nth-child(5){transition-delay:0.4s}
+.slide.active .reveal:nth-child(6){transition-delay:0.5s}
+.slide.active .reveal:nth-child(7){transition-delay:0.6s}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.5rem,3vw,2.5rem);flex:1;min-height:0}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(1rem,2vw,1.5rem);flex:1;min-height:0}
+.four-col{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:clamp(0.8rem,1.5vw,1.2rem);flex:1;min-height:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(1rem,2vw,1.5rem);overflow:auto}
+.card h4{font-size:var(--sz-h3);font-weight:600;margin-bottom:8px}
+.card-red{border-left:4px solid var(--red)}
+.card-green{border-left:4px solid var(--green);background:var(--green-bg)}
+.card-amber{border-left:4px solid var(--amber);background:var(--amber-bg)}
+.card-blue{border-left:4px solid var(--blue);background:var(--blue-bg)}
+
+pre,code{font-family:var(--mono);font-size:var(--sz-code)}
+pre{background:var(--ink);color:#e0e0e0;border-radius:4px;padding:clamp(0.6rem,1.2vw,1rem);overflow-x:auto;line-height:1.55}
+code{background:var(--surface);padding:0.1em 0.4em;border-radius:3px;font-size:var(--sz-code)}
+
+table{width:100%;border-collapse:collapse;font-size:var(--sz-small)}
+th{text-align:left;font-weight:600;font-size:var(--sz-label);letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:2px solid var(--border)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface)}
+
+.badge{display:inline-block;font-size:var(--sz-label);font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 8px;border-radius:3px}
+.badge-red{background:rgba(204,51,17,0.1);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-ink{background:var(--ink);color:#fff}
+.badge-muted{background:var(--surface);color:var(--muted)}
+
+.flow-h{display:flex;align-items:center;gap:0;flex-wrap:wrap;justify-content:center}
+.flow-box{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 14px;text-align:center;font-size:var(--sz-small);font-weight:500;min-width:100px}
+.flow-box.customer{border-color:var(--blue);background:var(--blue-bg)}
+.flow-box.platform{border-color:var(--ink);background:var(--ink);color:#fff}
+.flow-box.app{border-color:var(--green);background:var(--green-bg)}
+.flow-box small{display:block;font-size:var(--sz-label);color:var(--muted);font-weight:400;margin-top:2px}
+.flow-arrow{font-size:var(--sz-body);color:var(--red);font-weight:700;padding:0 6px}
+.flow-owner{font-size:var(--sz-label);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;text-align:center}
+.flow-owner.cust{color:var(--blue)}
+.flow-owner.plat{color:var(--ink)}
+.flow-owner.apps{color:var(--green)}
+
+.dt-row{display:grid;grid-template-columns:1fr 40px 1fr;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.dt-cond{font-size:var(--sz-small);text-align:right;font-weight:500}
+.dt-arrow{text-align:center;color:var(--red);font-weight:700}
+.dt-result{font-size:var(--sz-small)}
+
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check-item{display:flex;align-items:flex-start;gap:8px;font-size:var(--sz-small);padding:6px 0}
+.check-icon{color:var(--green);font-weight:700;flex-shrink:0;font-size:var(--sz-body)}
+
+.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}
+.mb-1{margin-bottom:8px}.mb-2{margin-bottom:16px}
+.flex-1{flex:1 1 0;min-height:0;overflow-y:auto}
+
+.nav-hint{position:fixed;bottom:16px;left:24px;font-size:var(--sz-label);color:var(--muted);opacity:0.5;z-index:100}
+.footer-link{position:fixed;bottom:16px;right:24px;font-size:var(--sz-label);color:var(--muted);opacity:0.5;z-index:100;text-decoration:none}
+.footer-link:hover{opacity:1;color:var(--red)}
+
+@media(max-width:900px){.two-col,.three-col,.four-col{grid-template-columns:1fr}.check-grid{grid-template-columns:1fr}}
+@media print{.slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always}.topbar,.progress-track,.nav-hint,.footer-link{display:none}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">AI <span>Orchestration</span> &amp; Governance on Databricks</div>
+  <div class="counter" id="counter">01 / 17</div>
+</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+<div class="nav-hint">&larr; &rarr; arrow keys</div>
+<a class="footer-link" href="https://github.com/bhavink/applied-ai-governance" target="_blank">github.com/bhavink/applied-ai-governance</a>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 1: TITLE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide slide-title active" data-slide="1">
+  <h1 class="reveal">AI Orchestration<br>&amp; <span style="color:var(--red)">Governance</span></h1>
+  <div class="subtitle reveal">Model Serving, MCP, AI Gateway, and Databricks Apps. One governance model underneath.</div>
+  <div class="red-line reveal"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 2: THE ORCHESTRATION LANDSCAPE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+  <div class="label reveal">Landscape</div>
+  <h2 class="reveal">Four pillars of AI orchestration on Databricks</h2>
+  <p class="reveal" style="color:var(--muted)">Each solves a different problem. All governed by Unity Catalog.</p>
+  <div class="four-col mt-2">
+    <div class="card card-red reveal">
+      <h4>Model Serving</h4>
+      <p style="font-size:var(--sz-small)">Deploy agents, foundation models, and custom models. Three auth methods: automatic passthrough, OBO, and manual.</p>
+    </div>
+    <div class="card card-blue reveal">
+      <h4>MCP Servers</h4>
+      <p style="font-size:var(--sz-small)">Standardized tool calling for agents. Managed (Genie, VS, Functions, SQL), External (via UC connections), or Custom (Databricks Apps).</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--amber)">
+      <h4>AI Gateway</h4>
+      <p style="font-size:var(--sz-small)">Rate limiting, guardrails, inference tables, traffic splitting, and fallback routing for serving endpoints.</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--green)">
+      <h4>Databricks Apps</h4>
+      <p style="font-size:var(--sz-small)">Managed hosting with automatic OAuth, UC integration, and user identity propagation. Streamlit, Dash, Gradio, React.</p>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center">
+    <p><strong>Unity Catalog</strong> is the common governance layer: permissions, row filters, column masks, audit logs, and connections. Same enforcement regardless of orchestration path.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3: AGENT AUTH METHODS - OVERVIEW -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="label reveal">Agent Auth</div>
+  <h2 class="reveal">Three authentication methods for agents on Model Serving</h2>
+  <div class="three-col mt-2">
+    <div class="card card-green reveal">
+      <h4>Automatic Passthrough</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:6px">Simplest. Databricks manages everything.</p>
+      <table>
+        <tr><td style="font-weight:600;width:80px">How</td><td>Declare resource dependencies at log time</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td>System-generated SP with least-privilege</td></tr>
+        <tr><td style="font-weight:600">Tokens</td><td>Short-lived M2M OAuth, auto-rotated</td></tr>
+        <tr><td style="font-weight:600">Best for</td><td>No per-user access needed</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-label);padding:6px 8px;background:var(--green-bg);border-radius:4px">
+        Supports: Vector Search, Model Serving, UC Functions, Genie, SQL Warehouse, UC Table, UC Connection, Lakebase
+      </div>
+    </div>
+    <div class="card card-blue reveal">
+      <h4>On-Behalf-Of (OBO)</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:6px">Agent runs as the calling user.</p>
+      <table>
+        <tr><td style="font-weight:600;width:80px">How</td><td>Initialize in <code>predict()</code> with user credentials</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td><code>current_user()</code> = human email</td></tr>
+        <tr><td style="font-weight:600">Tokens</td><td>Downscoped to declared API scopes</td></tr>
+        <tr><td style="font-weight:600">Best for</td><td>Per-user access control + audit</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-label);padding:6px 8px;background:var(--blue-bg);border-radius:4px">
+        UC enforces row filters, column masks, ACLs per individual user at runtime
+      </div>
+    </div>
+    <div class="card card-red reveal">
+      <h4>Manual Authentication</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:6px">Explicit credentials. Maximum flexibility.</p>
+      <table>
+        <tr><td style="font-weight:600;width:80px">How</td><td>SP OAuth (recommended) or PAT via secrets</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td>Service principal</td></tr>
+        <tr><td style="font-weight:600">Tokens</td><td>Manual rotation management</td></tr>
+        <tr><td style="font-weight:600">Best for</td><td>External resources, prompt registry, no passthrough</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-label);padding:6px 8px;border:1px solid var(--border);border-radius:4px">
+        Never embed credentials in code. Always use UC secret scopes.
+      </div>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center">
+    <p><strong>Mix and match:</strong> Use automatic for Vector Search, OBO for Genie, and manual for external APIs -- all in the same agent.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 4: AGENT AUTH - DECISION FLOW -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+  <div class="label reveal">Agent Auth</div>
+  <h2 class="reveal">Which auth method for which resource?</h2>
+  <div class="flex-1 mt-2 reveal" style="max-width:800px">
+    <div class="dt-row">
+      <div class="dt-cond">Per-user access control needed?</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-blue">OBO</span> Agent runs as calling user</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Resource supports automatic passthrough?</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-green">AUTOMATIC</span> System SP, zero config</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">External resource outside Databricks?</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">MANUAL</span> SP OAuth via secrets</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Need different creds than deployer?</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">MANUAL</span> Explicit credential injection</div>
+    </div>
+    <div class="dt-row" style="border-bottom:none">
+      <div class="dt-cond">Prompt registry access?</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">MANUAL</span> Required for prompt registry</div>
+    </div>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>OBO Required Scopes</h4>
+      <table>
+        <tr><td><code>serving.serving-endpoints</code></td><td>Model Serving</td></tr>
+        <tr><td><code>vectorsearch.*</code></td><td>Vector Search</td></tr>
+        <tr><td><code>sql.warehouses</code></td><td>SQL Warehouses</td></tr>
+        <tr><td><code>dashboards.genie</code></td><td>Genie spaces</td></tr>
+        <tr><td><code>catalog.connections</code></td><td>UC connections</td></tr>
+      </table>
+    </div>
+    <div class="card card-amber reveal">
+      <p><strong>Key constraint:</strong> OBO user identity is only known at query time. Resources must be initialized in <code>predict()</code>, not <code>__init__()</code>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 5: DATABRICKS APPS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label reveal">Databricks Apps</div>
+  <h2 class="reveal">Managed hosting with automatic OAuth and UC integration</h2>
+  <div class="flow-h mt-3 reveal">
+    <div><div class="flow-owner cust">User</div><div class="flow-box customer">Browser<small>workspace IdP</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Platform</div><div class="flow-box platform">Apps Proxy<small>auto OAuth</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner apps">Your Code</div><div class="flow-box app">App Server<small>Streamlit, Gradio...</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Platform</div><div class="flow-box platform">UC Governance<small>fires as user</small></div></div>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>What the platform handles</h4>
+      <ul style="padding-left:1.2em;font-size:var(--sz-small)">
+        <li>Authenticates user via workspace IdP (Entra, Cloud Identity, SSO)</li>
+        <li>Creates scoped OAuth token limited to configured permissions</li>
+        <li>Forwards request with user identity in HTTP headers</li>
+        <li>Your app reads <code>x-forwarded-access-token</code> -- no login flows</li>
+      </ul>
+    </div>
+    <div class="card reveal">
+      <h4>What you get</h4>
+      <ul style="padding-left:1.2em;font-size:var(--sz-small)">
+        <li><strong>Direct access</strong> to SQL Warehouses, Model Serving, UC, Jobs</li>
+        <li><strong>Per-user governance</strong> -- row filters, column masks fire automatically</li>
+        <li><strong>Serverless</strong> -- no infrastructure to manage</li>
+        <li><strong>Multi-framework</strong> -- Streamlit, Dash, Gradio, React, Angular</li>
+        <li><strong>CI/CD ready</strong> -- <code>databricks apps deploy</code> from Git</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card card-amber mt-2 reveal" style="text-align:center">
+    <p><strong>vs. External hosting:</strong> No token exchange, no VPN config, no separate infrastructure. Trade-off: less flexibility for simpler security.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 6: MCP INTEGRATION - THREE TYPES -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label reveal">MCP Integration</div>
+  <h2 class="reveal">Three types of MCP servers, all governed by UC</h2>
+  <p class="reveal" style="color:var(--muted)">Model Context Protocol standardizes tool calling for agents. Databricks supports three flavors.</p>
+  <div class="three-col mt-2">
+    <div class="card card-blue reveal">
+      <h4>Managed MCP</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:6px">Databricks-hosted, ready to use</p>
+      <table>
+        <tr><td style="font-weight:600">Genie</td><td>NL analytics</td></tr>
+        <tr><td style="font-weight:600">Vector Search</td><td>Retrieval</td></tr>
+        <tr><td style="font-weight:600">UC Functions</td><td>Deterministic tools</td></tr>
+        <tr><td style="font-weight:600">DBSQL</td><td>SQL execution</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-label);padding:6px;background:var(--blue-bg);border-radius:4px">
+        Auth: Automatic, OBO, or PAT
+      </div>
+    </div>
+    <div class="card card-red reveal">
+      <h4>External MCP</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:6px">Third-party servers via UC HTTP connections</p>
+      <table>
+        <tr><td style="font-weight:600">Pattern</td><td><code>uc://connections/{name}</code></td></tr>
+        <tr><td style="font-weight:600">Proxy</td><td>UC handles credential injection</td></tr>
+        <tr><td style="font-weight:600">Access</td><td><code>USE CONNECTION</code> grant</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-label);padding:6px;background:rgba(204,51,17,0.06);border-radius:4px">
+        Agent never sees external credentials -- UC handles the proxy securely
+      </div>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--ink)">
+      <h4>Custom MCP</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:6px">Your servers on Databricks Apps</p>
+      <table>
+        <tr><td style="font-weight:600">Hosting</td><td>Databricks Apps</td></tr>
+        <tr><td style="font-weight:600">Auth</td><td>OAuth only (PAT not supported)</td></tr>
+        <tr><td style="font-weight:600">Use case</td><td>Org-specific tools, custom logic</td></tr>
+      </table>
+      <div class="mt-1" style="font-size:var(--sz-label);padding:6px;border:1px solid var(--border);border-radius:4px">
+        Two-proxy caveat: App A calling App B strips user token. Use X-Forwarded-Email for identity.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 7: MCP - AUTH + SCOPES -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label reveal">MCP Auth</div>
+  <h2 class="reveal">MCP authentication and required scopes</h2>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Auth methods apply to MCP</h4>
+      <ul style="padding-left:1.2em;font-size:var(--sz-small)">
+        <li><strong>Automatic Passthrough</strong> -- declare MCP servers at logging time, system SP handles auth</li>
+        <li><strong>OBO</strong> -- agent calls MCP with user identity via <code>DatabricksMCPClient</code></li>
+        <li><strong>Manual</strong> -- required for custom MCP (OAuth only)</li>
+      </ul>
+      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Declare MCP URLs and scopes when logging your agent for verification at deploy time.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Required OAuth scopes by MCP type</h4>
+      <table>
+        <tr><td><code>mcp.genie</code></td><td>Genie spaces</td></tr>
+        <tr><td><code>mcp.functions</code></td><td>UC functions</td></tr>
+        <tr><td><code>mcp.vectorsearch</code></td><td>Vector Search</td></tr>
+        <tr><td><code>mcp.sql</code> + <code>sql.*</code></td><td>DBSQL</td></tr>
+        <tr><td><code>mcp.external</code></td><td>External MCP via UC connections</td></tr>
+      </table>
+      <p class="mt-1" style="font-size:var(--sz-label);color:var(--muted)">Minimize scopes -- only request what your agent actually needs.</p>
+    </div>
+  </div>
+  <div class="card card-green mt-2 reveal" style="text-align:center">
+    <p><strong>External clients:</strong> Claude, Cursor, ChatGPT, and MCP Inspector can connect to Databricks MCP servers via OAuth or PAT (managed/external only).</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 8: EXTERNAL APP AUTH - TOKEN FEDERATION -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label reveal">External App Auth</div>
+  <h2 class="reveal">Token Federation for apps outside Databricks</h2>
+  <p class="reveal" style="color:var(--muted)">Bring your own IdP. No Databricks secrets required.</p>
+  <div class="flow-h mt-2 reveal">
+    <div><div class="flow-owner cust">Your App</div><div class="flow-box customer">External App<small>web app, CI/CD, SaaS</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner cust">Your IdP</div><div class="flow-box customer">IdP JWT<small>Okta, Entra, GitHub</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Exchange</div><div class="flow-box platform">Token Endpoint<small>/oidc/v1/token</small></div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div><div class="flow-owner plat">Access</div><div class="flow-box platform">Databricks APIs<small>scoped OAuth token</small></div></div>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card card-blue reveal">
+      <h4>Account-wide Federation</h4>
+      <p style="font-size:var(--sz-small)"><strong>For users.</strong> Configure at account level. Maps IdP users to Databricks users via SCIM sync. Corporate IdPs like Okta, Entra.</p>
+    </div>
+    <div class="card card-red reveal">
+      <h4>Workload Identity Federation</h4>
+      <p style="font-size:var(--sz-small)"><strong>For automation.</strong> Configure on service principal. Maps workload identity (GitHub Actions, GitLab CI, Azure DevOps) to SP. Zero secrets in code.</p>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center;border-left:4px solid var(--amber)">
+    <p><strong>Azure special case:</strong> Entra tokens work directly with Azure Databricks -- no exchange needed. Use MSAL with scope <code>2ff814a6-.../.default</code>.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 9: TOKEN EXCHANGE MECHANICS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label reveal">Token Exchange</div>
+  <h2 class="reveal">RFC 8693 token exchange in four steps</h2>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>The exchange flow</h4>
+      <table>
+        <tr><td style="font-weight:700;color:var(--red);width:30px">1</td><td>App authenticates with your IdP, receives a JWT</td></tr>
+        <tr><td style="font-weight:700;color:var(--red)">2</td><td>POST JWT to <code>/oidc/v1/token</code> with grant_type <code>urn:ietf:params:oauth:grant-type:token-exchange</code></td></tr>
+        <tr><td style="font-weight:700;color:var(--red)">3</td><td>Databricks validates JWT against federation policy, returns scoped OAuth token</td></tr>
+        <tr><td style="font-weight:700;color:var(--red)">4</td><td>Use Databricks token to call APIs: <code>Authorization: Bearer &lt;token&gt;</code></td></tr>
+      </table>
+    </div>
+    <div class="card reveal">
+      <h4>Supported IdPs</h4>
+      <div style="font-size:var(--sz-small)">
+        <p><strong>Corporate:</strong> Okta, Entra, Ping, Auth0</p>
+        <p><strong>CI/CD:</strong> GitHub Actions, Azure DevOps, GitLab CI, CircleCI</p>
+        <p><strong>Cloud:</strong> AWS IAM, GCP Workload Identity, Kubernetes</p>
+        <p class="mt-1" style="color:var(--muted)">Any OIDC-compliant provider that issues JWTs with <code>iss</code>, <code>aud</code>, and <code>sub</code> claims.</p>
+      </div>
+    </div>
+  </div>
+  <div class="card card-green mt-2 reveal" style="text-align:center">
+    <p><strong>Security:</strong> Handle tokens server-side only. Never expose IdP or Databricks tokens to the browser. Tokens are short-lived; re-exchange when needed.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 10: AI GATEWAY - WHEN TO USE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label reveal">AI Gateway</div>
+  <h2 class="reveal">Mosaic AI Gateway: centralized governance for serving endpoints</h2>
+  <p class="reveal" style="color:var(--muted)">Configured directly on Model Serving endpoints. Governs LLM traffic at the point of consumption.</p>
+  <div class="three-col mt-2">
+    <div class="card card-red reveal">
+      <h4>Rate Limiting</h4>
+      <p style="font-size:var(--sz-small)">QPM or TPM at four levels: endpoint-wide, per-user default, custom user/SP overrides, and user groups. Max 20 rate limits per endpoint.</p>
+    </div>
+    <div class="card card-blue reveal">
+      <h4>AI Guardrails</h4>
+      <p style="font-size:var(--sz-small)"><strong>Safety filtering</strong> via Llama Guard 2 (violence, hate speech). <strong>PII detection</strong> for credit cards, SSN, emails, phone numbers. Options: Block, Mask, or None.</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--amber)">
+      <h4>Inference Tables</h4>
+      <p style="font-size:var(--sz-small)">Auto-log all requests/responses to UC Delta tables. Columns: <code>request</code>, <code>response</code>, <code>status_code</code>, <code>execution_duration_ms</code>, <code>requester</code>.</p>
+    </div>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Traffic Splitting + Fallbacks</h4>
+      <p style="font-size:var(--sz-small)">Route percentages to different models for A/B testing. Fallbacks auto-redirect on 429/5XX errors. Max 2 fallback models. Set 0% traffic for fallback-only.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Usage Tracking</h4>
+      <p style="font-size:var(--sz-small)"><code>system.serving.endpoint_usage</code> for token counts and costs. <code>usage_context</code> parameter for per-project or per-user chargeback attribution.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 11: AI GATEWAY - ENDPOINT SUPPORT MATRIX -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label reveal">AI Gateway</div>
+  <h2 class="reveal">Feature support by endpoint type</h2>
+  <div class="flex-1 mt-2 reveal">
+    <table>
+      <thead>
+        <tr><th>Feature</th><th>External Models</th><th>Foundation (PT)</th><th>Foundation (PPT)</th><th>Agents</th><th>Custom</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Rate Limiting</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--muted)">&mdash;</td><td style="color:var(--green)">&#10003;</td></tr>
+        <tr><td>Payload Logging</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td></tr>
+        <tr><td>Usage Tracking</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--muted)">&mdash;</td><td style="color:var(--green)">&#10003;</td></tr>
+        <tr><td>AI Guardrails</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--muted)">&mdash;</td><td style="color:var(--muted)">&mdash;</td></tr>
+        <tr><td>Fallbacks</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--muted)">&mdash;</td><td style="color:var(--muted)">&mdash;</td><td style="color:var(--muted)">&mdash;</td><td style="color:var(--muted)">&mdash;</td></tr>
+        <tr><td>Traffic Split</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--green)">&#10003;</td><td style="color:var(--muted)">&mdash;</td><td style="color:var(--muted)">&mdash;</td><td style="color:var(--green)">&#10003;</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card card-amber reveal">
+      <p><strong>External models</strong> get the most complete support: OpenAI, Anthropic, Cohere, Bedrock, Vertex AI, Azure OpenAI, and any OpenAI-compatible endpoint.</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--muted)">
+      <p style="font-size:var(--sz-small)"><strong>Paid features:</strong> Payload logging, usage tracking. <strong>Free:</strong> Permissions, rate limiting, fallbacks, traffic splitting.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 12: AI GATEWAY PATTERNS - FOUR PATTERNS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label reveal">Gateway Patterns</div>
+  <h2 class="reveal">Four traffic patterns, four governance layers</h2>
+  <div class="flex-1 mt-2 reveal" style="max-width:800px">
+    <div class="dt-row">
+      <div class="dt-cond" style="text-align:left"><span class="badge badge-green">1</span> Agent to Databricks services</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><strong>No gateway.</strong> Direct OBO. UC governs at data plane. Gateway adds latency or breaks identity.</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond" style="text-align:left"><span class="badge badge-blue">2</span> Any caller to LLM endpoint</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><strong>Databricks AI Gateway.</strong> Rate limits, guardrails, usage tracking, fallback routing.</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond" style="text-align:left"><span class="badge badge-red">3</span> Agent to external services</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><strong>UC Connections + SNP.</strong> Proxy model with credential authorization. REVOKE = instant removal.</div>
+    </div>
+    <div class="dt-row" style="border-bottom:none">
+      <div class="dt-cond" style="text-align:left"><span class="badge badge-ink">4</span> External clients to Databricks</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><strong>External API Gateway.</strong> Auth translation, per-tenant rate limiting, API versioning, developer portal.</div>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center;border-left:4px solid var(--ink)">
+    <p><strong>Patterns 2 + 4 are additive:</strong> External API gateway handles the boundary. Databricks AI Gateway governs LLM consumption. UC governs the data. Each layer has its own job.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 13: GATEWAY PATTERNS - WHY NO GATEWAY FOR OBO -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="13">
+  <div class="label reveal">Pattern 1 Deep Dive</div>
+  <h2 class="reveal">Internal traffic: why a gateway breaks governance</h2>
+  <div class="two-col mt-2">
+    <div class="card card-red reveal">
+      <h4>With gateway (broken)</h4>
+      <p style="font-size:var(--sz-small)">User &rarr; App &rarr; <strong style="color:var(--red)">Gateway</strong> &rarr; Genie &rarr; UC</p>
+      <p class="mt-1" style="font-size:var(--sz-small)">Gateway has two bad options:</p>
+      <ul style="padding-left:1.2em;font-size:var(--sz-small)">
+        <li><strong>Pass through:</strong> Adds latency, zero governance value</li>
+        <li><strong>Re-issue token:</strong> <code>current_user()</code> = gateway-svc. Row filters fire as the gateway, not the user. Silent data leakage.</li>
+      </ul>
+      <p class="mt-1" style="font-size:var(--sz-label);color:var(--red)">UC enforcement happens at the data plane. A gateway can observe HTTP traffic but cannot see which rows were filtered.</p>
+    </div>
+    <div class="card card-green reveal">
+      <h4>Direct OBO (correct)</h4>
+      <p style="font-size:var(--sz-small)">User &rarr; App &rarr; Genie &rarr; UC</p>
+      <p class="mt-1" style="font-size:var(--sz-small)">User token arrives at Genie unchanged.</p>
+      <ul style="padding-left:1.2em;font-size:var(--sz-small)">
+        <li><code>current_user()</code> = <code>reviewer@company.com</code></li>
+        <li>Row filter returns only that reviewer's cases</li>
+        <li>Column masks apply per user's role</li>
+      </ul>
+      <p class="mt-1" style="font-size:var(--sz-label);color:var(--green)">Databricks Apps already has a platform-managed proxy that handles OAuth validation and identity injection. An external gateway creates a redundant, conflicting auth layer.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 14: UC CONNECTIONS AS GOVERNANCE PRIMITIVE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="14">
+  <div class="label reveal">UC Connections</div>
+  <h2 class="reveal">UC Connections: the outbound governance primitive</h2>
+  <p class="reveal" style="color:var(--muted)">Application code never calls external services directly. UC proxies the call, checks authorization, injects credentials.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Two-layer defense in depth</h4>
+      <table>
+        <tr><td style="font-weight:700;width:140px">Network (SNP)</td><td>Workspace-level FQDN allowlist. Defines the approved destination universe. Anything not listed is unreachable at network layer.</td></tr>
+        <tr><td style="font-weight:700">Credential (UC)</td><td>Per-app authorization. <code>USE CONNECTION</code> grant controls which SP can authenticate to which service. Enforced before any network traffic.</td></tr>
+      </table>
+    </div>
+    <div class="card reveal">
+      <h4>Access control</h4>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Grant access</span>
+GRANT USE CONNECTION
+  ON CONNECTION github_api
+  TO `sp-appeals`;
+
+<span style="color:var(--red)">-- Instant revocation</span>
+REVOKE USE CONNECTION
+  ON CONNECTION github_api
+  FROM `sp-billing`;</pre>
+      <p style="font-size:var(--sz-label);color:var(--muted);margin-top:6px">No redeploy, no code change. Credential stored encrypted in UC -- app code never receives raw value.</p>
+    </div>
+  </div>
+  <div class="card card-amber mt-2 reveal" style="text-align:center">
+    <p><strong>Governance assumption:</strong> Credentials must live exclusively in UC Connections (not env vars or secrets). Enforce via CI/CD secret scanning + <code>system.access.audit</code>.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 15: SCOPE-BASED ACCESS MODEL -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="15">
+  <div class="label reveal">Least Privilege</div>
+  <h2 class="reveal">Scope-based access model</h2>
+  <div class="flex-1 mt-2 reveal">
+    <table>
+      <thead>
+        <tr><th>Resource</th><th>OAuth Scope</th><th>UC Grant</th><th>Enforcement</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>SQL Warehouse</td><td><code>sql</code></td><td>CAN USE</td><td>Token + UC</td></tr>
+        <tr><td>Genie Space</td><td><code>genie</code> + <code>dashboards.genie</code></td><td>Space access + tables</td><td>Token + UC</td></tr>
+        <tr><td>Model Serving</td><td><code>serving</code></td><td>CAN QUERY</td><td>Token + UC</td></tr>
+        <tr><td>Vector Search</td><td><code>sql</code></td><td>SELECT on index</td><td>Token + UC</td></tr>
+        <tr><td>UC Connection</td><td><code>sql</code></td><td>USE CONNECTION</td><td>Token + UC</td></tr>
+        <tr><td>UC Function</td><td><code>sql</code></td><td>EXECUTE</td><td>Token + UC</td></tr>
+        <tr><td>MCP Server</td><td><code>mcp.*</code></td><td>Per MCP type</td><td>Token + UC</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card card-amber reveal">
+      <p><strong>Key insight:</strong> Scopes limit what the <em>token</em> can do. Grants limit what the <em>identity</em> can access. Both enforce independently. Revoking either blocks access.</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--muted)">
+      <p style="font-size:var(--sz-small)">Configure only what your app needs. The list of available scopes grows as Databricks adds capabilities. Principle of least privilege at every layer.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 16: DECISION GUIDE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="16">
+  <div class="label reveal">Decision Guide</div>
+  <h2 class="reveal">Choosing the right pattern</h2>
+  <div class="flex-1 mt-2 reveal" style="max-width:800px">
+    <div class="dt-row">
+      <div class="dt-cond">App on Databricks, users have workspace accounts</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-blue">OBO</span> via Databricks Apps. Auto OAuth, UC fires as user.</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">App outside Databricks, users have own IdP</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">FEDERATION</span> Token exchange (RFC 8693) to role-based SP.</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Agent needs to call Genie / FM API / UC services</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-green">NO GATEWAY</span> Direct OBO. UC governs at data plane.</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Need rate limits / guardrails on LLM endpoint</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-blue">AI GATEWAY</span> Configure on serving endpoint.</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Agent calls external APIs (GitHub, Slack, etc.)</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">UC CONNECTIONS</span> Proxy + SNP. REVOKE = instant removal.</div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">External clients need managed API facade</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-ink">EXT GATEWAY</span> Auth translation + rate limiting + versioning.</div>
+    </div>
+    <div class="dt-row" style="border-bottom:none">
+      <div class="dt-cond">CI/CD pipeline needs Databricks access</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">WORKLOAD ID</span> Federation. Zero secrets in repo.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 17: SUMMARY -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide slide-title" data-slide="17">
+  <div class="label reveal">Summary</div>
+  <h1 class="reveal" style="font-size:var(--sz-h1)">What We Covered</h1>
+  <div style="max-width:700px;text-align:left;margin:24px auto 0" class="reveal">
+    <table>
+      <tr><td style="font-weight:700;color:var(--red);width:40px;font-size:1.4em;text-align:center">3</td><td>Agent auth methods: Automatic Passthrough, OBO, Manual</td></tr>
+      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">3</td><td>MCP types: Managed, External, Custom -- all UC-governed</td></tr>
+      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">4</td><td>Gateway patterns: No Gateway, AI Gateway, UC Connections, External</td></tr>
+      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">2</td><td>Federation types: Account-wide (users) and Workload Identity (automation)</td></tr>
+      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">1</td><td>Governance model: UC scopes, grants, row filters, column masks, connections</td></tr>
+    </table>
+  </div>
+  <div class="card card-green mt-3 reveal" style="max-width:700px;margin:0 auto;text-align:center">
+    <p style="font-size:var(--sz-h3);font-weight:600">Unity Catalog is the common denominator.</p>
+    <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">Regardless of orchestration path -- Apps, MCP, Gateway, Federation -- UC enforces governance at the data plane.</p>
+  </div>
+  <div class="red-line reveal" style="margin-top:24px"></div>
+  <p class="reveal" style="font-size:var(--sz-label);color:var(--muted);margin-top:16px;text-align:center"><a href="https://github.com/bhavink/applied-ai-governance" target="_blank" style="color:var(--muted);text-decoration:underline">github.com/bhavink/applied-ai-governance</a></p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- JS: Navigation -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+
+function goTo(n) {
+  if (n < 0 || n >= total) return;
+  slides[current].classList.remove('active');
+  slides[current].classList.add('exit-left');
+  const prev = current;
+  current = n;
+  slides[current].classList.add('active');
+  setTimeout(() => slides[prev].classList.remove('exit-left'), 400);
+  document.getElementById('counter').textContent = `${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+  document.getElementById('progressBar').style.width = `${((current + 1) / total) * 100}%`;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current - 1); }
+  if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+  if (e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+});
+
+goTo(0);
+</script>
+</body>
+</html>

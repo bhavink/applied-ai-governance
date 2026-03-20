@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Unity Catalog Governance</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#ffffff;--ink:#1a1a1a;--red:#cc3311;
+  --surface:#f7f7f7;--border:#e0e0e0;--muted:#666;
+  --green:#1e7e34;--green-bg:#e6f4ea;--amber:#b45309;--amber-bg:#fef3c7;
+  --blue:#1d4ed8;--blue-bg:#eff6ff;
+  --font:'Space Grotesk',sans-serif;--mono:'DM Mono',monospace;
+  --pad:clamp(2rem,5vw,4.5rem);
+  --sz-h1:clamp(2rem,4.5vw,3.2rem);
+  --sz-h2:clamp(1.4rem,3vw,2.2rem);
+  --sz-h3:clamp(1rem,2vw,1.4rem);
+  --sz-body:clamp(0.85rem,1.4vw,1.05rem);
+  --sz-small:clamp(0.72rem,1.1vw,0.88rem);
+  --sz-label:clamp(0.62rem,0.85vw,0.72rem);
+  --sz-code:clamp(0.68rem,1vw,0.82rem);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:var(--font);background:var(--bg);color:var(--ink)}
+
+.topbar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--ink);color:#fff;z-index:100;font-size:var(--sz-small)}
+.topbar .title{font-weight:600;letter-spacing:-0.02em}
+.topbar .title span{color:var(--red)}
+.topbar .counter{font-variant-numeric:tabular-nums;opacity:0.7}
+.progress-track{position:fixed;top:48px;left:0;right:0;height:3px;background:var(--border);z-index:100}
+.progress-bar{height:100%;background:var(--red);transition:width 0.4s ease;width:0}
+
+.slide{position:absolute;top:48px;left:0;right:0;bottom:0;opacity:0;pointer-events:none;transform:translateX(60px);transition:opacity 0.4s ease,transform 0.4s ease;overflow-y:auto;display:flex;flex-direction:column;padding:var(--pad)}
+.slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+.slide.exit-left{opacity:0;transform:translateX(-60px)}
+.slide-title{justify-content:center;align-items:center;text-align:center}
+.slide-title h1{font-size:clamp(2.4rem,5vw,4rem);font-weight:700;letter-spacing:-0.03em;line-height:1.1;max-width:900px}
+.slide-title .subtitle{font-size:var(--sz-h3);color:var(--muted);margin-top:12px;font-weight:400}
+.slide-title .red-line{width:80px;height:4px;background:var(--red);margin:20px auto 0}
+
+.slide h2{font-size:var(--sz-h1);font-weight:700;letter-spacing:-0.03em;margin-bottom:8px}
+.slide h3{font-size:var(--sz-h2);font-weight:600;letter-spacing:-0.02em;margin-bottom:6px}
+.slide p,.slide li{font-size:var(--sz-body);line-height:1.65}
+.label{font-size:var(--sz-label);text-transform:uppercase;letter-spacing:0.1em;color:var(--red);font-weight:600;margin-bottom:6px}
+
+.reveal{opacity:0;transform:translateY(18px);transition:opacity 0.5s ease,transform 0.5s ease}
+.slide.active .reveal{opacity:1;transform:translateY(0)}
+.slide.active .reveal:nth-child(2){transition-delay:0.1s}
+.slide.active .reveal:nth-child(3){transition-delay:0.2s}
+.slide.active .reveal:nth-child(4){transition-delay:0.3s}
+.slide.active .reveal:nth-child(5){transition-delay:0.4s}
+.slide.active .reveal:nth-child(6){transition-delay:0.5s}
+.slide.active .reveal:nth-child(7){transition-delay:0.6s}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.5rem,3vw,2.5rem);flex:1;min-height:0}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(1rem,2vw,1.5rem);flex:1;min-height:0}
+.four-col{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:clamp(0.8rem,1.5vw,1.2rem);flex:1;min-height:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(1rem,2vw,1.5rem);overflow:auto}
+.card h4{font-size:var(--sz-h3);font-weight:600;margin-bottom:8px}
+.card-red{border-left:4px solid var(--red)}
+.card-green{border-left:4px solid var(--green);background:var(--green-bg)}
+.card-amber{border-left:4px solid var(--amber);background:var(--amber-bg)}
+.card-blue{border-left:4px solid var(--blue);background:var(--blue-bg)}
+
+pre,code{font-family:var(--mono);font-size:var(--sz-code)}
+pre{background:var(--ink);color:#e0e0e0;border-radius:4px;padding:clamp(0.6rem,1.2vw,1rem);overflow-x:auto;line-height:1.55}
+code{background:var(--surface);padding:0.1em 0.4em;border-radius:3px;font-size:var(--sz-code)}
+
+table{width:100%;border-collapse:collapse;font-size:var(--sz-small)}
+th{text-align:left;font-weight:600;font-size:var(--sz-label);letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:2px solid var(--border)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface)}
+
+.badge{display:inline-block;font-size:var(--sz-label);font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 8px;border-radius:3px}
+.badge-red{background:rgba(204,51,17,0.1);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-ink{background:var(--ink);color:#fff}
+.badge-muted{background:var(--surface);color:var(--muted)}
+
+.dt-row{display:grid;grid-template-columns:1fr 40px 1fr;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.dt-cond{font-size:var(--sz-small);text-align:right;font-weight:500}
+.dt-arrow{text-align:center;color:var(--red);font-weight:700}
+.dt-result{font-size:var(--sz-small)}
+
+.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}
+.mb-1{margin-bottom:8px}.mb-2{margin-bottom:16px}
+.flex-1{flex:1 1 0;min-height:0;overflow-y:auto}
+
+.nav-hint{position:fixed;bottom:16px;left:24px;font-size:var(--sz-label);color:var(--muted);opacity:0.5;z-index:100}
+
+@media(max-width:900px){.two-col,.three-col,.four-col{grid-template-columns:1fr}.dt-row{grid-template-columns:1fr}}
+@media print{.slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always}.topbar,.progress-track,.nav-hint{display:none}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">Unity Catalog <span>Governance</span></div>
+  <div class="counter" id="counter">01 / 14</div>
+</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+<div class="nav-hint">&larr; &rarr; arrow keys</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 1: TITLE -->
+<!-- ================================================================ -->
+<div class="slide slide-title active" data-slide="1">
+  <h1 class="reveal">Unity Catalog<br><span style="color:var(--red)">Governance</span></h1>
+  <div class="subtitle reveal">Four layers of access control. One enforcement model.</div>
+  <div class="red-line reveal"></div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 2: UC HIERARCHY -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="2">
+  <div class="label reveal">Foundation</div>
+  <h2 class="reveal">The UC Hierarchy</h2>
+  <p class="reveal" style="color:var(--muted)">Every securable object lives in a three-level namespace. Permissions propagate downward.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Three-Level Namespace</h4>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--red)">catalog</span>.<span style="color:#4ec9b0">schema</span>.<span style="color:#dcdcaa">table</span>
+
+-- Example
+<span style="color:var(--red)">applied_ai_gov</span>.<span style="color:#4ec9b0">sales</span>.<span style="color:#dcdcaa">deals</span></pre>
+      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Tables, views, functions, volumes, models, and connections all live inside this hierarchy.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Grant Propagation</h4>
+      <table>
+        <tr><td style="font-weight:600;width:140px">GRANT on catalog</td><td>Applies to all schemas and tables within</td></tr>
+        <tr><td style="font-weight:600">GRANT on schema</td><td>Applies to all tables within</td></tr>
+        <tr><td style="font-weight:600">GRANT on table</td><td>Applies to that table only</td></tr>
+      </table>
+      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Grants are additive. A GRANT at the catalog level gives access to everything below. There is no implicit access -- every identity starts with zero privileges.</p>
+    </div>
+  </div>
+  <div class="card card-red mt-2 reveal" style="text-align:center">
+    <p><strong>Explicit-only model:</strong> No access without a GRANT. Owners have full control. Metastore admins can manage all objects.</p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 3: FOUR LAYERS OVERVIEW -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="3">
+  <div class="label reveal">Access Control</div>
+  <h2 class="reveal">Four Complementary Layers</h2>
+  <p class="reveal" style="color:var(--muted)">UC evaluates all four layers in sequence before returning any data. Each answers a different question.</p>
+  <div class="four-col mt-2">
+    <div class="card reveal" style="border-left:4px solid #0891b2">
+      <h4 style="color:#0891b2">1. Workspace Restrictions</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:4px">WHERE can they access?</p>
+      <p style="font-size:var(--sz-small);color:var(--muted)">Workspace bindings limit which workspaces see specific catalogs. Isolates dev/staging/prod.</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--green)">
+      <h4 style="color:var(--green)">2. Privileges & Ownership</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:4px">WHO can access WHAT?</p>
+      <p style="font-size:var(--sz-small);color:var(--muted)">GRANTs on securable objects. Hierarchical inheritance. Owners have full control.</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid #7c3aed">
+      <h4 style="color:#7c3aed">3. ABAC Policies</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:4px">WHAT data based on tags?</p>
+      <p style="font-size:var(--sz-small);color:var(--muted)">Governed tags + policy functions enforce access dynamically at scale. Define once, apply to thousands.</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--amber)">
+      <h4 style="color:var(--amber)">4. Table-Level Filtering</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:4px">WHAT rows/columns?</p>
+      <p style="font-size:var(--sz-small);color:var(--muted)">Row filters, column masks, and dynamic views control visibility at query time per identity.</p>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center;border-left:4px solid var(--ink)">
+    <p>All four layers evaluate in sequence. The user receives <strong>fully governed data</strong>: workspace verified, privileges checked, ABAC policies enforced, rows filtered, columns masked, all actions audited.</p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 4: WORKSPACE + PRIVILEGES -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="4">
+  <div class="label reveal">Layers 1 + 2</div>
+  <h2 class="reveal">Workspace Restrictions & Privileges</h2>
+  <div class="two-col mt-2">
+    <div class="card reveal" style="border-left:4px solid #0891b2">
+      <h4 style="color:#0891b2">Workspace Bindings</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">Control which workspaces can see specific catalogs, external locations, and storage credentials.</p>
+      <table>
+        <tr><td style="font-weight:600;width:100px">Use case</td><td>Restrict production data to production workspaces only</td></tr>
+        <tr><td style="font-weight:600">Scope</td><td>Catalogs, external locations, storage credentials</td></tr>
+        <tr><td style="font-weight:600">Override</td><td>Takes precedence over user-level permissions</td></tr>
+      </table>
+      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">A user with SELECT on a table still cannot access it from a workspace that is not bound to the catalog.</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--green)">
+      <h4 style="color:var(--green)">Privileges & GRANTs</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">Explicit permission model. No implicit access.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Grant read access</span>
+GRANT SELECT ON TABLE
+  catalog.schema.deals
+  TO `east_sales`;
+
+<span style="color:var(--green)">-- Grant at schema level</span>
+GRANT USE SCHEMA ON SCHEMA
+  catalog.sales
+  TO `all_sales`;</pre>
+      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Hierarchical: catalog &rarr; schema &rarr; table. Owners have full control over their objects.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 5: ROW FILTERS - HOW THEY WORK -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="5">
+  <div class="label reveal">Layer 4a</div>
+  <h2 class="reveal">Row Filters: How They Work</h2>
+  <p class="reveal" style="color:var(--muted)">Row filters automatically restrict which rows a user sees. Applied at query time by the SQL engine.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>The Mechanism</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">A SQL function is bound to a table. UC injects the function as a WHERE clause on every query. The user never sees filtered rows and does not know they exist.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Create the filter function</span>
+CREATE FUNCTION sales_filter(region STRING)
+RETURN
+  is_member('admin')
+  OR region = 'WEST'
+    AND is_member('west_sales');
+
+<span style="color:var(--green)">-- Apply to table</span>
+ALTER TABLE deals
+  SET ROW FILTER sales_filter
+  ON (region);</pre>
+    </div>
+    <div class="card reveal">
+      <h4>Key Properties</h4>
+      <table>
+        <tr><td style="font-weight:600;width:120px">Silent</td><td>Filtered rows are invisible. No error, no indication they exist.</td></tr>
+        <tr><td style="font-weight:600">Automatic</td><td>Enforced by the SQL engine on every query. No app code changes.</td></tr>
+        <tr><td style="font-weight:600">Identity-aware</td><td><code>current_user()</code> and <code>is_member()</code> resolve at query time.</td></tr>
+        <tr><td style="font-weight:600">Same query</td><td>Different users run the same SQL, see different rows.</td></tr>
+      </table>
+      <div class="card card-amber mt-1">
+        <p style="font-size:var(--sz-small)"><strong>One filter per table.</strong> If you need multiple filter conditions, combine them in a single function using OR/AND logic.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 6: ROW FILTERS - IDENTITY FUNCTIONS -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="6">
+  <div class="label reveal">Row Filters</div>
+  <h2 class="reveal">current_user() vs is_member()</h2>
+  <p class="reveal" style="color:var(--muted)">Two identity functions, different propagation behavior. Choose based on your token pattern.</p>
+  <div class="two-col mt-2">
+    <div class="card card-blue reveal">
+      <h4>current_user()</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">Returns the calling user's email from the active SQL token.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Filter: only see your own rows</span>
+WHERE owner = current_user()</pre>
+      <table class="mt-1">
+        <tr><td style="font-weight:600;width:80px">OBO</td><td>Returns the human's email. Propagates through Genie, Agent Bricks, MCP chains.</td></tr>
+        <tr><td style="font-weight:600">M2M</td><td>Returns the SP's application ID.</td></tr>
+        <tr><td style="font-weight:600">Best for</td><td>Per-user row ownership, individual audit trails.</td></tr>
+      </table>
+    </div>
+    <div class="card card-red reveal">
+      <h4>is_member()</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">Returns TRUE if the executing identity belongs to a workspace group.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Filter: role-based access</span>
+WHERE is_member('west_sales')
+  AND region = 'WEST'</pre>
+      <table class="mt-1">
+        <tr><td style="font-weight:600;width:80px">M2M</td><td>Evaluates the SP's group membership. Works well when you control the SP.</td></tr>
+        <tr><td style="font-weight:600">OBO</td><td>Evaluates the human's groups. Works as expected.</td></tr>
+        <tr><td style="font-weight:600">Best for</td><td>Role-based filtering, federation patterns.</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center;border-left:4px solid var(--ink)">
+    <p><strong>OBO pattern:</strong> prefer <code>current_user()</code> -- it propagates the human identity end-to-end. <strong>Federation pattern:</strong> use <code>is_member()</code> -- role-based SPs map to workspace groups.</p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 7: COLUMN MASKS - HOW THEY WORK -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="7">
+  <div class="label reveal">Layer 4b</div>
+  <h2 class="reveal">Column Masks: How They Work</h2>
+  <p class="reveal" style="color:var(--muted)">Column masks transform sensitive values at query time. Users see the row but with masked column values.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>The Mechanism</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">A SQL function is bound to a specific column. UC replaces the raw value with the function's output on every query.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Create the mask function</span>
+CREATE FUNCTION mask_ssn(ssn STRING)
+RETURN
+  CASE
+    WHEN is_member('admins')
+      THEN ssn
+    ELSE '***-**-' || RIGHT(ssn, 4)
+  END;
+
+<span style="color:var(--green)">-- Apply to column</span>
+ALTER TABLE customers
+  ALTER COLUMN ssn
+  SET MASK mask_ssn;</pre>
+    </div>
+    <div class="card reveal">
+      <h4>Key Properties</h4>
+      <table>
+        <tr><td style="font-weight:600;width:120px">Transformation</td><td>Does not hide rows. Replaces the column value with a masked version.</td></tr>
+        <tr><td style="font-weight:600">Per-column</td><td>Each column gets its own mask function. Multiple columns can be masked independently.</td></tr>
+        <tr><td style="font-weight:600">Chainable</td><td>Row filter + column mask can apply to the same table. Filter runs first, then mask.</td></tr>
+        <tr><td style="font-weight:600">Return type</td><td>Must match the original column type. STRING in, STRING out.</td></tr>
+      </table>
+      <div class="two-col mt-1" style="gap:8px">
+        <div class="card" style="padding:8px;text-align:center;border-left:3px solid var(--blue)">
+          <p style="font-size:var(--sz-label);color:var(--muted)">Analyst sees</p>
+          <p style="font-size:var(--sz-body);font-family:var(--mono);color:#7c3aed">***-**-6789</p>
+        </div>
+        <div class="card" style="padding:8px;text-align:center;border-left:3px solid var(--green)">
+          <p style="font-size:var(--sz-label);color:var(--muted)">Admin sees</p>
+          <p style="font-size:var(--sz-body);font-family:var(--mono);color:var(--green)">123-45-6789</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 8: COLUMN MASKS - OBO GOTCHA -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="8">
+  <div class="label reveal">Column Masks</div>
+  <h2 class="reveal">is_member() in OBO Chains</h2>
+  <p class="reveal" style="color:var(--muted)">A critical distinction when column masks use is_member() in different token patterns.</p>
+  <div class="two-col mt-2">
+    <div class="card card-green reveal">
+      <h4>M2M: is_member() works as expected</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">When a service principal executes the SQL directly, <code>is_member()</code> evaluates the SP's workspace group membership. You control group assignment explicitly.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- SP is in 'admins' group</span>
+is_member('admins') => TRUE
+<span style="color:var(--green)">-- Full SSN returned</span></pre>
+    </div>
+    <div class="card card-amber reveal">
+      <h4>OBO: is_member() evaluates the service layer</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">In Genie or Agent Bricks OBO flows, <code>is_member()</code> evaluates the service layer's identity, not the calling user's groups. This is a known behavior.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--amber)">-- Workaround: use allowlist table</span>
+CASE
+  WHEN EXISTS (
+    SELECT 1 FROM role_allowlist
+    WHERE email = current_user()
+      AND role = 'admin'
+  ) THEN ssn
+  ELSE '***-**-' || RIGHT(ssn, 4)
+END</pre>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center">
+    <p><strong>Rule of thumb:</strong> For masks in OBO chains, replace <code>is_member()</code> with a <code>current_user()</code> lookup against a UC-governed allowlist table.</p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 9: ABAC + GOVERNED TAGS -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="9">
+  <div class="label reveal">Layer 3</div>
+  <h2 class="reveal">ABAC with Governed Tags</h2>
+  <p class="reveal" style="color:var(--muted)">Attribute-Based Access Control uses tags to enforce dynamic, scalable policies without per-object permissions.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal" style="border-left:4px solid var(--blue)">
+      <h4 style="color:var(--blue)">Governed Tags: Classification</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">Account-level tags with enforced naming rules. Applied to catalogs, schemas, tables, or columns. Tags inherit downward.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Tag a table</span>
+ALTER TABLE customer_data
+  SET TAGS ('sensitivity' = 'high',
+            'region' = 'EMEA');
+
+<span style="color:var(--green)">-- Tags alone don't enforce access</span>
+<span style="color:var(--green)">-- They classify data for policies</span></pre>
+    </div>
+    <div class="card reveal" style="border-left:4px solid #7c3aed">
+      <h4 style="color:#7c3aed">ABAC Policies: Enforcement</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">Policies reference tags to dynamically control access. One policy can govern thousands of tables.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Policy: high-sensitivity tables</span>
+<span style="color:var(--green)">-- require compliance-team access</span>
+CREATE ACCESS POLICY high_sens_policy
+  ON TABLE
+  WHEN TAG 'sensitivity' = 'high'
+  RESTRICT TO GROUP 'compliance_team';</pre>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center">
+    <p><strong>Tags classify. Policies enforce.</strong> Change a tag and access changes instantly. No need to update permissions on individual objects.</p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 10: ABAC BENEFITS -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="10">
+  <div class="label reveal">ABAC</div>
+  <h2 class="reveal">Why ABAC at Scale</h2>
+  <div class="two-col mt-2">
+    <div class="card reveal" style="border-left:4px solid var(--blue)">
+      <h4 style="color:var(--blue)">Without ABAC</h4>
+      <table>
+        <tr><td style="font-weight:600;width:100px">1,000 tables</td><td>1,000 GRANT statements per role. Manual, error-prone.</td></tr>
+        <tr><td style="font-weight:600">New table</td><td>Must remember to add GRANTs. Miss one and data leaks or access breaks.</td></tr>
+        <tr><td style="font-weight:600">Policy change</td><td>Update hundreds of GRANTs. Hope you got them all.</td></tr>
+        <tr><td style="font-weight:600">Audit</td><td>Piecing together who has access requires scanning every object.</td></tr>
+      </table>
+    </div>
+    <div class="card reveal" style="border-left:4px solid #7c3aed">
+      <h4 style="color:#7c3aed">With ABAC</h4>
+      <table>
+        <tr><td style="font-weight:600;width:100px">1,000 tables</td><td>1 policy + tags. Applied automatically.</td></tr>
+        <tr><td style="font-weight:600">New table</td><td>Tag it. Policy applies instantly.</td></tr>
+        <tr><td style="font-weight:600">Policy change</td><td>Update one policy definition. Instant propagation.</td></tr>
+        <tr><td style="font-weight:600">Audit</td><td>Query tags and policies. Full visibility.</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="three-col mt-2">
+    <div class="card card-green reveal" style="text-align:center">
+      <h4>Scalable</h4>
+      <p style="font-size:var(--sz-small)">One policy covers thousands of tables.</p>
+    </div>
+    <div class="card card-green reveal" style="text-align:center">
+      <h4>Dynamic</h4>
+      <p style="font-size:var(--sz-small)">Re-tag a table to change access instantly.</p>
+    </div>
+    <div class="card card-green reveal" style="text-align:center">
+      <h4>Auditable</h4>
+      <p style="font-size:var(--sz-small)">Tags + policies = full governance lineage.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 11: ROW FILTER + COLUMN MASK TOGETHER -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="11">
+  <div class="label reveal">Combined</div>
+  <h2 class="reveal">Row Filters + Column Masks Together</h2>
+  <p class="reveal" style="color:var(--muted)">Both can apply to the same table. The row filter runs first, then column masks apply to surviving rows.</p>
+  <div class="card mt-2 reveal" style="max-width:800px;margin:0 auto">
+    <h4>Example: Sales Deals Table</h4>
+    <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Row filter: region-based access</span>
+CREATE FUNCTION deals_row_filter(region STRING)
+RETURN
+  is_member('admin') OR
+  (region = 'WEST' AND is_member('west_sales')) OR
+  (region = 'EAST' AND is_member('east_sales'));
+
+ALTER TABLE deals SET ROW FILTER deals_row_filter ON (region);
+
+<span style="color:var(--green)">-- Column mask: hide margin from non-finance</span>
+CREATE FUNCTION mask_margin(val DOUBLE)
+RETURN CASE WHEN is_member('finance') THEN val ELSE NULL END;
+
+ALTER TABLE deals ALTER COLUMN margin_pct SET MASK mask_margin;</pre>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card reveal" style="border-left:4px solid var(--blue)">
+      <h4>West Sales Rep Sees</h4>
+      <table>
+        <tr><th>Deal</th><th>Region</th><th>Amount</th><th>Margin</th></tr>
+        <tr><td>Acme Corp</td><td>WEST</td><td>$50K</td><td style="color:var(--muted)">NULL</td></tr>
+        <tr><td>Beta Inc</td><td>WEST</td><td>$30K</td><td style="color:var(--muted)">NULL</td></tr>
+      </table>
+      <p style="font-size:var(--sz-label);color:var(--muted);margin-top:4px">EAST rows filtered out. Margin masked.</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--green)">
+      <h4>Finance Admin Sees</h4>
+      <table>
+        <tr><th>Deal</th><th>Region</th><th>Amount</th><th>Margin</th></tr>
+        <tr><td>Acme Corp</td><td>WEST</td><td>$50K</td><td style="color:var(--green)">42%</td></tr>
+        <tr><td>Beta Inc</td><td>WEST</td><td>$30K</td><td style="color:var(--green)">38%</td></tr>
+        <tr><td>East Co</td><td>EAST</td><td>$45K</td><td style="color:var(--green)">51%</td></tr>
+      </table>
+      <p style="font-size:var(--sz-label);color:var(--muted);margin-top:4px">All rows visible. Real margins shown.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 12: DECISION TABLE -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="12">
+  <div class="label reveal">Decision Guide</div>
+  <h2 class="reveal">When to Use Which Pattern</h2>
+  <div class="flex-1 mt-2 reveal" style="max-width:850px">
+    <div class="dt-row">
+      <div class="dt-cond">Restrict catalogs to specific workspaces</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge" style="background:rgba(8,145,178,0.1);color:#0891b2">WORKSPACE BINDINGS</span></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Control who can SELECT/MODIFY objects</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-green">GRANTS</span></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">100s of tables, same access pattern</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-blue">ABAC + GOVERNED TAGS</span></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Users see only their own rows</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">ROW FILTER</span> <code style="font-size:var(--sz-label)">current_user()</code></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Role-based row visibility</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">ROW FILTER</span> <code style="font-size:var(--sz-label)">is_member()</code></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Mask PII (SSN, credit card, PHI)</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge" style="background:rgba(124,58,237,0.1);color:#7c3aed">COLUMN MASK</span></div>
+    </div>
+    <div class="dt-row">
+      <div class="dt-cond">Dynamic tag-based masks at scale</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-blue">ABAC</span> + <span class="badge" style="background:rgba(124,58,237,0.1);color:#7c3aed">MASK UDF</span></div>
+    </div>
+    <div class="dt-row" style="border-bottom:none">
+      <div class="dt-cond">External users, no Databricks accounts</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">FEDERATION</span> role SPs + <code style="font-size:var(--sz-label)">is_member()</code></div>
+    </div>
+  </div>
+  <div class="card card-green mt-2 reveal" style="text-align:center">
+    <p><strong>Most production deployments combine multiple layers.</strong> Workspace bindings for environment isolation. GRANTs for baseline access. ABAC for scale. Row filters + column masks for fine-grained control.</p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 13: ENFORCEMENT SUMMARY -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="13">
+  <div class="label reveal">Enforcement</div>
+  <h2 class="reveal">All Enforced by the SQL Engine</h2>
+  <p class="reveal" style="color:var(--muted)">Not application code. Not middleware. The SQL engine itself enforces every layer.</p>
+  <div class="three-col mt-2">
+    <div class="card card-green reveal">
+      <h4>No Code Changes</h4>
+      <p style="font-size:var(--sz-small)">Applications run the same SQL. Governance is invisible to the app layer. Add a row filter and every query automatically respects it.</p>
+    </div>
+    <div class="card card-green reveal">
+      <h4>Cannot Bypass</h4>
+      <p style="font-size:var(--sz-small)">Row filters and column masks are injected by the engine. No SQL trick, no API shortcut, no SDK workaround can skip them. The only override is ownership or admin privilege.</p>
+    </div>
+    <div class="card card-green reveal">
+      <h4>Full Audit Trail</h4>
+      <p style="font-size:var(--sz-small)">Every query is logged with the identity that executed it, the governance policies that fired, and the data that was returned. System tables provide the full lineage.</p>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="max-width:800px;margin:0 auto;text-align:center;border-left:4px solid var(--ink)">
+    <p style="font-size:var(--sz-h3);font-weight:600">Same table. Same query. Different identity. Different data.</p>
+    <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">This is the core principle of UC governance. It works identically for Genie, Agent Bricks, MCP servers, notebooks, dashboards, and any tool that executes SQL through a warehouse.</p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 14: SUMMARY -->
+<!-- ================================================================ -->
+<div class="slide slide-title" data-slide="14">
+  <div class="label reveal">Summary</div>
+  <h1 class="reveal" style="font-size:var(--sz-h1)">Unity Catalog Governance</h1>
+  <div style="max-width:700px;text-align:left;margin:24px auto 0" class="reveal">
+    <table>
+      <tr><td style="font-weight:700;color:var(--red);width:40px;font-size:1.4em;text-align:center">4</td><td>Complementary access control layers, evaluated in sequence</td></tr>
+      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">2</td><td>Identity functions: <code>current_user()</code> for OBO, <code>is_member()</code> for federation</td></tr>
+      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">1</td><td>SQL engine enforces everything -- no application code changes</td></tr>
+      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">&infin;</td><td>ABAC scales to thousands of tables with governed tags + policies</td></tr>
+    </table>
+  </div>
+  <div class="card card-green mt-3 reveal" style="max-width:700px;margin:0 auto;text-align:center">
+    <p style="font-size:var(--sz-h3);font-weight:600">Workspace bindings + GRANTs + ABAC + Row Filters + Column Masks</p>
+    <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">Defense in depth. Every layer adds protection. All audited.</p>
+  </div>
+  <div class="reveal mt-2" style="text-align:center">
+    <a href="https://github.com/bhavink/applied-ai-governance" target="_blank" style="color:var(--red);font-size:var(--sz-small);text-decoration:none;border-bottom:1px solid var(--red)">github.com/bhavink/applied-ai-governance</a>
+  </div>
+  <div class="red-line reveal" style="margin-top:24px"></div>
+</div>
+
+<!-- ================================================================ -->
+<!-- JS: Navigation -->
+<!-- ================================================================ -->
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+
+function goTo(n) {
+  if (n < 0 || n >= total) return;
+  slides[current].classList.remove('active');
+  slides[current].classList.add('exit-left');
+  const prev = current;
+  current = n;
+  slides[current].classList.add('active');
+  setTimeout(() => slides[prev].classList.remove('exit-left'), 400);
+  document.getElementById('counter').textContent = `${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+  document.getElementById('progressBar').style.width = `${((current + 1) / total) * 100}%`;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current - 1); }
+  if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+  if (e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+});
+
+goTo(0);
+</script>
+</body>
+</html>

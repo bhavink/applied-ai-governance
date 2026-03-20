@@ -2,29 +2,26 @@
 
 > *The tools will change. The principles won't. Govern the invariants.*
 
-Production-ready governance patterns for AI applications on Databricks -- identity, data, tools, network, and audit across Genie, Agent Bricks, Apps, Model Serving, and custom MCP servers.
+Production-ready governance patterns for AI applications on Databricks. Identity, data, tools, network, and audit across Genie, Agent Bricks, Apps, Model Serving, and custom MCP servers.
 
-**Start here:** [Governance Framework](GOVERNANCE-FRAMEWORK.md) -- the seven pillars, design principles, and adaptability model that underpin everything in this repo.
+**Start here:** [Governance Framework](GOVERNANCE-FRAMEWORK.md) defines the seven pillars, design principles, and adaptability model.
 
 ---
 
-## The Seven Pillars
+## Pillars
 
-| # | Pillar | Status | Path |
-|---|--------|--------|------|
-| 0 | [Developer Guardrails](developer-guardrails/) | Planned | Build-time safety for AI coding tools |
-| 1 | [Network Access Controls](network/) | Cross-link | Private Link, VPC-SC, NCC ([bhavink/databricks](https://github.com/bhavink/databricks)) |
-| 2 | [Identity & Access Control](identity/) | Active | OBO, M2M, Federation, OAuth scopes |
-| 3 | [Data Governance](data-governance/) | Active | Row filters, column masks, ABAC, UC privileges |
-| 4 | [Tool & API Governance](tool-governance/) | Active | AI Gateway, MCP, UC Connections |
-| 5 | [Observability & Audit](observability/) | Active | System tables, MLflow traces, dashboards |
-| 6 | [Policy & Compliance](policy-compliance/) | Planned | Governance-as-SQL, drift detection, evidence |
+| Pillar | Path | Contents |
+|--------|------|----------|
+| Identity & Access Control | [identity/](identity/) | AuthN (IdP delegation), AuthZ (OBO, M2M, Federation), UC governance, scopes, SPs |
+| Data Governance | [data-governance/](data-governance/) | Row filters, column masks, ABAC, governed tags, Genie multi-team patterns |
+| Tool & API Governance | [tool-governance/](tool-governance/) | AI Gateway, MCP, UC Connections, orchestration |
+| Observability & Audit | [observability/](observability/) | System tables, MLflow traces, Genie monitoring |
+
+Network, developer guardrails, and policy/compliance pillars are defined in the [Governance Framework](GOVERNANCE-FRAMEWORK.md) and will be added as content is built and validated.
 
 ---
 
 ## Quick Start
-
-New to Databricks AI governance? Read these in order:
 
 1. [Authentication](identity/authentication.md): AuthN is delegated to IdPs (brief overview + official doc links)
 2. [Authorization](identity/authorization.md): The three token patterns, UC governance, OAuth scopes, service principals
@@ -32,48 +29,18 @@ New to Databricks AI governance? Read these in order:
 
 ---
 
-## Reference Docs
-
-| Document | Pillar | Contents |
-|----------|--------|----------|
-| [Authentication](identity/authentication.md) | Identity | AuthN delegation to IdPs, unified client auth, cloud differences |
-| [Authorization](identity/authorization.md) | Identity | OBO/M2M/Federation patterns, UC model, scopes, service principals |
-| [Federation Exchange](identity/federation.md) | Identity | External IdP token exchange, role-based SPs, enforcement points |
-| [Genie Cookbook](data-governance/genie-authorization-cookbook.md) | Data | Multi-team Genie access for 1000+ users |
-| [AI Gateway Patterns](tool-governance/ai-gateway-patterns.md) | Tools | Databricks AI Gateway vs external gateway vs UC-native |
-| [Orchestration Architecture](tool-governance/orchestration-architecture.md) | Tools | Model Serving, MCP, AI Gateway, Lakebase |
-| [Audit Reference](observability/audit-reference.md) | Observability | Scorers, dashboards, correlation queries, alerts |
-
----
-
-## Interactive Visualizations
-
-| Page | Concept | Link |
-|------|---------|------|
-| Orchestration Hub | Architecture overview | [View](https://bhavink.github.io/applied-ai-governance/interactive/orchestration/) |
-| Agent Auth Methods | Model Serving auth patterns | [View](https://bhavink.github.io/applied-ai-governance/interactive/orchestration/agent-auth-methods.html) |
-| External App Auth | Token federation for external apps | [View](https://bhavink.github.io/applied-ai-governance/interactive/orchestration/external-app-auth.html) |
-| MCP Integration | Managed, External, Custom MCP patterns | [View](https://bhavink.github.io/applied-ai-governance/interactive/orchestration/mcp-integration.html) |
-| AI Gateway Governance | Rate limits, guardrails, inference tables | [View](https://bhavink.github.io/applied-ai-governance/interactive/orchestration/ai-gateway-governance.html) |
-| Databricks Apps | Native OAuth, UC integration | [View](https://bhavink.github.io/applied-ai-governance/interactive/orchestration/databricks-apps.html) |
-| Access Control Layers | UC four-layer authorization | [View](https://bhavink.github.io/applied-ai-governance/interactive/uc-access-control-layers.html) |
-| ABAC + Governed Tags | Tag-based dynamic access control | [View](https://bhavink.github.io/applied-ai-governance/interactive/uc-abac-governed-tags.html) |
-| Row Filters | Row-level security | [View](https://bhavink.github.io/applied-ai-governance/interactive/uc-row-filters.html) |
-| Column Masks | Column-level security | [View](https://bhavink.github.io/applied-ai-governance/interactive/uc-column-masks.html) |
-| OBO Auth Flow | On-Behalf-Of-User authentication | [View](https://bhavink.github.io/applied-ai-governance/interactive/auth-flow-obo.html) |
-| Federation Token Flow | 10-step animated token exchange | [View](https://bhavink.github.io/applied-ai-governance/interactive/federation-token-flow.html) |
-| Decision Guide | Choose the right pattern | [View](https://bhavink.github.io/applied-ai-governance/interactive/decision-guide.html) |
-
----
-
 ## Presentations
 
 | # | Deck | Audience | Topic |
 |---|------|----------|-------|
-| 1 | [Identity & Governance Overview](presentations/identity-governance-overview.html) | Exec | OBO vs M2M vs Federation, shared UC governance, scope model -- 18 slides |
-| 2 | [Federation Animation](presentations/federation-animation.html) | Exec | Interactive token flow animation with token inspector |
-| 3 | [Federation Deep Dive](presentations/federation-deep-dive.html) | Technical | Token anatomy, enforcement points, grants checklist, embedded animation -- 21 slides |
-| 4 | [AI Gateway Patterns](presentations/ai-gateway-patterns-v2.html) | Technical | AI Gateway traffic patterns and decision framework |
+| 1 | [Identity & Governance Overview](presentations/identity-governance-overview.html) | Exec | OBO vs M2M vs Federation, shared UC governance, scope model |
+| 2 | [Federation Deep Dive](presentations/federation-deep-dive.html) | Technical | Token anatomy, enforcement points, grants checklist |
+| 3 | [Identity Patterns](presentations/identity-patterns.html) | Technical | OBO, M2M, Federation flows, decision guide, scopes, SPs |
+| 4 | [UC Governance](presentations/uc-governance.html) | Technical | Four-layer access control, row filters, column masks, ABAC |
+| 5 | [Orchestration](presentations/orchestration.html) | Technical | Agents, Apps, MCP, AI Gateway, external auth |
+| 6 | [AI Gateway Patterns](presentations/ai-gateway-patterns-v2.html) | Technical | Gateway traffic patterns and decision framework |
+
+Browse all decks: [Presentations](https://bhavink.github.io/applied-ai-governance/presentations/)
 
 ---
 
@@ -91,32 +58,21 @@ A: See the [Genie Authorization Cookbook](data-governance/genie-authorization-co
 **Q: My custom MCP server always shows the SP identity, not the user. Why?**
 A: This is the two-proxy problem. See [Authorization](identity/authorization.md#the-three-token-patterns).
 
-**Q: Why does `is_member()` return the same result for all Genie users?**
-A: Under OBO, `is_member()` may evaluate the execution identity, not the calling user. Use `current_user()` + allowlist table. See [UC Policy Design](data-governance/uc-policy-design.md).
-
-**Q: How do I audit access when using M2M?**
-A: Platform audit records the SP UUID. You need app-level logging with `X-Forwarded-Email` for human identity. See [Audit Reference](observability/audit-reference.md).
-
 **Q: How do I give external users governed access to Databricks AI tools?**
-A: Use Federation Exchange: external IDP JWT -> Databricks token exchange -> role-based SPs -> UC governance. See [Federation](identity/federation.md).
-
-**Q: What's the difference between OBO and Federation?**
-A: OBO = apps ON Databricks (user has a workspace account). Federation = apps OUTSIDE Databricks (user has no Databricks account, authenticates via external IDP). See the [Identity & Governance presentation](presentations/identity-governance-overview.html).
+A: Use Federation Exchange. See [Federation](identity/federation.md).
 
 ---
 
 ## Related Databricks Documentation
 
-- [Agent Bricks](https://docs.databricks.com/aws/en/generative-ai/agent-bricks/)
-- [Agent Framework Authentication](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication)
-- [Unity Catalog](https://docs.databricks.com/en/data-governance/unity-catalog/index.html)
-- [Access Control in UC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control)
-- [ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac)
+- [Unified client authentication](https://docs.databricks.com/aws/en/dev-tools/auth/unified-auth)
+- [OAuth U2M](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-u2m) | [OAuth M2M](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m)
+- [Databricks Apps](https://docs.databricks.com/en/dev-tools/databricks-apps/index.html) | [App auth](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth) | [App resources](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/resources)
+- [Agent Framework](https://docs.databricks.com/aws/en/generative-ai/agent-framework/author-agent) | [Agent auth](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication)
+- [Unity Catalog](https://docs.databricks.com/en/data-governance/unity-catalog/index.html) | [Access Control](https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control) | [ABAC tutorial](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/tutorial)
 - [Row Filters & Column Masks](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-row-filter-column-mask.html)
-- [OAuth M2M](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m.html)
-- [OAuth U2M](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-u2m.html)
-- [Databricks Apps](https://docs.databricks.com/en/dev-tools/databricks-apps/index.html)
 - [Genie Space](https://docs.databricks.com/aws/en/genie/)
+- [Security overview](https://docs.databricks.com/aws/en/security/)
 
 ---
 

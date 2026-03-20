@@ -291,9 +291,8 @@ This repository is organized around the pillars:
 | Identity & Access | [Authentication](identity/authentication.md), [Authorization](identity/authorization.md), [Federation](identity/federation.md) |
 | Data Governance | [UC Authorization](data-governance/uc-authorization.md), [UC Policy Design](data-governance/uc-policy-design.md) |
 | Tool Governance | [AI Gateway Patterns](tool-governance/ai-gateway-patterns.md), [Federation](identity/federation.md) |
-| Observability | [Audit Reference](observability/audit-reference.md), [Genie Observability](observability/genie-aibi/) |
+| Observability | [Audit Reference](observability/audit-reference.md) |
 | Architecture | [Orchestration Architecture](tool-governance/orchestration-architecture.md), [Authorization](identity/authorization.md) |
-| Interactive | [Visualizations](https://bhavink.github.io/applied-ai-governance/interactive/) |
 
 Network access controls and developer guardrails are covered in companion resources:
 - Network: [bhavink/databricks](https://github.com/bhavink/databricks) (multi-cloud Private Link, VPC-SC, NCC patterns)

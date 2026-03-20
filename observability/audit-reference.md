@@ -127,7 +127,6 @@ Genie conversations are captured in `system.access.audit` under the `aibiGenie` 
 | Quality scoring | Not available | Configurable via MLflow scorers |
 | Cost tracking | Via system.billing.usage | Via system.ai_gateway.usage |
 
-For the full Genie monitoring suite, see [Genie Observability](genie-aibi/).
 
 ---
 
@@ -212,4 +211,3 @@ GROUP BY 1 ORDER BY 1;
 ## Related Documents
 
 - [Authorization](../identity/authorization.md) - Auth patterns, token flows, identity models
-- [Genie Observability](genie-aibi/) - Genie monitoring and analytics suite

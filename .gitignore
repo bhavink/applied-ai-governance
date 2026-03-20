@@ -3,6 +3,11 @@
 # =============================================================================
 # This file prevents credentials, infrastructure secrets, demo data with real
 # IDs, and development artifacts from being committed to the repository.
+
+# =============================================================================
+# Local planning (not pushed)
+# =============================================================================
+TODO.md
 # =============================================================================
 
 
