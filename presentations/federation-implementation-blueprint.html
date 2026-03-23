@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Federation Token Exchange — Implementation Blueprint</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#ffffff;--ink:#1a1a1a;--red:#cc3311;
+  --surface:#f7f7f7;--border:#e0e0e0;--muted:#666;
+  --green:#1e7e34;--green-bg:#e6f4ea;--amber:#b45309;--amber-bg:#fef3c7;
+  --font:'Space Grotesk',sans-serif;--mono:'DM Mono',monospace;
+  --pad:clamp(2rem,5vw,4.5rem);
+  --sz-h1:clamp(2rem,4.5vw,3.2rem);
+  --sz-h2:clamp(1.4rem,3vw,2.2rem);
+  --sz-h3:clamp(1rem,2vw,1.4rem);
+  --sz-body:clamp(0.85rem,1.4vw,1.05rem);
+  --sz-small:clamp(0.72rem,1.1vw,0.88rem);
+  --sz-label:clamp(0.62rem,0.85vw,0.72rem);
+  --sz-code:clamp(0.68rem,1vw,0.82rem);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:var(--font);background:var(--bg);color:var(--ink)}
+
+.topbar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--ink);color:#fff;z-index:100;font-size:var(--sz-small)}
+.topbar .title{font-weight:600;letter-spacing:-0.02em}
+.topbar .title span{color:var(--red)}
+.topbar .counter{font-variant-numeric:tabular-nums;opacity:0.7}
+.progress-track{position:fixed;top:48px;left:0;right:0;height:3px;background:var(--border);z-index:100}
+.progress-bar{height:100%;background:var(--red);transition:width 0.4s ease;width:0}
+
+.slide{position:absolute;top:48px;left:0;right:0;bottom:0;opacity:0;pointer-events:none;transform:translateX(60px);transition:opacity 0.4s ease,transform 0.4s ease;overflow-y:auto;display:flex;flex-direction:column;padding:var(--pad)}
+.slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+.slide.exit-left{opacity:0;transform:translateX(-60px)}
+.slide-title{justify-content:center;align-items:center;text-align:center}
+.slide-title h1{font-size:clamp(2.4rem,5vw,4rem);font-weight:700;letter-spacing:-0.03em;line-height:1.1;max-width:900px}
+.slide-title .subtitle{font-size:var(--sz-h3);color:var(--muted);margin-top:12px;font-weight:400}
+.slide-title .red-line{width:80px;height:4px;background:var(--red);margin:20px auto 0}
+
+.slide h2{font-size:var(--sz-h1);font-weight:700;letter-spacing:-0.03em;margin-bottom:8px}
+.slide h3{font-size:var(--sz-h2);font-weight:600;letter-spacing:-0.02em;margin-bottom:6px}
+.slide p,.slide li{font-size:var(--sz-body);line-height:1.65}
+.label{font-size:var(--sz-label);text-transform:uppercase;letter-spacing:0.1em;color:var(--red);font-weight:600;margin-bottom:6px}
+
+.reveal{opacity:0;transform:translateY(18px);transition:opacity 0.5s ease,transform 0.5s ease}
+.slide.active .reveal{opacity:1;transform:translateY(0)}
+.slide.active .reveal:nth-child(2){transition-delay:0.1s}
+.slide.active .reveal:nth-child(3){transition-delay:0.2s}
+.slide.active .reveal:nth-child(4){transition-delay:0.3s}
+.slide.active .reveal:nth-child(5){transition-delay:0.4s}
+.slide.active .reveal:nth-child(6){transition-delay:0.5s}
+.slide.active .reveal:nth-child(7){transition-delay:0.6s}
+.slide.active .reveal:nth-child(8){transition-delay:0.7s}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.5rem,3vw,2.5rem);flex:1;min-height:0}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(1rem,2vw,1.5rem);flex:1;min-height:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(1rem,2vw,1.5rem);overflow:auto}
+.card h4{font-size:var(--sz-h3);font-weight:600;margin-bottom:8px}
+.card-red{border-left:4px solid var(--red)}
+.card-green{border-left:4px solid var(--green)}
+
+pre,code{font-family:var(--mono);font-size:var(--sz-code)}
+pre{background:#f5f3f0;color:var(--ink);border:1px solid var(--border);border-radius:4px;padding:clamp(0.6rem,1.2vw,1rem);overflow-x:auto;line-height:1.55}
+pre .kw{color:#cc3311}
+pre .str{color:#1e7e34}
+pre .cmt{color:#888;font-style:italic}
+code{background:var(--surface);padding:0.1em 0.4em;border-radius:3px;font-size:var(--sz-code)}
+
+table{width:100%;border-collapse:collapse;font-size:var(--sz-small)}
+th{text-align:left;font-weight:600;font-size:var(--sz-label);letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:2px solid var(--border)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+
+.flow-vertical{display:flex;flex-direction:column;gap:0;align-items:center}
+.flow-step{display:flex;align-items:center;gap:12px;width:100%;max-width:700px}
+.flow-num{width:32px;height:32px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--sz-small);flex-shrink:0}
+.flow-num.red{background:var(--red)}
+.flow-num.green{background:var(--green)}
+.flow-content{flex:1;padding:10px 0}
+.flow-content strong{font-size:var(--sz-body)}
+.flow-content p{font-size:var(--sz-small);color:var(--muted);margin-top:2px}
+.flow-connector{width:2px;height:12px;background:var(--border);margin-left:15px}
+
+.badge{display:inline-block;font-size:var(--sz-label);font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 8px;border-radius:3px}
+.badge-red{background:rgba(204,51,17,0.1);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-muted{background:var(--surface);color:var(--muted)}
+.badge-ink{background:var(--ink);color:#fff}
+
+.seq-diagram{display:flex;flex-direction:column;gap:0;font-size:var(--sz-small);flex:1}
+.seq-header{display:grid;grid-template-columns:repeat(6,1fr);text-align:center;font-size:var(--sz-label);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);padding:8px 0;border-bottom:2px solid var(--border)}
+.seq-row{display:grid;grid-template-columns:repeat(6,1fr);align-items:center;min-height:36px;border-bottom:1px solid var(--border);font-size:var(--sz-code);font-family:var(--mono)}
+.seq-cell{padding:4px 6px;text-align:center}
+.seq-arrow{display:flex;align-items:center;justify-content:center;gap:4px}
+.seq-arrow-line{flex:1;height:2px;background:var(--red)}
+.seq-arrow-head{color:var(--red);font-weight:700;font-size:0.7rem}
+.seq-note{grid-column:1/-1;text-align:center;font-size:var(--sz-label);font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:0.08em;padding:6px 0;background:rgba(204,51,17,0.04)}
+
+.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}
+.mb-1{margin-bottom:8px}.mb-2{margin-bottom:16px}
+.flex-1{flex:1 1 0;min-height:0;overflow-y:auto}
+
+.nav-btn{position:fixed;bottom:24px;width:40px;height:40px;border-radius:50%;border:2px solid var(--ink);background:var(--bg);color:var(--ink);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:100;transition:all 0.2s}
+.nav-btn:hover{background:var(--ink);color:#fff}
+.nav-btn.disabled{opacity:0.2;cursor:default;pointer-events:none}
+#prevBtn{right:76px}
+#nextBtn{right:24px}
+.nav-hint{position:fixed;bottom:32px;left:24px;font-size:var(--sz-label);color:var(--muted);z-index:100;letter-spacing:0.04em}
+
+.invariant{display:flex;gap:12px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)}
+.inv-num{width:28px;height:28px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--sz-small);flex-shrink:0}
+.inv-text{font-size:var(--sz-body);flex:1;padding-top:3px}
+
+@media(max-width:900px){.two-col,.three-col{grid-template-columns:1fr}}
+@media print{.slide{position:relative;opacity:1;transform:none;page-break-after:always;height:auto;min-height:100vh}.topbar,.progress-track,.nav-btn,.nav-hint{display:none}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">Federation Token Exchange <span>Blueprint</span></div>
+  <div class="counter" id="counter">01 / 15</div>
+</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 1: TITLE -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide slide-title active" data-slide="1">
+  <h1 class="reveal">Federation Token Exchange<br><span style="color:var(--red)">Implementation Blueprint</span></h1>
+  <div class="subtitle reveal">IdP-Agnostic &middot; Step-by-Step &middot; Error-Proof</div>
+  <div class="red-line reveal"></div>
+  <p class="reveal" style="margin-top:24px;color:var(--muted);font-size:var(--sz-small)">
+    Auth0 &middot; Okta &middot; Microsoft Entra ID &middot; Any OIDC-compliant IdP
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 2: THE FIVE ACTORS -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+  <div class="label reveal">The System</div>
+  <h2 class="reveal">Five Actors. No More, No Less.</h2>
+  <p class="reveal mt-1" style="color:var(--muted)">Every federation deployment has exactly these five components.</p>
+
+  <div class="reveal mt-2 flex-1" style="display:flex;flex-direction:column;gap:0;max-width:850px">
+    <div style="display:flex;gap:16px;justify-content:center;margin-bottom:24px;flex-wrap:wrap">
+      <div class="card" style="flex:1;min-width:140px;text-align:center;border-top:3px solid var(--ink)">
+        <div style="font-size:1.6rem;margin-bottom:4px">&#x1f310;</div>
+        <h4 style="font-size:var(--sz-small)">IdP</h4>
+        <p style="font-size:var(--sz-label);color:var(--muted)">Identity Provider<br>Auth0, Okta, Entra</p>
+      </div>
+      <div class="card" style="flex:1;min-width:140px;text-align:center;border-top:3px solid var(--ink)">
+        <div style="font-size:1.6rem;margin-bottom:4px">&#x1f4bb;</div>
+        <h4 style="font-size:var(--sz-small)">SPA</h4>
+        <p style="font-size:var(--sz-label);color:var(--muted)">Browser app<br>Login + claim extraction</p>
+      </div>
+      <div class="card" style="flex:1;min-width:140px;text-align:center;border-top:3px solid var(--red)">
+        <div style="font-size:1.6rem;margin-bottom:4px">&#x2699;</div>
+        <h4 style="font-size:var(--sz-small)">Backend Server</h4>
+        <p style="font-size:var(--sz-label);color:var(--muted)">Holds secrets<br>Token exchange hub</p>
+      </div>
+      <div class="card" style="flex:1;min-width:140px;text-align:center;border-top:3px solid var(--ink)">
+        <div style="font-size:1.6rem;margin-bottom:4px">&#x26a1;</div>
+        <h4 style="font-size:var(--sz-small)">Databricks</h4>
+        <p style="font-size:var(--sz-label);color:var(--muted)">Token endpoint<br>APIs + Unity Catalog</p>
+      </div>
+      <div class="card" style="flex:1;min-width:140px;text-align:center;border-top:3px solid var(--ink)">
+        <div style="font-size:1.6rem;margin-bottom:4px">&#x1f527;</div>
+        <h4 style="font-size:var(--sz-small)">MCP Server</h4>
+        <p style="font-size:var(--sz-label);color:var(--muted)">Tool server<br>SQL, Genie, Serving</p>
+      </div>
+    </div>
+    <pre style="text-align:center;background:var(--surface);font-size:var(--sz-code)">Human ──→ [SPA] ──→ [Backend Server] ──→ [Databricks] ──→ [MCP Server]
+              ↕              ↕
+           [IdP]          [IdP]
+        (login)       (M2M token)</pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3: PREREQUISITES -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="label reveal">Before You Start</div>
+  <h2 class="reveal">12 Prerequisites</h2>
+  <p class="reveal mt-1" style="color:var(--muted)">Nothing works without these. Set them up first, verify each one.</p>
+
+  <div class="three-col mt-2 reveal flex-1">
+    <div class="card card-red">
+      <h4>IdP Side (5)</h4>
+      <table>
+        <tr><td><strong>P1</strong></td><td>SPA Application (public client, PKCE)</td></tr>
+        <tr><td><strong>P2</strong></td><td>M2M Application (confidential, has secret)</td></tr>
+        <tr><td><strong>P3</strong></td><td>API Resource Server (audience = workspace URL)</td></tr>
+        <tr><td><strong>P4</strong></td><td>Post-login hook (injects role claims)</td></tr>
+        <tr><td><strong>P5</strong></td><td>Test users with role metadata</td></tr>
+      </table>
+    </div>
+    <div class="card" style="border-left:4px solid var(--ink)">
+      <h4>Databricks Side (4)</h4>
+      <table>
+        <tr><td><strong>P6</strong></td><td>Service Principals (one per role)</td></tr>
+        <tr><td><strong>P7</strong></td><td>Federation policy on each SP (iss/aud/sub)</td></tr>
+        <tr><td><strong>P8</strong></td><td>SP group memberships (for UC row filters)</td></tr>
+        <tr><td><strong>P9</strong></td><td>SQL Warehouse (conditional, only if running SQL)</td></tr>
+      </table>
+    </div>
+    <div class="card" style="border-left:4px solid var(--green)">
+      <h4>Backend Side (3)</h4>
+      <table>
+        <tr><td><strong>P10</strong></td><td>M2M client_id (public config)</td></tr>
+        <tr><td><strong>P11</strong></td><td>M2M client_secret (secret store only)</td></tr>
+        <tr><td><strong>P12</strong></td><td>Role-to-SP mapping (JSON lookup table)</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 4: THE 7-STEP FLOW -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+  <div class="label reveal">The Flow</div>
+  <h2 class="reveal">7 Steps. Every Request. No Shortcuts.</h2>
+
+  <div class="reveal mt-2 flex-1">
+    <div class="flow-vertical">
+      <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><strong>Human opens SPA</strong><p>Browser loads. Nothing authenticated yet.</p></div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><strong>SPA redirects to IdP</strong><p>PKCE authorization code flow. Human sees IdP login page.</p></div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-step"><div class="flow-num red">3</div><div class="flow-content"><strong>IdP authenticates + injects claims</strong><p>Post-login hook writes role, groups, company into namespace claims.</p></div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><strong>SPA extracts role, maps to internal key</strong><p>IdP "sales-west" &rarr; app role "west_sales". Token stays in browser.</p></div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-step"><div class="flow-num red">5</div><div class="flow-content"><strong>Backend gets M2M JWT from IdP</strong><p><code>client_credentials</code> grant. JWT has iss, aud, sub that Databricks validates.</p></div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-step"><div class="flow-num red">6</div><div class="flow-content"><strong>Token exchange: JWT &rarr; Databricks SP token</strong><p>RFC 8693: <code>POST /oidc/v1/token</code> with JWT + SP application_id. Databricks validates iss/aud/sub against federation policy.</p></div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-step"><div class="flow-num green">7</div><div class="flow-content"><strong>MCP call with SP token</strong><p>SP token used for SQL/Genie/Serving. UC row filters fire per SP group membership.</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 5: STEPS 1-4 (LOGIN PHASE) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label reveal">Phase 1</div>
+  <h2 class="reveal">Login + Claim Injection + Role Mapping</h2>
+
+  <div class="two-col mt-2 reveal flex-1">
+    <div>
+      <div class="card card-red mb-2">
+        <h4>Step 2: SPA &rarr; IdP</h4>
+        <p style="font-size:var(--sz-small)">The SPA sends to the IdP:</p>
+        <pre style="font-size:var(--sz-code);margin-top:6px"><span class="kw">client_id</span>   = SPA app client_id (public)
+<span class="kw">redirect_uri</span> = callback URL
+<span class="kw">audience</span>    = https://adb-xxx.azuredatabricks.net
+<span class="kw">scope</span>       = openid profile email
+<span class="kw">code_challenge</span> = PKCE challenge</pre>
+      </div>
+      <div class="card mb-2">
+        <h4>Step 3: Claims Injected</h4>
+<pre style="font-size:var(--sz-code);margin-top:6px">{
+  <span class="str">"https://your-ns.com/groups"</span>: [<span class="str">"sales-west"</span>],
+  <span class="str">"https://your-ns.com/role"</span>: <span class="str">"sales-west"</span>,
+  <span class="str">"https://your-ns.com/company"</span>: <span class="str">"PartnerCorp"</span>,
+  <span class="str">"https://your-ns.com/email"</span>: <span class="str">"sarah@partner.com"</span>
+}</pre>
+      </div>
+    </div>
+    <div>
+      <div class="card mb-2" style="border-left:4px solid var(--ink)">
+        <h4>Step 4: Role Mapping</h4>
+        <p style="font-size:var(--sz-small);margin-bottom:8px">The SPA maps IdP role names to internal keys. This isolates your system from IdP naming changes.</p>
+        <table>
+          <tr><th>IdP Claim</th><th>&rarr;</th><th>App Role</th></tr>
+          <tr><td><code>sales-west</code></td><td>&rarr;</td><td><code>west_sales</code></td></tr>
+          <tr><td><code>sales-east</code></td><td>&rarr;</td><td><code>east_sales</code></td></tr>
+          <tr><td><code>executives</code></td><td>&rarr;</td><td><code>executive</code></td></tr>
+          <tr><td><code>finance</code></td><td>&rarr;</td><td><code>finance</code></td></tr>
+          <tr><td><code>admin</code></td><td>&rarr;</td><td><code>admin</code></td></tr>
+        </table>
+      </div>
+      <div class="card" style="border-left:4px solid var(--red)">
+        <h4>Key Invariant</h4>
+        <p style="font-size:var(--sz-small)"><strong>The human's IdP token never leaves the browser.</strong> The backend authenticates independently via M2M credentials. The SPA only sends the mapped role string, not the token.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 6: STEPS 5-7 (EXCHANGE PHASE) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label reveal">Phase 2</div>
+  <h2 class="reveal">M2M JWT + Token Exchange + MCP Call</h2>
+
+  <div class="two-col mt-2 reveal flex-1">
+    <div>
+      <div class="card card-red mb-2">
+        <h4>Step 5: M2M JWT from IdP</h4>
+<pre style="font-size:var(--sz-code);margin-top:6px"><span class="kw">POST</span> https://&lt;idp-domain&gt;/oauth/token
+
+{
+  <span class="str">"client_id"</span>: <span class="str">"&lt;M2M client_id&gt;"</span>,
+  <span class="str">"client_secret"</span>: <span class="str">"&lt;M2M secret&gt;"</span>,
+  <span class="str">"audience"</span>: <span class="str">"https://adb-xxx...net"</span>,
+  <span class="str">"grant_type"</span>: <span class="str">"client_credentials"</span>
+}</pre>
+        <p style="font-size:var(--sz-small);margin-top:6px">Response JWT contains: <code>iss</code>, <code>aud</code>, <code>sub</code></p>
+      </div>
+      <div class="card mb-2" style="border-left:4px solid var(--ink)">
+        <h4>Step 6: Token Exchange (RFC 8693)</h4>
+<pre style="font-size:var(--sz-code);margin-top:6px"><span class="kw">POST</span> /oidc/v1/token
+
+<span class="kw">grant_type</span>=urn:ietf:params:oauth:
+  grant-type:token-exchange
+<span class="kw">subject_token</span>=&lt;JWT from Step 5&gt;
+<span class="kw">subject_token_type</span>=urn:ietf:params:
+  oauth:token-type:jwt
+<span class="kw">client_id</span>=&lt;SP application_id&gt;
+<span class="kw">scope</span>=all-apis</pre>
+      </div>
+    </div>
+    <div>
+      <div class="card card-green mb-2">
+        <h4>Step 7: MCP Server Call</h4>
+<pre style="font-size:var(--sz-code);margin-top:6px"><span class="kw">POST</span> /mcp
+<span class="kw">Authorization</span>: Bearer &lt;db_token&gt;
+<span class="kw">X-Databricks-Token</span>: &lt;db_token&gt;
+<span class="kw">X-Caller-Role</span>: west_sales
+<span class="kw">X-Caller-Email</span>: sarah@partner.com
+
+{
+  <span class="str">"jsonrpc"</span>: <span class="str">"2.0"</span>,
+  <span class="str">"method"</span>: <span class="str">"tools/call"</span>,
+  <span class="str">"params"</span>: { <span class="str">"name"</span>: <span class="str">"query"</span> }
+}</pre>
+      </div>
+      <div class="card" style="border-left:4px solid var(--green)">
+        <h4>Why Two Token Headers?</h4>
+        <p style="font-size:var(--sz-small)"><code>Authorization</code> is consumed by the Databricks Apps proxy. <code>X-Databricks-Token</code> is read by MCP server code for downstream SQL/Genie/Serving calls. UC row filters fire per SP group membership.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 7: TWO AUTH0 APPS -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label reveal">Architecture Decision</div>
+  <h2 class="reveal">Two IdP Apps, Not One</h2>
+  <p class="reveal mt-1" style="color:var(--muted)">Every deployment needs both. They serve completely different purposes.</p>
+
+  <div class="two-col mt-2 reveal flex-1">
+    <div class="card" style="border-top:4px solid var(--ink)">
+      <div class="badge badge-ink mb-1">SPA App</div>
+      <h4>Human Login</h4>
+      <table class="mt-1">
+        <tr><td style="width:35%"><strong>Type</strong></td><td>Public client (no secret)</td></tr>
+        <tr><td><strong>Grant</strong></td><td>Authorization Code + PKCE</td></tr>
+        <tr><td><strong>Used by</strong></td><td>Browser</td></tr>
+        <tr><td><strong>Purpose</strong></td><td>Authenticate human, get ID token with role claims</td></tr>
+        <tr><td><strong>Talks to</strong></td><td>IdP only (never Databricks)</td></tr>
+      </table>
+    </div>
+    <div class="card" style="border-top:4px solid var(--red)">
+      <div class="badge badge-red mb-1">M2M App</div>
+      <h4>Federation Exchange</h4>
+      <table class="mt-1">
+        <tr><td style="width:35%"><strong>Type</strong></td><td>Confidential (has client_secret)</td></tr>
+        <tr><td><strong>Grant</strong></td><td>Client Credentials</td></tr>
+        <tr><td><strong>Used by</strong></td><td>Backend server</td></tr>
+        <tr><td><strong>Purpose</strong></td><td>Get JWT for Databricks token exchange</td></tr>
+        <tr><td><strong>Talks to</strong></td><td>IdP + Databricks</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="reveal mt-2 card" style="max-width:700px;border-left:4px solid var(--red)">
+    <p style="font-size:var(--sz-small)"><strong>The human's token never touches Databricks.</strong> The SPA handles login. The M2M app handles federation. Different credentials, different grant types, different trust boundaries.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 8: ERROR CATALOG -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label reveal">Troubleshooting</div>
+  <h2 class="reveal">Error Catalog</h2>
+  <p class="reveal" style="color:var(--muted)">Every error you will encounter, why it happens, and how to fix it.</p>
+
+  <div class="reveal mt-2 flex-1" style="overflow-y:auto">
+    <table>
+      <tr><th style="width:22%">Error</th><th style="width:10%">Step</th><th style="width:30%">Cause</th><th>Fix</th></tr>
+      <tr><td>Custom claims missing</td><td>3</td><td>Post-login hook not firing, or token_dialect wrong</td><td>Verify hook is deployed AND bound. Auth0: set <code>token_dialect: access_token_authz</code></td></tr>
+      <tr><td><code>aud</code> mismatch</td><td>6</td><td>JWT audience ≠ federation policy</td><td>M2M token request must use <code>audience</code> = exact workspace URL (with <code>https://</code>)</td></tr>
+      <tr><td><code>iss</code> mismatch</td><td>6</td><td>JWT issuer ≠ federation policy</td><td>Check trailing slashes. Auth0: <code>.com/</code>. Okta: <code>/oauth2/default</code>. Decode a real JWT.</td></tr>
+      <tr><td><code>sub</code> mismatch</td><td>6</td><td>JWT subject ≠ federation policy</td><td>Auth0 appends <code>@clients</code>. Entra uses Object ID (not Client ID). Decode real JWT.</td></tr>
+      <tr><td><code>unknown role</code></td><td>7</td><td>Role string not in role-to-SP map</td><td>Check SPA mapping table. Ensure every IdP role has a map entry.</td></tr>
+      <tr><td>401 from <code>/oidc/v1/token</code></td><td>6</td><td>No federation policy, or SP not found</td><td>Verify SP exists + federation policy attached + JWT is fresh.</td></tr>
+      <tr><td>403 from SQL/Genie</td><td>7</td><td>SP lacks warehouse/Genie permissions</td><td>Grant <code>CAN USE</code> on warehouse, <code>CAN RUN</code> on Genie to SP/group.</td></tr>
+      <tr><td>Wrong row filter results</td><td>7</td><td>SP not in correct workspace group</td><td>Verify with <code>SELECT is_member('group_name')</code> using each SP token.</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 9: SECURITY INVARIANTS -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label reveal">Security</div>
+  <h2 class="reveal">6 Invariants. Always True.</h2>
+  <p class="reveal" style="color:var(--muted)">If any is violated, the system is broken.</p>
+
+  <div class="reveal mt-2 flex-1" style="max-width:800px;display:flex;flex-direction:column;gap:0">
+    <div class="invariant"><div class="inv-num">1</div><div class="inv-text"><strong>The human's IdP token never leaves the browser.</strong> The backend authenticates independently via M2M.</div></div>
+    <div class="invariant"><div class="inv-num">2</div><div class="inv-text"><strong>The M2M client_secret is never in code, config files, or git.</strong> It lives only in the deployment platform's secret store.</div></div>
+    <div class="invariant"><div class="inv-num">3</div><div class="inv-text"><strong>The role-to-SP map is the single source of truth</strong> for which roles exist. If a role is not in the map, it cannot access Databricks.</div></div>
+    <div class="invariant"><div class="inv-num">4</div><div class="inv-text"><strong>One SP per role, not per user.</strong> You do not create SPs for individual humans. You create SPs for roles.</div></div>
+    <div class="invariant"><div class="inv-num">5</div><div class="inv-text"><strong>UC governance is the enforcement layer, not the application.</strong> Even if the MCP server has a bug, the SP token can only see data UC allows for that SP's groups.</div></div>
+    <div class="invariant"><div class="inv-num">6</div><div class="inv-text"><strong>All federation policies use the M2M app's subject, not the human's.</strong> Human identity is carried in metadata headers for audit, not for authentication.</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 10: AUTH0 REFERENCE -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label reveal">IdP Reference</div>
+  <h2 class="reveal">Auth0</h2>
+
+  <div class="two-col mt-2 reveal flex-1">
+    <div>
+      <div class="card mb-2">
+        <h4>Setup</h4>
+        <table>
+          <tr><td><strong>SPA</strong></td><td>Single Page Application, PKCE, no secret</td></tr>
+          <tr><td><strong>M2M</strong></td><td>Machine to Machine, client_credentials</td></tr>
+          <tr><td><strong>API</strong></td><td>Identifier = workspace URL</td></tr>
+          <tr><td><strong>Hook</strong></td><td>Actions &rarr; Post-Login trigger</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h4>Post-Login Action (pseudo)</h4>
+<pre style="font-size:var(--sz-code)"><span class="kw">ON</span> post-login(user, api):
+  ns = <span class="str">"https://your-namespace.com"</span>
+  groups = user.app_metadata.groups
+  role = <span class="kw">FIRST</span> match in hierarchy
+  <span class="kw">SET</span> claim <span class="str">"{ns}/role"</span> = role
+  <span class="kw">SET</span> claim <span class="str">"{ns}/groups"</span> = groups</pre>
+      </div>
+    </div>
+    <div>
+      <div class="card card-red">
+        <h4>Auth0 Gotchas</h4>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">
+          <div>
+            <div class="badge badge-red mb-1">Critical</div>
+            <p style="font-size:var(--sz-small)"><code>token_dialect</code> defaults to <code>access_token</code> which <strong>silently drops all custom claims</strong>. You MUST set it to <code>access_token_authz</code> on the API Resource Server.</p>
+          </div>
+          <div>
+            <div class="badge badge-muted mb-1">sub format</div>
+            <p style="font-size:var(--sz-small)">M2M tokens have <code>sub = {client_id}@clients</code>. Federation policy must include the <code>@clients</code> suffix.</p>
+          </div>
+          <div>
+            <div class="badge badge-muted mb-1">Trailing slash</div>
+            <p style="font-size:var(--sz-small)"><code>iss = https://dev-xxx.auth0.com/</code> (with slash). Federation policy must include it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 11: OKTA REFERENCE -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label reveal">IdP Reference</div>
+  <h2 class="reveal">Okta</h2>
+
+  <div class="two-col mt-2 reveal flex-1">
+    <div>
+      <div class="card mb-2">
+        <h4>Setup</h4>
+        <table>
+          <tr><td><strong>SPA</strong></td><td>OIDC SPA, PKCE</td></tr>
+          <tr><td><strong>M2M</strong></td><td>API Services (Client Credentials)</td></tr>
+          <tr><td><strong>Auth Server</strong></td><td>Custom (NOT default org server)</td></tr>
+          <tr><td><strong>Hook</strong></td><td>Token Inline Hook, or built-in Groups claim</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h4>Simpler Alternative: Built-in Groups Claim</h4>
+<pre style="font-size:var(--sz-code)">Claims tab &gt; Add Claim:
+  Name: <span class="str">https://your-ns.com/groups</span>
+  Include in: <span class="kw">Access Token</span>
+  Value type: <span class="kw">Groups</span>
+  Filter: Matches regex <span class="str">.*</span></pre>
+        <p style="font-size:var(--sz-small);margin-top:6px">Resolve primary role in SPA or backend instead of in the hook.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card card-red">
+        <h4>Okta Gotchas</h4>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">
+          <div>
+            <div class="badge badge-red mb-1">iss format</div>
+            <p style="font-size:var(--sz-small)"><code>iss</code> includes the auth server ID: <code>https://org.okta.com/oauth2/{server-id}</code>. Do NOT use just <code>https://org.okta.com/</code>.</p>
+          </div>
+          <div>
+            <div class="badge badge-muted mb-1">sub format</div>
+            <p style="font-size:var(--sz-small)"><code>sub = {client_id}</code> (no <code>@clients</code> suffix, unlike Auth0).</p>
+          </div>
+          <div>
+            <div class="badge badge-green mb-1">No token_dialect fix</div>
+            <p style="font-size:var(--sz-small)">Okta emits JWTs by default for custom auth servers.</p>
+          </div>
+          <div>
+            <div class="badge badge-red mb-1">Default org server</div>
+            <p style="font-size:var(--sz-small)">Custom claims are NOT supported on the default org authorization server. You must create a custom one.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 12: ENTRA ID REFERENCE -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label reveal">IdP Reference</div>
+  <h2 class="reveal">Microsoft Entra ID</h2>
+
+  <div class="two-col mt-2 reveal flex-1">
+    <div>
+      <div class="card mb-2">
+        <h4>Setup</h4>
+        <table>
+          <tr><td><strong>SPA</strong></td><td>App Registration, SPA platform redirect</td></tr>
+          <tr><td><strong>M2M</strong></td><td>App Registration, Web type, client secret</td></tr>
+          <tr><td><strong>API</strong></td><td>Expose an API (Application ID URI = workspace URL)</td></tr>
+          <tr><td><strong>Roles</strong></td><td>App Roles (native, no custom hook needed)</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h4>Native App Roles (no hook needed)</h4>
+<pre style="font-size:var(--sz-code)">App Registration &gt; App Roles &gt; Create:
+  Display: <span class="str">"West Sales"</span>
+  Value: <span class="str">"west_sales"</span>
+  Members: Users/Groups
+
+Enterprise App &gt; Users and Groups:
+  Assign user/group to role</pre>
+        <p style="font-size:var(--sz-small);margin-top:6px">The <code>roles</code> claim appears automatically in the access token.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card card-red">
+        <h4>Entra Gotchas</h4>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">
+          <div>
+            <div class="badge badge-red mb-1">iss depends on token version</div>
+            <p style="font-size:var(--sz-small)">v2.0: <code>https://login.microsoftonline.com/{tenant}/v2.0</code><br>v1.0: <code>https://sts.windows.net/{tenant}/</code><br>Check <code>accessTokenAcceptedVersion</code> in manifest.</p>
+          </div>
+          <div>
+            <div class="badge badge-red mb-1">sub = Object ID</div>
+            <p style="font-size:var(--sz-small)"><code>sub</code> in M2M tokens is the App Registration's <strong>Object ID</strong>, NOT the Application/Client ID. Decode a real token.</p>
+          </div>
+          <div>
+            <div class="badge badge-muted mb-1">Scope format</div>
+            <p style="font-size:var(--sz-small)">M2M scope: <code>https://{audience}/.default</code>. The <code>/.default</code> suffix is mandatory.</p>
+          </div>
+          <div>
+            <div class="badge badge-muted mb-1">Groups limit</div>
+            <p style="font-size:var(--sz-small)">Groups claim has a 200-member limit. For large orgs, use App Roles instead.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 13: SP FEDERATION POLICY -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="13">
+  <div class="label reveal">Databricks Setup</div>
+  <h2 class="reveal">SP Federation Policy (IdP-Agnostic)</h2>
+  <p class="reveal" style="color:var(--muted)">Same process regardless of IdP. Repeat for each SP.</p>
+
+  <div class="two-col mt-2 reveal flex-1">
+    <div>
+      <div class="card mb-2">
+        <h4>Federation Policy Structure</h4>
+<pre style="font-size:var(--sz-code)"><span class="kw">PUT</span> /api/2.0/accounts/{account_id}/
+  servicePrincipals/{sp_id}/
+  credentials/federation-policies/{name}
+
+{
+  <span class="str">"oidc_federation_policy"</span>: {
+    <span class="str">"issuer"</span>: <span class="str">"&lt;exact iss from JWT&gt;"</span>,
+    <span class="str">"audiences"</span>: [<span class="str">"&lt;exact aud&gt;"</span>],
+    <span class="str">"subject"</span>: <span class="str">"&lt;exact sub from JWT&gt;"</span>,
+    <span class="str">"subject_claim"</span>: <span class="str">"sub"</span>
+  }
+}</pre>
+      </div>
+    </div>
+    <div>
+      <div class="card card-red">
+        <h4>How to Get the Exact Values</h4>
+        <div class="flow-vertical" style="align-items:flex-start;gap:8px;margin-top:8px">
+          <div class="flow-step"><div class="flow-num" style="width:24px;height:24px;font-size:0.65rem">1</div><div class="flow-content"><p>Get a real M2M JWT from your IdP</p></div></div>
+          <div class="flow-step"><div class="flow-num" style="width:24px;height:24px;font-size:0.65rem">2</div><div class="flow-content"><p>Base64-decode the payload (middle segment)</p></div></div>
+          <div class="flow-step"><div class="flow-num red" style="width:24px;height:24px;font-size:0.65rem">3</div><div class="flow-content"><p>Copy <code>iss</code>, <code>aud</code>, <code>sub</code> exactly into the policy</p></div></div>
+        </div>
+        <div class="card mt-2" style="border-left:4px solid var(--red);background:#fff5f3">
+          <p style="font-size:var(--sz-small)"><strong>Never guess these values.</strong> Trailing slashes, <code>@clients</code> suffixes, and version paths all matter. Always decode a real token.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 14: SMOKE TEST -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="14">
+  <div class="label reveal">Validation</div>
+  <h2 class="reveal">Smoke Test: Verify Before You Build</h2>
+  <p class="reveal" style="color:var(--muted)">A single Python script that validates Steps 5 and 6 without needing a browser, SPA, or MCP server.</p>
+
+  <div class="two-col mt-2 reveal flex-1">
+    <div>
+      <div class="card mb-2">
+        <h4>What It Tests (in order)</h4>
+        <div class="flow-vertical" style="align-items:flex-start;gap:4px;margin-top:8px">
+          <div class="flow-step"><div class="flow-num" style="width:24px;height:24px;font-size:0.65rem">1</div><div class="flow-content"><p>Can the M2M app get a JWT from the IdP?</p></div></div>
+          <div class="flow-connector" style="margin-left:11px;height:8px"></div>
+          <div class="flow-step"><div class="flow-num" style="width:24px;height:24px;font-size:0.65rem">2</div><div class="flow-content"><p>Does the JWT contain expected <code>iss</code>, <code>aud</code>, <code>sub</code>?</p></div></div>
+          <div class="flow-connector" style="margin-left:11px;height:8px"></div>
+          <div class="flow-step"><div class="flow-num" style="width:24px;height:24px;font-size:0.65rem">3</div><div class="flow-content"><p>Can Databricks exchange that JWT for each SP token?</p></div></div>
+          <div class="flow-connector" style="margin-left:11px;height:8px"></div>
+          <div class="flow-step"><div class="flow-num green" style="width:24px;height:24px;font-size:0.65rem">4</div><div class="flow-content"><p>Does <code>current_user()</code> return the correct SP?</p></div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card mb-2">
+        <h4>Configuration (5 env vars)</h4>
+<pre style="font-size:var(--sz-code)"><span class="kw">export</span> IDP_TOKEN_URL=<span class="str">"https://&lt;idp&gt;/oauth/token"</span>
+<span class="kw">export</span> M2M_CLIENT_ID=<span class="str">"your-m2m-client-id"</span>
+<span class="kw">export</span> M2M_CLIENT_SECRET=<span class="str">"your-secret"</span>
+<span class="kw">export</span> DB_HOST=<span class="str">"https://adb-xxx...net"</span>
+<span class="kw">export</span> ROLE_SP_MAP=<span class="str">'{"west_sales":"aaa..."}'</span>
+
+python3 test_federation.py</pre>
+      </div>
+      <div class="card card-green">
+        <h4>Expected Output (all passing)</h4>
+<pre style="font-size:var(--sz-code);background:var(--green-bg);border-color:var(--green)"><span class="str">[PASS]</span> HTTP 200
+<span class="str">[PASS]</span> iss  (https://dev-xxx.auth0.com/)
+<span class="str">[PASS]</span> aud  (https://adb-xxx...net)
+<span class="str">[PASS]</span> sub  (client_id@clients)
+
+Role: west_sales  SP: aaaa...
+<span class="str">[PASS]</span> exchange HTTP 200
+<span class="str">[PASS]</span> current_user = SP
+
+Results: 6/6 roles passed</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 15: DECISION CHECKLIST -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="15">
+  <div class="label reveal">Go/No-Go</div>
+  <h2 class="reveal">Decision Checklist</h2>
+  <p class="reveal" style="color:var(--muted)">Complete this before writing any code.</p>
+
+  <div class="three-col mt-2 reveal flex-1">
+    <div class="card card-red">
+      <h4>IdP Setup</h4>
+      <div style="font-size:var(--sz-small);display:flex;flex-direction:column;gap:6px;margin-top:8px">
+        <label><input type="checkbox"> IdP selected and tenant created</label>
+        <label><input type="checkbox"> SPA app registered (public, PKCE)</label>
+        <label><input type="checkbox"> M2M app registered (confidential)</label>
+        <label><input type="checkbox"> API resource server (audience = workspace URL)</label>
+        <label><input type="checkbox"> Token dialect/version verified (claims present in JWT)</label>
+        <label><input type="checkbox"> Post-login hook deployed and bound</label>
+        <label><input type="checkbox"> Test users created with role metadata</label>
+      </div>
+    </div>
+    <div class="card" style="border-left:4px solid var(--ink)">
+      <h4>Databricks Setup</h4>
+      <div style="font-size:var(--sz-small);display:flex;flex-direction:column;gap:6px;margin-top:8px">
+        <label><input type="checkbox"> SPs created (one per role)</label>
+        <label><input type="checkbox"> Federation policy on each SP (iss/aud/sub from decoded JWT)</label>
+        <label><input type="checkbox"> SPs added to workspace groups</label>
+        <label><input type="checkbox"> UC row filters use <code>is_member()</code></label>
+        <label><input type="checkbox"> SQL warehouse active (if needed)</label>
+      </div>
+    </div>
+    <div class="card card-green">
+      <h4>Backend + Validation</h4>
+      <div style="font-size:var(--sz-small);display:flex;flex-direction:column;gap:6px;margin-top:8px">
+        <label><input type="checkbox"> Role-to-SP map written (JSON)</label>
+        <label><input type="checkbox"> M2M secret in deployment secret store</label>
+        <label><input type="checkbox"> MCP server deployed</label>
+        <label><input type="checkbox"> Smoke test passes (all roles)</label>
+        <label><input type="checkbox"> End-to-end: login per persona, verify different data</label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- NAVIGATION -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<button class="nav-btn disabled" id="prevBtn" onclick="prevSlide()">&larr;</button>
+<button class="nav-btn" id="nextBtn" onclick="nextSlide()">&rarr;</button>
+<div class="nav-hint">&larr; &rarr; arrow keys</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+
+function showSlide(index, direction) {
+  if (index < 0 || index >= total) return;
+  const prev = current;
+  current = index;
+  slides.forEach(s => { s.classList.remove('active', 'exit-left'); s.style.transform = ''; s.style.opacity = ''; });
+  if (direction === 'next') slides[prev].classList.add('exit-left');
+  else if (direction === 'prev') { slides[prev].style.transform = 'translateX(60px)'; slides[prev].style.opacity = '0'; }
+  slides[current].classList.add('active');
+  document.getElementById('counter').textContent = String(current+1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+  document.getElementById('progressBar').style.width = ((current+1)/total*100) + '%';
+  document.getElementById('prevBtn').classList.toggle('disabled', current === 0);
+  document.getElementById('nextBtn').classList.toggle('disabled', current === total-1);
+}
+function nextSlide() { if (current < total-1) showSlide(current+1, 'next'); }
+function prevSlide() { if (current > 0) showSlide(current-1, 'prev'); }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+  if (e.key === 'Home') { e.preventDefault(); showSlide(0, 'prev'); }
+  if (e.key === 'End') { e.preventDefault(); showSlide(total-1, 'next'); }
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) { dx < 0 ? nextSlide() : prevSlide(); }
+});
+
+showSlide(0);
+</script>
+</body>
+</html>
