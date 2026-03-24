@@ -13,6 +13,7 @@ Two distinct concepts, often conflated:
 2. [Authorization](authorization.md): The three token patterns, UC governance, OAuth scopes, service principals
 3. [U2M from External Apps](u2m-external-obo.md): OBO from a non-Databricks app when users are already provisioned in the workspace
 4. [Federation Exchange](federation.md): Bridging external identity providers to Databricks for users who don't have workspace accounts
+5. [GCP Workload Identity Federation](gcp-workload-identity-federation.md): Any GCP workload (GKE, Cloud Run, Compute Engine, etc.) to Databricks via RFC 8693, no secrets required
 
 ## The Key Insight
 
