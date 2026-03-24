@@ -14,7 +14,7 @@ Your business needs an AI platform where users get governed answers from live da
 |--------|------|----------|
 | Identity & Access Control | [identity/](identity/) | AuthN (IdP delegation), AuthZ (OBO, M2M, Federation), UC governance, scopes, SPs |
 | Data Governance | [data-governance/](data-governance/) | Row filters, column masks, ABAC, governed tags, Genie multi-team patterns |
-| Tool & API Governance | [tool-governance/](tool-governance/) | AI Gateway, MCP, UC Connections, orchestration |
+| Tool & API Governance | [tool-governance/](tool-governance/) | AI Gateway patterns, UC HTTP Connections (4 auth methods), USE CONNECTION governance |
 | Observability & Audit | [observability/](observability/) | System tables, MLflow traces, audit patterns |
 
 Network, developer guardrails, and policy/compliance pillars are defined in the [Governance Framework](GOVERNANCE-FRAMEWORK.md) and will be added as content is built and validated.
@@ -39,6 +39,7 @@ Network, developer guardrails, and policy/compliance pillars are defined in the 
 | 4 | [UC Governance](https://bhavink.github.io/applied-ai-governance/presentations/uc-governance.html) | Technical | Four-layer access control, row filters, column masks, ABAC |
 | 5 | [Orchestration](https://bhavink.github.io/applied-ai-governance/presentations/orchestration.html) | Technical | Agents, Apps, MCP, AI Gateway, external auth |
 | 6 | [AI Gateway Patterns](https://bhavink.github.io/applied-ai-governance/presentations/ai-gateway-patterns-v2.html) | Technical | Gateway traffic patterns and decision framework |
+| 7 | [UC HTTP Connections](https://bhavink.github.io/applied-ai-governance/presentations/uc-connections.html) | Technical | Four auth methods, setup walkthrough, governance model, gotchas |
 
 Browse all decks: [Presentations](https://bhavink.github.io/applied-ai-governance/presentations/)
 
@@ -61,6 +62,12 @@ A: This is the two-proxy problem. See [Authorization](identity/authorization.md#
 **Q: How do I give external users governed access to Databricks AI tools?**
 A: Use Federation Exchange. See [Federation](identity/federation.md).
 
+**Q: How do I govern which agents can call external APIs?**
+A: Use UC HTTP Connections with `GRANT USE CONNECTION`. See [UC Connections](tool-governance/uc-connections.md).
+
+**Q: Can an agent access a user's personal Google Drive or Gmail?**
+A: Yes, using OAuth U2M Per User connections. Each user authenticates separately. See [UC Connections](tool-governance/uc-connections.md#oauth-u2m-per-user).
+
 ---
 
 ## Related Databricks Documentation
@@ -76,4 +83,4 @@ A: Use Federation Exchange. See [Federation](identity/federation.md).
 
 ---
 
-*Last updated: 2026-03-20*
+*Last updated: 2026-03-23*

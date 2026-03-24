@@ -44,6 +44,10 @@ An external app exchanges an IdP token for a Databricks SP token. Users don't ha
 
 See [Federation Exchange](federation.md) for the full pattern.
 
+### U2M from External Apps
+
+For external apps where the user is already a Databricks user, see [U2M from External Apps](u2m-external-obo.md) for a pattern that preserves `current_user()` = human email without Federation. This covers cases like Cloudflare Workers, AWS Lambda, or any backend outside the Databricks Apps proxy where you still want per-user identity propagation.
+
 ### Choosing the Right Pattern
 
 | Question | Answer |

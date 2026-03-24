@@ -11,7 +11,8 @@ Two distinct concepts, often conflated:
 
 1. [Authentication](authentication.md): How AuthN works across clouds (brief, links to official docs)
 2. [Authorization](authorization.md): The three token patterns, UC governance, OAuth scopes, service principals
-3. [Federation Exchange](federation.md): Bridging external identity providers to Databricks for users who don't have workspace accounts
+3. [U2M from External Apps](u2m-external-obo.md): OBO from a non-Databricks app when users are already provisioned in the workspace
+4. [Federation Exchange](federation.md): Bridging external identity providers to Databricks for users who don't have workspace accounts
 
 ## The Key Insight
 

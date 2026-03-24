@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UC HTTP Connections — Databricks</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ===========================================
+           THEME — SWISS MODERN (v2)
+           White bg · charcoal text · Swiss red #cc3311
+           Space Grotesk · 14 slides
+           =========================================== */
+        :root {
+            --bg:           #ffffff;
+            --surface:      #f4f3f0;
+            --surface2:     #eae9e5;
+            --border:       #e0ddd8;
+            --text:         #111111;
+            --muted:        #787878;
+            --accent:       #cc3311;   /* Swiss red */
+            --accent-dim:   rgba(204,51,17,0.07);
+
+            /* Pattern palette */
+            --p1:     #16a34a; --p1-bg: #f0fdf4;
+            --p2:     #1d4ed8; --p2-bg: #eff6ff;
+            --p3:     #b45309; --p3-bg: #fffbeb;
+            --p4:     #dc2626; --p4-bg: #fef2f2;
+
+            /* Type scale */
+            --font:     'Space Grotesk', sans-serif;
+            --sz-title: clamp(2.8rem, 7.5vw, 7rem);
+            --sz-h2:    clamp(1.4rem, 3.5vw, 2.75rem);
+            --sz-h3:    clamp(1rem, 2.2vw, 1.5rem);
+            --sz-body:  clamp(0.72rem, 1.3vw, 0.95rem);
+            --sz-small: clamp(0.62rem, 1.05vw, 0.82rem);
+            --sz-label: clamp(0.52rem, 0.75vw, 0.68rem);
+
+            /* Spacing */
+            --pad:    clamp(1.5rem, 5vw, 5rem);
+            --gap:    clamp(0.75rem, 1.8vw, 1.75rem);
+            --gap-sm: clamp(0.4rem, 0.9vw, 0.9rem);
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html {
+            height: 100%;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            height: 100%;
+        }
+
+        /* ===========================================
+           SLIDE BASE — exact 100vh, no overflow
+           =========================================== */
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            padding: var(--pad);
+            position: relative;
+        }
+
+        .slide-inner {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 100%;
+            overflow: hidden;
+        }
+
+        /* ===========================================
+           TYPOGRAPHY
+           =========================================== */
+        .eyebrow {
+            font-size: var(--sz-label);
+            font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        h1 {
+            font-size: var(--sz-title);
+            font-weight: 700;
+            line-height: 0.93;
+            letter-spacing: -0.03em;
+        }
+
+        h2 {
+            font-size: var(--sz-h2);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+
+        h3 {
+            font-size: var(--sz-h3);
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        p, li {
+            font-size: var(--sz-body);
+            line-height: 1.55;
+            color: var(--muted);
+        }
+
+        code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            background: var(--surface);
+            padding: 1px 5px;
+            border-radius: 2px;
+            color: var(--text);
+        }
+
+        /* ===========================================
+           PROGRESS BAR + NAV DOTS
+           =========================================== */
+        #progress {
+            position: fixed;
+            top: 0; left: 0;
+            height: 3px;
+            background: var(--accent);
+            transition: width 0.35s ease;
+            z-index: 100;
+        }
+
+        #navDots {
+            position: fixed;
+            right: clamp(0.75rem, 1.5vw, 1.5rem);
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            z-index: 100;
+        }
+
+        .dot {
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: var(--border);
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+            padding: 0;
+        }
+        .dot.active { background: var(--accent); transform: scale(1.6); }
+
+        .slide-num {
+            position: absolute;
+            bottom: clamp(1rem, 2vw, 2rem);
+            right: var(--pad);
+            font-size: var(--sz-label);
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            color: var(--border);
+        }
+
+        /* ===========================================
+           ANIMATIONS
+           =========================================== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(16px);
+            transition: opacity 0.5s cubic-bezier(0.16,1,0.3,1),
+                        transform 0.5s cubic-bezier(0.16,1,0.3,1);
+        }
+        .slide.visible .reveal { opacity: 1; transform: translateY(0); }
+        .reveal:nth-child(1) { transition-delay: 0.04s; }
+        .reveal:nth-child(2) { transition-delay: 0.11s; }
+        .reveal:nth-child(3) { transition-delay: 0.18s; }
+        .reveal:nth-child(4) { transition-delay: 0.25s; }
+        .reveal:nth-child(5) { transition-delay: 0.32s; }
+        .reveal:nth-child(6) { transition-delay: 0.39s; }
+
+        /* ===========================================
+           LAYOUT HELPERS
+           =========================================== */
+        .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+        .cols-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--gap-sm); }
+
+        /* ===========================================
+           SHARED COMPONENTS
+           =========================================== */
+
+        .rule { height: 1px; background: var(--border); margin: var(--gap-sm) 0; }
+
+        /* Swiss accent bar */
+        .bar {
+            height: 4px;
+            width: clamp(2rem, 4vw, 3.5rem);
+            background: var(--accent);
+        }
+
+        /* Card */
+        .card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: clamp(0.7rem, 1.4vw, 1.25rem);
+            border-radius: 2px;
+        }
+        .card.p1 { border-left: 3px solid var(--p1); }
+        .card.p2 { border-left: 3px solid var(--p2); }
+        .card.p3 { border-left: 3px solid var(--p3); }
+        .card.p4 { border-left: 3px solid var(--p4); }
+
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 9px;
+            border-radius: 2px;
+            font-size: var(--sz-label);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .badge.p1 { background: var(--p1-bg); color: var(--p1); }
+        .badge.p2 { background: var(--p2-bg); color: var(--p2); }
+        .badge.p3 { background: var(--p3-bg); color: var(--p3); }
+        .badge.p4 { background: var(--p4-bg); color: var(--p4); }
+
+        /* Callout */
+        .callout {
+            background: var(--surface);
+            border-left: 3px solid var(--accent);
+            padding: clamp(0.5rem,1vw,0.9rem) clamp(0.75rem,1.4vw,1.25rem);
+            font-size: var(--sz-body);
+            color: var(--text);
+            line-height: 1.5;
+        }
+        .callout.green { border-left-color: var(--p1); }
+        .callout.red   { border-left-color: var(--p4); }
+        .callout.blue  { border-left-color: var(--p2); }
+
+        /* Bullet list — Swiss em-dash style */
+        .blist { list-style: none; display: flex; flex-direction: column; gap: clamp(0.3rem,0.7vw,0.65rem); }
+        .blist li { display: flex; gap: 9px; align-items: flex-start; }
+        .blist li::before { content: '\2014'; color: var(--accent); font-weight: 700; flex-shrink: 0; margin-top: 0.05em; }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            text-align: left;
+            font-size: var(--sz-label);
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+            border-bottom: 2px solid var(--border);
+            padding: clamp(0.35rem,0.7vw,0.7rem) clamp(0.5rem,0.9vw,0.9rem);
+        }
+        td {
+            font-size: var(--sz-small);
+            padding: clamp(0.35rem,0.65vw,0.65rem) clamp(0.5rem,0.9vw,0.9rem);
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+        td:first-child { font-weight: 600; color: var(--text); }
+        tbody tr:hover td { background: var(--surface); }
+
+        /* Step list */
+        .steps { display: flex; flex-direction: column; gap: clamp(0.4rem,0.8vw,0.75rem); }
+        .step  { display: flex; align-items: flex-start; gap: 10px; }
+        .step-n {
+            width: clamp(1.4rem,2.2vw,2rem);
+            height: clamp(1.4rem,2.2vw,2rem);
+            border-radius: 50%;
+            border: 1.5px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: var(--sz-label);
+            font-weight: 700;
+            flex-shrink: 0;
+            color: var(--muted);
+        }
+        .step-n.ok  { background: var(--p1); border-color: var(--p1); color: #fff; }
+        .step-n.err { background: var(--p4-bg); border-color: var(--p4); color: var(--p4); }
+        .step-t { font-size: var(--sz-body); color: var(--text); line-height: 1.4; }
+
+        /* Flow box */
+        .flow-box {
+            border: 1px solid var(--border);
+            padding: clamp(0.6rem,1.2vw,1.1rem);
+            background: var(--bg);
+            border-radius: 2px;
+        }
+
+        /* Col label */
+        .col-label {
+            font-size: var(--sz-label);
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: var(--gap-sm);
+        }
+
+        /* Title slide dot grid */
+        .dot-grid {
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(var(--border) 1px, transparent 1px);
+            background-size: 28px 28px;
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        /* Decision tree row */
+        .dt-row {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            align-items: center;
+            gap: var(--gap);
+            padding: clamp(0.55rem,1vw,0.9rem) 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .dt-row:last-child { border-bottom: none; }
+        .dt-question { font-size: var(--sz-body); color: var(--text); font-weight: 500; }
+        .dt-answer {
+            font-size: var(--sz-small);
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 2px;
+        }
+        .dt-answer.yes { background: var(--p1-bg); color: var(--p1); }
+        .dt-answer.no  { color: var(--muted); }
+        .dt-result {
+            font-size: var(--sz-small);
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 2px;
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        /* Proxy flow diagram */
+        .proxy-flow {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-wrap: nowrap;
+        }
+        .proxy-node {
+            border: 1px solid var(--border);
+            padding: clamp(0.5rem,1vw,0.9rem) clamp(0.6rem,1.2vw,1.1rem);
+            background: var(--bg);
+            border-radius: 2px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .proxy-node.highlight {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+        .proxy-node-label {
+            font-size: var(--sz-small);
+            font-weight: 600;
+            color: var(--text);
+        }
+        .proxy-node-sub {
+            font-size: var(--sz-label);
+            color: var(--muted);
+            margin-top: 2px;
+        }
+        .proxy-arrow {
+            font-size: var(--sz-small);
+            color: var(--muted);
+            padding: 0 clamp(0.3rem,0.6vw,0.6rem);
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        /* Hero slide accent border */
+        .slide.hero-accent {
+            border-left: 5px solid var(--accent);
+        }
+
+        /* Gotcha card grid */
+        .gotcha-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--gap-sm);
+        }
+        .gotcha-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: clamp(0.5rem,1vw,0.9rem);
+            border-radius: 2px;
+        }
+        .gotcha-card.red-border   { border-top: 3px solid var(--p4); }
+        .gotcha-card.amber-border { border-top: 3px solid var(--p3); }
+        .gotcha-card.blue-border  { border-top: 3px solid var(--p2); }
+        .gotcha-card.grey-border  { border-top: 3px solid var(--border); }
+        .gotcha-title {
+            font-size: var(--sz-small);
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .gotcha-body {
+            font-size: var(--sz-label);
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        /* Pros/Cons table inline */
+        .pc-table { width: 100%; }
+        .pc-table td { font-size: var(--sz-label); padding: 3px 6px; }
+        .pc-pro  { color: var(--p1); font-weight: 600; }
+        .pc-con  { color: var(--p4); font-weight: 600; }
+
+        /* SQL code block */
+        .sql-block {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            padding: clamp(0.5rem,1vw,0.9rem);
+            font-family: 'Courier New', monospace;
+            font-size: var(--sz-small);
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        /* ===========================================
+           RESPONSIVE BREAKPOINTS
+           =========================================== */
+        @media (max-height: 700px) {
+            :root { --pad: clamp(1rem,3vw,3rem); --gap: clamp(0.5rem,1.3vw,1.25rem); --gap-sm: clamp(0.3rem,0.7vw,0.7rem); }
+        }
+        @media (max-height: 600px) {
+            :root { --sz-h2: clamp(1.1rem,2.5vw,2rem); --pad: clamp(0.75rem,2.5vw,2rem); }
+            #navDots { display: none; }
+        }
+        @media (max-height: 500px) {
+            :root { --pad: clamp(0.5rem,2vw,1.5rem); }
+            .slide-num { display: none; }
+        }
+        @media (max-width: 768px) { .cols-2, .cols-3, .gotcha-grid { grid-template-columns: 1fr; } }
+        @media (prefers-reduced-motion: reduce) {
+            .reveal { transition: opacity 0.2s ease; transform: none; }
+            html { scroll-behavior: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="progress"></div>
+<nav id="navDots" aria-label="Slide navigation"></nav>
+
+<!-- ─── SLIDE 01 — TITLE ─────────────────────────────────── -->
+<section class="slide" id="s1">
+    <div class="dot-grid"></div>
+
+    <div style="display:flex; flex-direction:column; justify-content:space-between; height:100%; padding:0; position:relative; z-index:1;">
+        <div class="reveal">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:var(--gap-sm);">
+                <div class="eyebrow">Databricks · AI Governance</div>
+            </div>
+            <div class="rule"></div>
+        </div>
+
+        <div>
+            <div class="bar reveal" style="margin-bottom: var(--gap-sm);"></div>
+            <h1 class="reveal">UC HTTP<br>Connections</h1>
+            <p class="reveal" style="font-size: var(--sz-h3); color: var(--muted); max-width: 52ch; margin-top: var(--gap); line-height: 1.4;">
+                Governing External Service Access
+            </p>
+        </div>
+
+        <div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:var(--gap-sm);" class="reveal">
+                <span class="badge p3">Pillar 4: Tool &amp; API Governance</span>
+            </div>
+            <div class="reveal">
+                <span style="font-size: var(--sz-label); color: var(--border);">Arrow keys or Space to navigate</span>
+            </div>
+        </div>
+    </div>
+    <div class="slide-num">01 / 15</div>
+</section>
+
+<!-- ─── SLIDE 02 — BUSINESS CHALLENGE ────────────────────── -->
+<section class="slide" id="s2">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">The Challenge</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0;">Your agents call external APIs. Who controls that traffic?</h2>
+        <div class="rule reveal"></div>
+
+        <div class="cols-2 reveal" style="margin-top: var(--gap);">
+            <div class="card" style="border-left:4px solid var(--accent);">
+                <h3 style="font-size:var(--sz-body); margin-bottom:6px;">Credential sprawl</h3>
+                <p>API keys scattered across env vars, app code, and CI pipelines. Every rotation means redeploying every consumer. No single inventory of who holds what credential, or when it expires.</p>
+            </div>
+            <div class="card" style="border-left:4px solid var(--text);">
+                <h3 style="font-size:var(--sz-body); margin-bottom:6px;">Authorization gap</h3>
+                <p>Any agent that can reach the network can call any external API. There is no centralized on/off switch. Revoking access means hunting down every place the credential was copied.</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-num">02 / 15</div>
+</section>
+
+<!-- ─── SLIDE 03 — THE PROXY MODEL ───────────────────────── -->
+<section class="slide" id="s3">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Core Concept</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">Application code never touches credentials</h2>
+
+        <div class="proxy-flow reveal" style="margin-bottom: var(--gap); overflow-x:auto;">
+            <div class="proxy-node">
+                <div class="proxy-node-label">Agent / App</div>
+                <div class="proxy-node-sub">Calls connection</div>
+            </div>
+            <div class="proxy-arrow">&#8594;</div>
+            <div class="proxy-node highlight">
+                <div class="proxy-node-label">UC Connection Proxy</div>
+                <div class="proxy-node-sub">USE CONNECTION check</div>
+            </div>
+            <div class="proxy-arrow">&#8594;</div>
+            <div class="proxy-node" style="border-color:var(--p1);">
+                <div class="proxy-node-label">Inject Credential</div>
+                <div class="proxy-node-sub">Server-side only</div>
+            </div>
+            <div class="proxy-arrow">&#8594;</div>
+            <div class="proxy-node" style="border-color:var(--p2);">
+                <div class="proxy-node-label">External Service</div>
+                <div class="proxy-node-sub">GitHub, Slack, etc.</div>
+            </div>
+        </div>
+
+        <div class="callout reveal">
+            <strong>App never holds the credential.</strong> Databricks injects it at proxy time. REVOKE USE CONNECTION = instant removal. No redeployment needed.
+        </div>
+    </div>
+    <div class="slide-num">03 / 15</div>
+</section>
+
+<!-- ─── SLIDE 04 — FOUR AUTH METHODS OVERVIEW ────────────── -->
+<section class="slide" id="s4">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Overview</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">Four authentication methods, one governance model</h2>
+
+        <div class="reveal">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>External Identity</th>
+                        <th>Credential Lifecycle</th>
+                        <th>Best For</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Bearer Token</td>
+                        <td>Shared (static token)</td>
+                        <td>Manual rotation</td>
+                        <td>Simple APIs</td>
+                    </tr>
+                    <tr>
+                        <td>OAuth M2M</td>
+                        <td>Shared (service/app)</td>
+                        <td>Auto-refresh</td>
+                        <td>Service-to-service</td>
+                    </tr>
+                    <tr>
+                        <td>OAuth U2M Shared</td>
+                        <td>Shared (one user's token)</td>
+                        <td>Auto-refresh</td>
+                        <td>OAuth without M2M support</td>
+                    </tr>
+                    <tr>
+                        <td>OAuth U2M Per User</td>
+                        <td>Per user (individual token)</td>
+                        <td>Auto-refresh per user</td>
+                        <td>User-scoped data</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout reveal" style="margin-top: var(--gap);">
+            All four enforce <code>USE CONNECTION</code> on the Databricks side. The auth method determines <em>how</em> the external credential is obtained; USE CONNECTION determines <em>who</em> is allowed to use it.
+        </div>
+    </div>
+    <div class="slide-num">04 / 15</div>
+</section>
+
+<!-- ─── SLIDE 05 — BEARER TOKEN ──────────────────────────── -->
+<section class="slide" id="s5">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Auth Method 1</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">Bearer Token: simple, static, shared</h2>
+
+        <div class="cols-2 reveal">
+            <div>
+                <div class="col-label">How it works</div>
+                <ul class="blist">
+                    <li>Store an API key or static token in the connection</li>
+                    <li>All callers with USE CONNECTION share the same credential</li>
+                    <li>Databricks injects the token into the <code>Authorization</code> header at proxy time</li>
+                    <li>Rotation requires updating the connection and is manual</li>
+                </ul>
+            </div>
+            <div>
+                <div class="col-label">Trade-offs</div>
+                <table class="pc-table">
+                    <tbody>
+                        <tr><td class="pc-pro">+ Simple setup</td></tr>
+                        <tr><td class="pc-pro">+ Works with any API that accepts a static token</td></tr>
+                        <tr><td class="pc-con">- No auto-refresh</td></tr>
+                        <tr><td class="pc-con">- No per-user identity at the external service</td></tr>
+                        <tr><td class="pc-con">- Token expiration requires manual intervention</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="callout red reveal" style="margin-top: var(--gap);">
+            Token expiration requires manual intervention. Use OAuth methods when the external service supports them.
+        </div>
+    </div>
+    <div class="slide-num">05 / 15</div>
+</section>
+
+<!-- ─── SLIDE 06 — OAUTH M2M ────────────────────────────── -->
+<section class="slide" id="s6">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Auth Method 2</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">OAuth M2M: service-to-service, auto-refresh</h2>
+
+        <div class="cols-2 reveal">
+            <div>
+                <div class="col-label">How it works</div>
+                <ul class="blist">
+                    <li>Uses <code>client_credentials</code> grant type</li>
+                    <li>Databricks stores the Client ID and Client Secret</li>
+                    <li>Tokens are refreshed automatically before expiration</li>
+                    <li>All callers share the same service identity at the external provider</li>
+                </ul>
+            </div>
+            <div>
+                <div class="col-label">Trade-offs</div>
+                <table class="pc-table">
+                    <tbody>
+                        <tr><td class="pc-pro">+ Auto-refresh, no manual rotation</td></tr>
+                        <tr><td class="pc-pro">+ Standard OAuth, widely supported</td></tr>
+                        <tr><td class="pc-pro">+ No user interaction required</td></tr>
+                        <tr><td class="pc-con">- Shared identity, no per-user tracking at external service</td></tr>
+                        <tr><td class="pc-con">- External service must support client_credentials</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="callout green reveal" style="margin-top: var(--gap);">
+            Recommended over Bearer Token when the external service supports OAuth. Eliminates manual rotation entirely.
+        </div>
+    </div>
+    <div class="slide-num">06 / 15</div>
+</section>
+
+<!-- ─── SLIDE 07 — OAUTH U2M SHARED ─────────────────────── -->
+<section class="slide" id="s7">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Auth Method 3</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">OAuth U2M Shared: one user authorizes for all</h2>
+
+        <div class="cols-2 reveal">
+            <div>
+                <div class="col-label">How it works</div>
+                <ul class="blist">
+                    <li>One user completes the OAuth consent flow</li>
+                    <li>Their refresh token is stored in the connection</li>
+                    <li>All callers with USE CONNECTION share this single user's token</li>
+                    <li>Databricks auto-refreshes using the stored refresh token</li>
+                </ul>
+            </div>
+            <div>
+                <div class="col-label" style="color:var(--p4);">Risk</div>
+                <div class="card" style="border-top:3px solid var(--p4);">
+                    <p style="font-size:var(--sz-small);"><strong>Single point of failure.</strong> If the authorizing user leaves the organization, revokes consent, or changes their password, the connection breaks for <em>every</em> consumer. Recovery requires a new user to re-authorize.</p>
+                </div>
+                <div style="margin-top:var(--gap-sm);">
+                    <div class="col-label">When to use</div>
+                    <p style="font-size:var(--sz-small);">External service supports OAuth but does <em>not</em> support the <code>client_credentials</code> grant. U2M Shared is a fallback when M2M is unavailable.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-num">07 / 15</div>
+</section>
+
+<!-- ─── SLIDE 08 — OAUTH U2M PER USER (HERO) ────────────── -->
+<section class="slide hero-accent" id="s8">
+    <div class="slide-inner">
+        <div class="eyebrow reveal" style="color:var(--accent);">Auth Method 4</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">OAuth U2M Per User: true end-to-end identity</h2>
+
+        <div class="cols-2 reveal">
+            <div>
+                <div class="col-label">Flow</div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-n ok">1</div>
+                        <div class="step-t">User triggers action (query, tool call, agent step)</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-n ok">2</div>
+                        <div class="step-t">Proxy checks <code>USE CONNECTION</code> grant for <code>current_user()</code></div>
+                    </div>
+                    <div class="step">
+                        <div class="step-n ok">3</div>
+                        <div class="step-t">First time: user completes OAuth consent at external provider</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-n ok">4</div>
+                        <div class="step-t">Per-user refresh token stored, subsequent calls auto-refresh</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-n ok">5</div>
+                        <div class="step-t">External service receives the individual user's token</div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="col-label">Why it matters</div>
+                <table>
+                    <tbody>
+                        <tr>
+                            <td>Databricks side</td>
+                            <td><code>current_user()</code> identity preserved</td>
+                        </tr>
+                        <tr>
+                            <td>External side</td>
+                            <td>Individual user's OAuth token</td>
+                        </tr>
+                        <tr>
+                            <td>User leaves</td>
+                            <td>Only their access breaks, others unaffected</td>
+                        </tr>
+                        <tr>
+                            <td>Audit</td>
+                            <td>Per-user attribution at both layers</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="callout reveal" style="margin-top: var(--gap);">
+            <strong>Supported providers:</strong> Google (Drive, Docs, Gmail, Calendar), GitHub, Glean, SharePoint, and custom OAuth providers.
+        </div>
+    </div>
+    <div class="slide-num">08 / 15</div>
+</section>
+
+<!-- ─── SLIDE 09 — DECISION FRAMEWORK ────────────────────── -->
+<section class="slide" id="s9">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Decision Framework</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">Choosing the right method</h2>
+
+        <div class="reveal">
+            <div class="dt-row">
+                <div class="dt-question">Need per-user identity at the external service?</div>
+                <div class="dt-answer yes">Yes</div>
+                <div class="dt-result">U2M Per User</div>
+            </div>
+            <div class="dt-row">
+                <div class="dt-question">External service supports OAuth <code>client_credentials</code>?</div>
+                <div class="dt-answer yes">Yes</div>
+                <div class="dt-result">OAuth M2M</div>
+            </div>
+            <div class="dt-row">
+                <div class="dt-question">External service supports OAuth but no <code>client_credentials</code>?</div>
+                <div class="dt-answer yes">Yes</div>
+                <div class="dt-result">U2M Shared</div>
+            </div>
+            <div class="dt-row">
+                <div class="dt-question">Static API key only?</div>
+                <div class="dt-answer yes">Yes</div>
+                <div class="dt-result">Bearer Token</div>
+            </div>
+        </div>
+
+        <div class="callout reveal" style="margin-top: var(--gap);">
+            Start from the top. The first "Yes" is your method. U2M Per User gives the strongest governance posture but requires external OAuth support and per-user consent.
+        </div>
+    </div>
+    <div class="slide-num">09 / 15</div>
+</section>
+
+<!-- ─── SLIDE 10 — PROVIDER PREREQUISITES ─────────────────── -->
+<section class="slide" id="s10">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Prerequisites</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0;">Can your provider support U2M?</h2>
+        <p class="reveal" style="color:var(--muted);margin-bottom:var(--gap);">Six requirements, service-agnostic. If all six are yes, it works with UC HTTP connections.</p>
+
+        <div class="cols-2 reveal">
+            <div class="card" style="border-top:3px solid var(--accent);">
+                <div class="col-label">Mandatory requirements</div>
+                <table>
+                    <tr><td style="font-weight:700;width:180px;vertical-align:top">Authorization Code Grant</td><td>RFC 6749 Section 4.1. User redirected to consent page, provider redirects back with auth code.</td></tr>
+                    <tr><td style="font-weight:700;vertical-align:top">Refresh tokens</td><td>Provider must issue a <code>refresh_token</code>. Scope varies: Google (<code>offline_access</code>), Microsoft (<code>offline_access</code>), Salesforce (<code>refresh_token</code>).</td></tr>
+                    <tr><td style="font-weight:700;vertical-align:top">Custom redirect URIs</td><td>Must allow registering <code>&lt;workspace&gt;/login/oauth/http.html</code> as a redirect URI.</td></tr>
+                    <tr><td style="font-weight:700;vertical-align:top">Confidential client</td><td>Client ID + Client Secret (not public/PKCE-only clients).</td></tr>
+                    <tr><td style="font-weight:700;vertical-align:top">Standard token endpoint</td><td><code>grant_type=authorization_code</code> for initial exchange, <code>grant_type=refresh_token</code> for renewal.</td></tr>
+                    <tr><td style="font-weight:700;vertical-align:top">HTTPS endpoints</td><td>All authorization and token endpoints must be HTTPS.</td></tr>
+                </table>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:var(--gap-sm);">
+                <div class="card reveal" style="border-top:3px solid var(--p3);">
+                    <div class="col-label">Credential exchange methods</div>
+                    <table>
+                        <tr><td style="font-weight:700;width:130px"><code>header_and_body</code></td><td>Default. Google, most providers.</td></tr>
+                        <tr><td style="font-weight:700"><code>body_only</code></td><td>Some custom OAuth servers.</td></tr>
+                        <tr><td style="font-weight:700"><code>header_only</code></td><td>Okta, some enterprise IdPs.</td></tr>
+                    </table>
+                </div>
+                <div class="callout red reveal">
+                    <strong>Common blockers:</strong> No auth code grant (M2M only), no refresh tokens, proprietary auth extensions, admin policy blocking third-party apps, redirect URI domain restrictions.
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-num">10 / 15</div>
+</section>
+
+<!-- ─── SLIDE 11 — SETUP WALKTHROUGH ─────────────────────── -->
+<section class="slide" id="s11">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Implementation</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">Setting up a U2M connection</h2>
+
+        <div class="cols-2 reveal">
+            <div class="card" style="border-top:3px solid var(--p3);">
+                <div class="col-label">External OAuth Provider</div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-n">1</div>
+                        <div class="step-t">Create an OAuth client (application registration)</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-n">2</div>
+                        <div class="step-t">Add redirect URI: <code>&lt;workspace-url&gt;/login/oauth/http.html</code></div>
+                    </div>
+                    <div class="step">
+                        <div class="step-n">3</div>
+                        <div class="step-t">Enable required APIs and scopes (include <code>offline_access</code>)</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-n">4</div>
+                        <div class="step-t">Configure consent screen (internal or external)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="border-top:3px solid var(--p2);">
+                <div class="col-label">Databricks</div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-n">1</div>
+                        <div class="step-t">Create HTTP connection (Catalog Explorer or SQL)</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-n">2</div>
+                        <div class="step-t">Enter host, authorization endpoint, token endpoint</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-n">3</div>
+                        <div class="step-t">Enter Client ID and Client Secret from the OAuth provider</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-n">4</div>
+                        <div class="step-t">Click "Sign in with HTTP" to complete the consent flow</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="callout reveal" style="margin-top: var(--gap);">
+            Redirect URI pattern: <code>&lt;workspace-url&gt;/login/oauth/http.html</code>. Must match exactly, no trailing slash.
+        </div>
+    </div>
+    <div class="slide-num">11 / 15</div>
+</section>
+
+<!-- ─── SLIDE 12 — OAUTH CONSENT FLOW ────────────────────── -->
+<section class="slide" id="s12">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Deep Dive</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">The redirect URI handshake</h2>
+
+        <div class="reveal">
+            <div class="steps">
+                <div class="step">
+                    <div class="step-n ok">1</div>
+                    <div class="step-t">User clicks <strong>"Sign in with HTTP"</strong> in Databricks connection UI</div>
+                </div>
+                <div class="step">
+                    <div class="step-n ok">2</div>
+                    <div class="step-t">Databricks redirects browser to the external provider's <strong>authorization endpoint</strong></div>
+                </div>
+                <div class="step">
+                    <div class="step-n ok">3</div>
+                    <div class="step-t">User reviews and <strong>grants consent</strong> at the external provider's consent screen</div>
+                </div>
+                <div class="step">
+                    <div class="step-n ok">4</div>
+                    <div class="step-t">External provider redirects back to <code>&lt;workspace&gt;/login/oauth/http.html</code> with an auth code</div>
+                </div>
+                <div class="step">
+                    <div class="step-n ok">5</div>
+                    <div class="step-t">Databricks exchanges the auth code for <strong>access + refresh tokens</strong> (server-side)</div>
+                </div>
+                <div class="step">
+                    <div class="step-n ok">6</div>
+                    <div class="step-t">Connection is <strong>active</strong>. Subsequent calls auto-refresh using the stored refresh token.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="callout reveal" style="margin-top: var(--gap);">
+            The <code>offline_access</code> scope is required to obtain a refresh token. Without it, the connection works for approximately one hour, then fails silently when the access token expires.
+        </div>
+    </div>
+    <div class="slide-num">12 / 15</div>
+</section>
+
+<!-- ─── SLIDE 13 — GOTCHAS ───────────────────────────────── -->
+<section class="slide" id="s13">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Gotchas</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">Common setup errors and fixes</h2>
+
+        <div class="gotcha-grid reveal" style="margin-bottom: var(--gap-sm);">
+            <div class="gotcha-card red-border">
+                <div class="gotcha-title"><code>redirect_uri_mismatch</code></div>
+                <div class="gotcha-body">URI must exactly match what the provider expects. No trailing slash. Check the error details page for the exact value the provider received.</div>
+            </div>
+            <div class="gotcha-card amber-border">
+                <div class="gotcha-title"><code>admin_policy_enforced</code></div>
+                <div class="gotcha-body">Org admin blocks unauthorized OAuth apps. Allowlist the Client ID in the provider's admin console before attempting consent.</div>
+            </div>
+            <div class="gotcha-card blue-border">
+                <div class="gotcha-title"><code>offline_access</code> scope</div>
+                <div class="gotcha-body">Required for a refresh token. Without it, the connection works for ~1 hour then fails silently. Always include this scope.</div>
+            </div>
+        </div>
+
+        <div class="gotcha-grid reveal">
+            <div class="gotcha-card grey-border">
+                <div class="gotcha-title">Immutable name</div>
+                <div class="gotcha-body">Connection name cannot be changed after creation. Choose carefully. Consumers reference it by name in SQL and tool configs.</div>
+            </div>
+            <div class="gotcha-card grey-border">
+                <div class="gotcha-title">Owner access</div>
+                <div class="gotcha-body">The creator has irrevocable USE CONNECTION. Transfer ownership to a service principal if you need to control access fully.</div>
+            </div>
+            <div class="gotcha-card grey-border">
+                <div class="gotcha-title">MCP flag locked</div>
+                <div class="gotcha-body"><code>isMcpConnection</code> cannot be toggled after creation. If you need to change it, delete the connection and recreate it.</div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-num">13 / 15</div>
+</section>
+
+<!-- ─── SLIDE 14 — USE CONNECTION GOVERNANCE ──────────────── -->
+<section class="slide" id="s14">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Governance</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">GRANT USE CONNECTION: the on/off switch</h2>
+
+        <div class="cols-2 reveal">
+            <div>
+                <div class="col-label">SQL Examples</div>
+                <div class="sql-block">-- Grant access
+GRANT USE CONNECTION
+  ON CONNECTION my_github_conn
+  TO `data-engineering`;
+
+-- Revoke access
+REVOKE USE CONNECTION
+  ON CONNECTION my_github_conn
+  FROM `data-engineering`;
+
+-- Audit grants
+SHOW GRANTS
+  ON CONNECTION my_github_conn;</div>
+            </div>
+            <div>
+                <div class="col-label">Defense in Depth</div>
+                <div class="card" style="border-top:3px solid var(--p3); margin-bottom:var(--gap-sm);">
+                    <div style="font-weight:600; font-size:var(--sz-small); margin-bottom:4px;">Layer 1: Network (SNP)</div>
+                    <p style="font-size:var(--sz-small);">Serverless Network Perimeter controls which FQDNs are reachable at the network layer. Blocks egress regardless of caller.</p>
+                </div>
+                <div class="card" style="border-top:3px solid var(--p2);">
+                    <div style="font-weight:600; font-size:var(--sz-small); margin-bottom:4px;">Layer 2: Credential (USE CONNECTION)</div>
+                    <p style="font-size:var(--sz-small);">Even if the host is reachable, the caller needs a USE CONNECTION grant to get credentials injected. No grant = 403, credential never leaves storage.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="callout reveal" style="margin-top: var(--gap);">
+            <strong>Combined:</strong> SNP controls which destinations are reachable. USE CONNECTION controls which identities can authenticate. Neither alone is sufficient; together they form a complete egress governance layer.
+        </div>
+    </div>
+    <div class="slide-num">14 / 15</div>
+</section>
+
+<!-- ─── SLIDE 15 — QUICK REFERENCE ───────────────────────── -->
+<section class="slide" id="s15">
+    <div class="slide-inner">
+        <div class="eyebrow reveal">Summary</div>
+        <h2 class="reveal" style="margin: var(--gap-sm) 0 var(--gap);">Quick Reference</h2>
+
+        <div class="reveal">
+            <table>
+                <thead>
+                    <tr><th></th><th>Details</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Auth Methods</td>
+                        <td>Bearer Token, OAuth M2M, OAuth U2M Shared, OAuth U2M Per User</td>
+                    </tr>
+                    <tr>
+                        <td>Governance Primitive</td>
+                        <td><code>GRANT / REVOKE USE CONNECTION</code></td>
+                    </tr>
+                    <tr>
+                        <td>Redirect URI</td>
+                        <td><code>&lt;workspace-url&gt;/login/oauth/http.html</code></td>
+                    </tr>
+                    <tr>
+                        <td>Provider Prerequisites</td>
+                        <td>Authorization code grant, refresh tokens, custom redirect URIs, confidential client, standard token endpoint, HTTPS</td>
+                    </tr>
+                    <tr>
+                        <td>Common Gotchas</td>
+                        <td>redirect_uri_mismatch, admin_policy_enforced, offline_access scope, immutable name, owner access, MCP flag locked</td>
+                    </tr>
+                    <tr>
+                        <td>Network Layer</td>
+                        <td>Serverless Network Perimeter (SNP) for FQDN allowlisting</td>
+                    </tr>
+                    <tr>
+                        <td>Credential Layer</td>
+                        <td>USE CONNECTION for per-identity authorization</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout green reveal" style="margin-top: var(--gap);">
+            <strong>UC Connections:</strong> centralized credential storage, per-identity authorization, instant revocation.
+        </div>
+
+        <div style="margin-top: var(--gap);" class="reveal">
+            <span style="font-size:var(--sz-label); color:var(--border);">Reference: github.com/bhavink/applied-ai-governance</span>
+        </div>
+    </div>
+    <div class="slide-num">15 / 15</div>
+</section>
+
+<script>
+/* ===========================================
+   SLIDE PRESENTATION CONTROLLER
+   =========================================== */
+(function () {
+    const TOTAL = 15;
+    const slides = [...document.querySelectorAll('.slide')];
+    const progress = document.getElementById('progress');
+    const navDots = document.getElementById('navDots');
+    let current = 0;
+
+    /* Build nav dots */
+    slides.forEach((_, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'dot' + (i === 0 ? ' active' : '');
+        btn.setAttribute('aria-label', `Slide ${i + 1}`);
+        btn.addEventListener('click', () => scrollTo(i));
+        navDots.appendChild(btn);
+    });
+
+    function updateState(idx) {
+        current = Math.max(0, Math.min(TOTAL - 1, idx));
+        progress.style.width = ((current + 1) / TOTAL * 100) + '%';
+        [...navDots.children].forEach((d, i) => d.classList.toggle('active', i === current));
+    }
+
+    function scrollTo(idx) {
+        slides[idx].scrollIntoView({ behavior: 'smooth' });
+    }
+
+    /* IntersectionObserver — marks slide visible, triggers .reveal */
+    const io = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+            if (e.isIntersecting) {
+                e.target.classList.add('visible');
+                updateState(slides.indexOf(e.target));
+            }
+        });
+    }, { threshold: 0.55 });
+
+    slides.forEach(s => io.observe(s));
+
+    /* Keyboard navigation */
+    document.addEventListener('keydown', e => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+            e.preventDefault();
+            scrollTo(Math.min(current + 1, TOTAL - 1));
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            scrollTo(Math.max(current - 1, 0));
+        } else if (e.key === 'Home') {
+            e.preventDefault(); scrollTo(0);
+        } else if (e.key === 'End') {
+            e.preventDefault(); scrollTo(TOTAL - 1);
+        }
+    });
+
+    /* Touch / swipe */
+    let touchY = 0;
+    document.addEventListener('touchstart', e => { touchY = e.touches[0].clientY; }, { passive: true });
+    document.addEventListener('touchend', e => {
+        const diff = touchY - e.changedTouches[0].clientY;
+        if (Math.abs(diff) > 40) scrollTo(diff > 0 ? current + 1 : current - 1);
+    }, { passive: true });
+
+})();
+</script>
+</body>
+</html>

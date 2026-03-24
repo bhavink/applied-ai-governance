@@ -116,7 +116,7 @@ tr:hover td{background:var(--surface)}
 
 <div class="topbar">
   <div class="title">AI <span>Orchestration</span> &amp; Governance on Databricks</div>
-  <div class="counter" id="counter">01 / 18</div>
+  <div class="counter" id="counter">01 / 21</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 <div class="nav-hint">&larr; &rarr; arrow keys</div>
@@ -657,9 +657,108 @@ REVOKE USE CONNECTION
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 17: DECISION GUIDE -->
+<!-- SLIDE 17: UC CONNECTION AUTH METHODS -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="17">
+  <div class="label reveal">UC Connection Auth</div>
+  <h2 class="reveal">Four ways to authenticate to external services</h2>
+  <p class="reveal" style="color:var(--muted)">All four enforce USE CONNECTION on the Databricks side. The difference: what identity does the external service see?</p>
+  <div class="flex-1 mt-2 reveal">
+    <table>
+      <thead>
+        <tr><th>Method</th><th>External Identity</th><th>Credential Lifecycle</th><th>Best For</th></tr>
+      </thead>
+      <tbody>
+        <tr><td style="font-weight:700">Bearer Token</td><td>Shared (one static token)</td><td>Manual rotation</td><td>Simple APIs with static keys</td></tr>
+        <tr><td style="font-weight:700">OAuth M2M</td><td>Shared (service/app credentials)</td><td>Auto-refresh</td><td>Service-to-service, no user context</td></tr>
+        <tr><td style="font-weight:700">OAuth U2M Shared</td><td>Shared (one user's OAuth token)</td><td>Auto-refresh</td><td>OAuth services without M2M support</td></tr>
+        <tr><td style="font-weight:700;color:var(--red)">OAuth U2M Per User</td><td><strong>Per user</strong> (individual OAuth token)</td><td>Auto-refresh per user</td><td>User-scoped data (Drive, Gmail, repos)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card card-green reveal">
+      <p><strong>U2M Per User</strong> is the only method with true end-to-end per-user identity. Each user completes OAuth consent once. Databricks stores their individual refresh token.</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--muted)">
+      <p style="font-size:var(--sz-small)"><strong>Supported for U2M Per User:</strong> Google (Drive, Docs, Gmail, Calendar), GitHub, Glean, SharePoint, and custom OAuth services with standard authorization code flow.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 18: U2M PER USER DEEP DIVE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="18">
+  <div class="label reveal">U2M Per User</div>
+  <h2 class="reveal">U2M Per User: true end-to-end identity</h2>
+  <p class="reveal" style="color:var(--muted)">Each user authenticates separately. User-scoped data access at the external service.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Flow</h4>
+      <div style="font-family:var(--mono);font-size:var(--sz-small);line-height:1.8">
+        <p>1. User triggers action in Databricks App/Agent</p>
+        <p>2. App calls UC Connection proxy</p>
+        <p>3. <code>USE CONNECTION</code> check passes</p>
+        <p>4. First time? User redirected to OAuth consent</p>
+        <p style="margin-left:16px;color:var(--muted)">Redirect URI: <code>&lt;workspace&gt;/login/oauth/http.html</code></p>
+        <p>5. User grants access at external provider</p>
+        <p>6. Databricks stores per-user refresh token</p>
+        <p>7. Subsequent calls: auto-refresh, no consent needed</p>
+      </div>
+    </div>
+    <div class="card card-red reveal">
+      <h4>Why it matters</h4>
+      <table>
+        <tr><td style="font-weight:700;width:100px">Databricks side</td><td><code>USE CONNECTION</code> checks <code>current_user()</code></td></tr>
+        <tr><td style="font-weight:700">External side</td><td>Individual user's OAuth token, user sees only their data</td></tr>
+        <tr><td style="font-weight:700">User leaves</td><td>Only their access breaks, not everyone's</td></tr>
+        <tr><td style="font-weight:700">Audit trail</td><td>Per-user at both Databricks and external service</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 19: UC CONNECTION GOTCHAS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="19">
+  <div class="label reveal">Gotchas</div>
+  <h2 class="reveal">UC connection setup: common gotchas</h2>
+  <div class="three-col mt-2">
+    <div class="card card-red reveal">
+      <h4><code>redirect_uri_mismatch</code></h4>
+      <p style="font-size:var(--sz-small)">The redirect URI in the OAuth provider must exactly match what Databricks sends: <code>&lt;workspace-url&gt;/login/oauth/http.html</code>. No trailing slash, no extra spaces. Check the error details page for the exact URI.</p>
+    </div>
+    <div class="card card-amber reveal">
+      <h4><code>admin_policy_enforced</code></h4>
+      <p style="font-size:var(--sz-small)">Organization admin blocks unauthorized third-party OAuth apps. The OAuth Client ID must be allowlisted in the admin console (e.g., Google Admin > Security > API Controls). No scope will work until this is resolved.</p>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--blue)">
+      <h4><code>offline_access</code> scope</h4>
+      <p style="font-size:var(--sz-small)">Required to obtain a refresh token. Without it, the connection works for ~1 hour (access token lifetime) then fails silently. Always include this scope for U2M connections.</p>
+    </div>
+  </div>
+  <div class="three-col mt-2">
+    <div class="card reveal">
+      <h4>Immutable name</h4>
+      <p style="font-size:var(--sz-small)">Connection name cannot be changed after creation. It becomes part of the MCP proxy URL. Choose a stable, descriptive name.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Owner access</h4>
+      <p style="font-size:var(--sz-small)">Creator has irrevocable <code>USE CONNECTION</code>. Transfer ownership via <code>ALTER CONNECTION ... SET OWNER TO ...</code> if the creator should lose access.</p>
+    </div>
+    <div class="card reveal">
+      <h4>MCP flag locked</h4>
+      <p style="font-size:var(--sz-small)"><code>isMcpConnection</code> cannot be toggled after creation. Delete and recreate if you need to change it.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 20: DECISION GUIDE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="20">
   <div class="label reveal">Decision Guide</div>
   <h2 class="reveal">Choosing the right pattern</h2>
   <div class="flex-1 mt-2 reveal" style="max-width:800px">
@@ -689,6 +788,11 @@ REVOKE USE CONNECTION
       <div class="dt-result"><span class="badge badge-red">UC CONNECTIONS</span> Proxy + SNP. REVOKE = instant removal.</div>
     </div>
     <div class="dt-row">
+      <div class="dt-cond">Agent needs user-scoped external data (personal Drive, Gmail)</div>
+      <div class="dt-arrow">&rarr;</div>
+      <div class="dt-result"><span class="badge badge-red">U2M PER USER</span> Each user authenticates separately.</div>
+    </div>
+    <div class="dt-row">
       <div class="dt-cond">External clients need managed API facade</div>
       <div class="dt-arrow">&rarr;</div>
       <div class="dt-result"><span class="badge badge-ink">EXT GATEWAY</span> Auth translation + rate limiting + versioning.</div>
@@ -702,9 +806,9 @@ REVOKE USE CONNECTION
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 18: SUMMARY -->
+<!-- SLIDE 21: SUMMARY -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide slide-title" data-slide="18">
+<div class="slide slide-title" data-slide="21">
   <div class="label reveal">Summary</div>
   <h1 class="reveal" style="font-size:var(--sz-h1)">What We Covered</h1>
   <div style="max-width:700px;text-align:left;margin:24px auto 0" class="reveal">
@@ -712,6 +816,7 @@ REVOKE USE CONNECTION
       <tr><td style="font-weight:700;color:var(--red);width:40px;font-size:1.4em;text-align:center">3</td><td>Agent auth methods: Automatic Passthrough, OBO, Manual</td></tr>
       <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">3</td><td>MCP types: Managed, External, and Custom, all UC-governed</td></tr>
       <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">4</td><td>Gateway patterns: No Gateway, AI Gateway, UC Connections, External</td></tr>
+      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">4</td><td>UC connection auth methods: Bearer, M2M, U2M Shared, U2M Per User</td></tr>
       <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">2</td><td>Federation types: Account-wide (users) and Workload Identity (automation)</td></tr>
       <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">1</td><td>Governance model: UC scopes, grants, row filters, column masks, connections</td></tr>
     </table>
