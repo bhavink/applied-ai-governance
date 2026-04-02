@@ -88,10 +88,24 @@ tr:hover td{background:var(--surface)}
 .mb-1{margin-bottom:8px}.mb-2{margin-bottom:16px}
 .flex-1{flex:1 1 0;min-height:0;overflow-y:auto}
 
-.nav-hint{position:fixed;bottom:16px;left:24px;font-size:var(--sz-label);color:var(--muted);opacity:0.5;z-index:100}
+.nav-controls{position:fixed;bottom:20px;right:24px;display:flex;align-items:center;gap:8px;z-index:200}
+.nav-btn{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);color:var(--ink);font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;padding:0;line-height:1}
+.nav-btn:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+.nav-btn.active{background:var(--ink);color:#fff}
+.nav-btn:disabled{opacity:0.25;cursor:default;pointer-events:none}
+.nav-help-btn{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;margin-left:8px;transition:all 0.2s;font-family:var(--font)}
+.nav-help-btn:hover{border-color:var(--ink);color:var(--ink)}
+.nav-overlay{position:fixed;inset:0;background:rgba(26,26,26,0.85);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.nav-overlay.visible{opacity:1;pointer-events:auto}
+.nav-overlay-card{background:#fff;border-radius:8px;padding:32px 40px;max-width:380px;width:90%;text-align:center;font-family:var(--font)}
+.nav-overlay-card h3{font-size:1.1rem;font-weight:700;margin-bottom:16px;letter-spacing:-0.02em}
+.nav-overlay-card table{width:100%;text-align:left;font-size:0.82rem;border-collapse:collapse}
+.nav-overlay-card td{padding:6px 8px;border-bottom:1px solid #eee}
+.nav-overlay-card td:first-child{font-family:var(--mono,monospace);font-weight:600;white-space:nowrap;color:var(--red,#cc3311)}
+.nav-overlay-card .dismiss{margin-top:16px;font-size:0.72rem;color:var(--muted,#666)}
 
 @media(max-width:900px){.two-col,.three-col,.four-col{grid-template-columns:1fr}.dt-row{grid-template-columns:1fr}}
-@media print{.slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always}.topbar,.progress-track,.nav-hint{display:none}}
+@media print{.slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always}.topbar,.progress-track,.nav-controls,.nav-overlay{display:none}}
 </style>
 </head>
 <body>
@@ -101,7 +115,25 @@ tr:hover td{background:var(--surface)}
   <div class="counter" id="counter">01 / 15</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
-<div class="nav-hint">&larr; &rarr; arrow keys</div>
+<div class="nav-controls">
+  <button class="nav-btn" id="homeBtn" title="First slide (Home)" onclick="goTo(0)">&#8962;</button>
+  <button class="nav-btn" id="prevBtn" title="Previous slide" onclick="goTo(current-1)">&larr;</button>
+  <button class="nav-btn" id="nextBtn" title="Next slide" onclick="goTo(current+1)">&rarr;</button>
+  <button class="nav-help-btn" id="helpBtn" title="Keyboard shortcuts">?</button>
+</div>
+<div class="nav-overlay" id="navOverlay">
+  <div class="nav-overlay-card">
+    <h3>Navigation</h3>
+    <table>
+      <tr><td>&rarr; / Space</td><td>Next slide</td></tr>
+      <tr><td>&larr;</td><td>Previous slide</td></tr>
+      <tr><td>Home</td><td>First slide</td></tr>
+      <tr><td>End</td><td>Last slide</td></tr>
+      <tr><td>Swipe</td><td>Touch navigation</td></tr>
+    </table>
+    <div class="dismiss">Click anywhere or press Esc to close</div>
+  </div>
+</div>
 
 <!-- ================================================================ -->
 <!-- SLIDE 1: TITLE -->
@@ -645,6 +677,19 @@ document.addEventListener('touchend', e => {
 });
 
 goTo(0);
+
+function updateNavBtns() {
+  document.getElementById('homeBtn').disabled = current === 0;
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === total - 1;
+}
+const origGoTo = goTo;
+goTo = function(n) { origGoTo(n); updateNavBtns(); };
+updateNavBtns();
+
+document.getElementById('helpBtn').addEventListener('click', () => document.getElementById('navOverlay').classList.add('visible'));
+document.getElementById('navOverlay').addEventListener('click', () => document.getElementById('navOverlay').classList.remove('visible'));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('navOverlay').classList.remove('visible'); });
 </script>
 </body>
 </html>

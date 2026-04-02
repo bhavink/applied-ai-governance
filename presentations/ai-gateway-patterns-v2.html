@@ -391,12 +391,48 @@
             .reveal { transition: opacity 0.2s ease; transform: none; }
             html { scroll-behavior: auto; }
         }
+        .nav-controls{position:fixed;bottom:20px;right:24px;display:flex;align-items:center;gap:8px;z-index:200}
+        .nav-btn-ctrl{width:36px;height:36px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.3);background:rgba(26,26,26,0.7);color:#fff;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;padding:0;line-height:1;backdrop-filter:blur(4px)}
+        .nav-btn-ctrl:hover{background:rgba(26,26,26,0.9);border-color:rgba(255,255,255,0.6)}
+        .nav-btn-ctrl:disabled{opacity:0.25;cursor:default;pointer-events:none}
+        .nav-help-btn{width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.3);background:rgba(26,26,26,0.7);color:rgba(255,255,255,0.7);font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;margin-left:8px;transition:all 0.2s;backdrop-filter:blur(4px)}
+        .nav-help-btn:hover{border-color:rgba(255,255,255,0.6);color:#fff}
+        .nav-overlay{position:fixed;inset:0;background:rgba(26,26,26,0.85);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s}
+        .nav-overlay.visible{opacity:1;pointer-events:auto}
+        .nav-overlay-card{background:#fff;border-radius:8px;padding:32px 40px;max-width:380px;width:90%;text-align:center;color:#1a1a1a}
+        .nav-overlay-card h3{font-size:1.1rem;font-weight:700;margin-bottom:16px;letter-spacing:-0.02em}
+        .nav-overlay-card table{width:100%;text-align:left;font-size:0.82rem;border-collapse:collapse}
+        .nav-overlay-card td{padding:6px 8px;border-bottom:1px solid #eee}
+        .nav-overlay-card td:first-child{font-weight:600;white-space:nowrap;color:#cc3311}
+        .nav-overlay-card .dismiss{margin-top:16px;font-size:0.72rem;color:#666}
+        @media print{.nav-controls,.nav-overlay{display:none}}
     </style>
 </head>
 <body>
 
 <div id="progress"></div>
 <nav id="navDots" aria-label="Slide navigation"></nav>
+
+<div class="nav-controls">
+  <button class="nav-btn-ctrl" id="homeBtn" title="First slide (Home)">&#8962;</button>
+  <button class="nav-btn-ctrl" id="prevBtnCtrl" title="Previous slide">&uarr;</button>
+  <button class="nav-btn-ctrl" id="nextBtnCtrl" title="Next slide">&darr;</button>
+  <button class="nav-help-btn" id="helpBtn" title="Keyboard shortcuts">?</button>
+</div>
+<div class="nav-overlay" id="navOverlay">
+  <div class="nav-overlay-card">
+    <h3>Navigation</h3>
+    <table>
+      <tr><td>&darr; / Space</td><td>Next slide</td></tr>
+      <tr><td>&uarr;</td><td>Previous slide</td></tr>
+      <tr><td>Home</td><td>First slide</td></tr>
+      <tr><td>End</td><td>Last slide</td></tr>
+      <tr><td>Dots (right)</td><td>Jump to slide</td></tr>
+      <tr><td>Swipe</td><td>Touch navigation</td></tr>
+    </table>
+    <div class="dismiss">Click anywhere or press Esc to close</div>
+  </div>
+</div>
 
 <!-- ─── SLIDE 01 — TITLE ─────────────────────────────────── -->
 <section class="slide" id="s1">
@@ -1022,6 +1058,27 @@
         const diff = touchY - e.changedTouches[0].clientY;
         if (Math.abs(diff) > 40) scrollTo(diff > 0 ? current + 1 : current - 1);
     }, { passive: true });
+
+    // Nav controls
+    const homeBtn = document.getElementById('homeBtn');
+    const prevBtnCtrl = document.getElementById('prevBtnCtrl');
+    const nextBtnCtrl = document.getElementById('nextBtnCtrl');
+    homeBtn.addEventListener('click', () => scrollTo(0));
+    prevBtnCtrl.addEventListener('click', () => scrollTo(Math.max(current - 1, 0)));
+    nextBtnCtrl.addEventListener('click', () => scrollTo(Math.min(current + 1, TOTAL - 1)));
+
+    function updateNavBtns() {
+        homeBtn.disabled = current === 0;
+        prevBtnCtrl.disabled = current === 0;
+        nextBtnCtrl.disabled = current === TOTAL - 1;
+    }
+    const origUpdateState = updateState;
+    updateState = function(idx) { origUpdateState(idx); updateNavBtns(); };
+    updateNavBtns();
+
+    document.getElementById('helpBtn').addEventListener('click', () => document.getElementById('navOverlay').classList.add('visible'));
+    document.getElementById('navOverlay').addEventListener('click', () => document.getElementById('navOverlay').classList.remove('visible'));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('navOverlay').classList.remove('visible'); });
 
 })();
 </script>
