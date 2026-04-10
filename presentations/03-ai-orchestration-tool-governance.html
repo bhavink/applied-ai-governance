@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AI Orchestration &amp; Tool Governance</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#ffffff;--ink:#1a1a1a;--red:#cc3311;
+  --surface:#f7f7f7;--border:#e0e0e0;--muted:#666;
+  --green:#1e7e34;--green-bg:#e6f4ea;--amber:#b45309;--amber-bg:#fef3c7;
+  --blue:#1d4ed8;--blue-bg:#eff6ff;
+  --font:'Space Grotesk',sans-serif;--mono:'DM Mono',monospace;
+  --pad:clamp(2rem,5vw,4.5rem);
+  --sz-h1:clamp(2rem,4.5vw,3.2rem);
+  --sz-h2:clamp(1.4rem,3vw,2.2rem);
+  --sz-h3:clamp(1rem,2vw,1.4rem);
+  --sz-body:clamp(0.85rem,1.4vw,1.05rem);
+  --sz-small:clamp(0.72rem,1.1vw,0.88rem);
+  --sz-label:clamp(0.62rem,0.85vw,0.72rem);
+  --sz-code:clamp(0.68rem,1vw,0.82rem);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:var(--font);background:var(--bg);color:var(--ink)}
+
+.topbar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--ink);color:#fff;z-index:100;font-size:var(--sz-small)}
+.topbar .title{font-weight:600;letter-spacing:-0.02em}
+.topbar .title span{color:var(--red)}
+.topbar .counter{font-variant-numeric:tabular-nums;opacity:0.7}
+.progress-track{position:fixed;top:48px;left:0;right:0;height:3px;background:var(--border);z-index:100}
+.progress-bar{height:100%;background:var(--red);transition:width 0.4s ease;width:0}
+
+.slide{position:absolute;top:48px;left:0;right:0;bottom:0;opacity:0;pointer-events:none;transform:translateX(60px);transition:opacity 0.4s ease,transform 0.4s ease;overflow-y:auto;display:flex;flex-direction:column;padding:var(--pad)}
+.slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+.slide.exit-left{opacity:0;transform:translateX(-60px)}
+.slide-title{justify-content:center;align-items:center;text-align:center}
+.slide-title h1{font-size:clamp(2.4rem,5vw,4rem);font-weight:700;letter-spacing:-0.03em;line-height:1.1;max-width:900px}
+.slide-title .subtitle{font-size:var(--sz-h3);color:var(--muted);margin-top:12px;font-weight:400}
+.slide-title .red-line{width:80px;height:4px;background:var(--red);margin:20px auto 0}
+
+.slide h2{font-size:var(--sz-h1);font-weight:700;letter-spacing:-0.03em;margin-bottom:8px}
+.slide h3{font-size:var(--sz-h2);font-weight:600;letter-spacing:-0.02em;margin-bottom:6px}
+.slide p,.slide li{font-size:var(--sz-body);line-height:1.65}
+.label{font-size:var(--sz-label);text-transform:uppercase;letter-spacing:0.1em;color:var(--red);font-weight:600;margin-bottom:6px}
+
+.reveal{opacity:0;transform:translateY(18px);transition:opacity 0.5s ease,transform 0.5s ease}
+.slide.active .reveal{opacity:1;transform:translateY(0)}
+.slide.active .reveal:nth-child(2){transition-delay:0.1s}
+.slide.active .reveal:nth-child(3){transition-delay:0.2s}
+.slide.active .reveal:nth-child(4){transition-delay:0.3s}
+.slide.active .reveal:nth-child(5){transition-delay:0.4s}
+.slide.active .reveal:nth-child(6){transition-delay:0.5s}
+.slide.active .reveal:nth-child(7){transition-delay:0.6s}
+.slide.active .reveal:nth-child(8){transition-delay:0.7s}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.5rem,3vw,2.5rem);flex:1;min-height:0}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(1rem,2vw,1.5rem);flex:1;min-height:0}
+.four-col{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:clamp(0.8rem,1.5vw,1.2rem);flex:1;min-height:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(1rem,2vw,1.5rem);overflow:auto}
+.card h4{font-size:var(--sz-h3);font-weight:600;margin-bottom:8px}
+.card-red{border-left:4px solid var(--red)}
+.card-green{border-left:4px solid var(--green);background:var(--green-bg)}
+.card-amber{border-left:4px solid var(--amber);background:var(--amber-bg)}
+.card-blue{border-left:4px solid var(--blue);background:var(--blue-bg)}
+
+pre,code{font-family:var(--mono);font-size:var(--sz-code)}
+pre{background:var(--ink);color:#e0e0e0;border-radius:4px;padding:clamp(0.6rem,1.2vw,1rem);overflow-x:auto;line-height:1.55}
+code{background:var(--surface);padding:0.1em 0.4em;border-radius:3px;font-size:var(--sz-code)}
+
+table{width:100%;border-collapse:collapse;font-size:var(--sz-small)}
+th{text-align:left;font-weight:600;font-size:var(--sz-label);letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:2px solid var(--border)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface)}
+
+.badge{display:inline-block;font-size:var(--sz-label);font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 8px;border-radius:3px}
+.badge-red{background:rgba(204,51,17,0.1);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-ink{background:var(--ink);color:#fff}
+.badge-muted{background:var(--surface);color:var(--muted)}
+
+.flow-h{display:flex;align-items:center;gap:0;flex-wrap:wrap;justify-content:center}
+.flow-box{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 14px;text-align:center;font-size:var(--sz-small);font-weight:500;min-width:100px}
+.flow-box.customer{border-color:var(--blue);background:var(--blue-bg)}
+.flow-box.platform{border-color:var(--ink);background:var(--ink);color:#fff}
+.flow-box.app{border-color:var(--green);background:var(--green-bg)}
+.flow-box small{display:block;font-size:var(--sz-label);color:var(--muted);font-weight:400;margin-top:2px}
+.flow-arrow{font-size:var(--sz-body);color:var(--red);font-weight:700;padding:0 6px}
+.flow-owner{font-size:var(--sz-label);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;text-align:center}
+.flow-owner.cust{color:var(--blue)}
+.flow-owner.plat{color:var(--ink)}
+.flow-owner.apps{color:var(--green)}
+
+.flow-v{display:flex;flex-direction:column;align-items:center;gap:0}
+.flow-v-arrow{font-size:var(--sz-body);color:var(--red);font-weight:700;padding:4px 0;line-height:1}
+
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check-item{display:flex;align-items:flex-start;gap:8px;font-size:var(--sz-small);padding:6px 0}
+.check-icon{color:var(--green);font-weight:700;flex-shrink:0;font-size:var(--sz-body)}
+
+.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}
+.mb-1{margin-bottom:8px}.mb-2{margin-bottom:16px}
+.flex-1{flex:1 1 0;min-height:0;overflow-y:auto}
+
+.nav-controls{position:fixed;bottom:20px;right:24px;display:flex;align-items:center;gap:8px;z-index:200}
+.nav-btn{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);color:var(--ink);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;padding:0;line-height:1}
+.nav-btn:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+.nav-btn.active{background:var(--ink);color:#fff}
+.nav-btn:disabled{opacity:0.25;cursor:default;pointer-events:none}
+.nav-help-btn{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;margin-left:8px;transition:all 0.2s;font-family:var(--font)}
+.nav-help-btn:hover{border-color:var(--ink);color:var(--ink)}
+.nav-overlay{position:fixed;inset:0;background:rgba(26,26,26,0.85);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.nav-overlay.visible{opacity:1;pointer-events:auto}
+.nav-overlay-card{background:#fff;border-radius:8px;padding:32px 40px;max-width:380px;width:90%;text-align:center;font-family:var(--font)}
+.nav-overlay-card h3{font-size:1.1rem;font-weight:700;margin-bottom:16px;letter-spacing:-0.02em}
+.nav-overlay-card table{width:100%;text-align:left;font-size:0.82rem;border-collapse:collapse}
+.nav-overlay-card td{padding:6px 8px;border-bottom:1px solid #eee}
+.nav-overlay-card td:first-child{font-family:var(--mono,monospace);font-weight:600;white-space:nowrap;color:var(--red,#cc3311)}
+.nav-overlay-card .dismiss{margin-top:16px;font-size:0.72rem;color:var(--muted,#666)}
+
+.quote-block{border-left:4px solid var(--red);padding:12px 20px;background:var(--surface);font-size:var(--sz-body);font-style:italic;margin-top:12px}
+
+@media(max-width:900px){.two-col,.three-col,.four-col{grid-template-columns:1fr}.check-grid{grid-template-columns:1fr}}
+@media print{.slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always}.topbar,.progress-track,.nav-controls,.nav-overlay{display:none}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">AI Orchestration &amp; <span>Tool Governance</span></div>
+  <div class="counter" id="counter">01 / 22</div>
+</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+<div class="nav-controls">
+  <button class="nav-btn" id="homeBtn" title="First slide (Home)" onclick="goTo(0)">&#8962;</button>
+  <button class="nav-btn" id="prevBtn" title="Previous slide" onclick="goTo(current-1)">&larr;</button>
+  <button class="nav-btn" id="nextBtn" title="Next slide" onclick="goTo(current+1)">&rarr;</button>
+  <button class="nav-help-btn" id="helpBtn" title="Keyboard shortcuts">?</button>
+</div>
+<div class="nav-overlay" id="navOverlay">
+  <div class="nav-overlay-card">
+    <h3>Navigation</h3>
+    <table>
+      <tr><td>&rarr; / Space</td><td>Next slide</td></tr>
+      <tr><td>&larr;</td><td>Previous slide</td></tr>
+      <tr><td>Home</td><td>First slide</td></tr>
+      <tr><td>End</td><td>Last slide</td></tr>
+      <tr><td>Swipe</td><td>Touch navigation</td></tr>
+    </table>
+    <div class="dismiss">Click anywhere or press Esc to close</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 1: TITLE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide slide-title active" data-slide="1">
+  <h1 class="reveal">AI Orchestration &amp;<br><span style="color:var(--red)">Tool Governance</span></h1>
+  <div class="subtitle reveal">Agent Bricks, MCP Servers, Connections, Federation, and Observability</div>
+  <div class="red-line reveal"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 2: THE ORCHESTRATION STACK -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+  <div class="label reveal">Architecture</div>
+  <h2 class="reveal">The Orchestration Stack</h2>
+  <p class="reveal" style="color:var(--muted)">Every layer has a governance boundary. Identity flows top to bottom.</p>
+  <div class="flow-v mt-3 reveal" style="flex:1;justify-content:center">
+    <div class="flow-box customer" style="min-width:320px"><strong>User</strong><small>Human or External Application</small></div>
+    <div class="flow-v-arrow">&darr;</div>
+    <div class="flow-box" style="min-width:320px;border-color:var(--red);background:rgba(204,51,17,0.05)"><strong>Identity</strong><small>IdP + Token Path (OBO / M2M / Federation)</small></div>
+    <div class="flow-v-arrow">&darr;</div>
+    <div class="flow-box app" style="min-width:320px"><strong>Application</strong><small>Databricks App / External App</small></div>
+    <div class="flow-v-arrow">&darr;</div>
+    <div class="flow-box platform" style="min-width:320px"><strong>Orchestrator</strong><small>Agent Bricks Supervisor (Model Serving)</small></div>
+    <div class="flow-v-arrow">&darr;</div>
+    <div class="flow-box" style="min-width:320px;border-color:var(--amber);background:var(--amber-bg)"><strong>Tools</strong><small>Genie &middot; Vector Search &middot; UC Functions &middot; MCP Servers</small></div>
+    <div class="flow-v-arrow">&darr;</div>
+    <div class="flow-box" style="min-width:320px;border-color:var(--green);background:var(--green-bg)"><strong>Data</strong><small>Tables &middot; Lakebase</small></div>
+    <div class="flow-v-arrow">&darr;</div>
+    <div class="flow-box" style="min-width:320px;border-color:var(--blue);background:var(--blue-bg)"><strong>External Services</strong><small>via UC Connections (Jira, GitHub, Slack, etc.)</small></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3: AGENT BRICKS — MULTI-AGENT ORCHESTRATION -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="label reveal">Agent Bricks</div>
+  <h2 class="reveal">Multi-Agent Orchestration</h2>
+  <p class="reveal" style="color:var(--muted)">A supervisor coordinates specialized sub-agents, each with its own tools and identity context.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Supervisor Model</h4>
+      <ul style="padding-left:18px;margin-top:8px">
+        <li>Coordinates up to <strong>20 sub-agents</strong></li>
+        <li>Each agent: <strong>Knowledge Assistant</strong>, <strong>Genie Space</strong>, or <strong>Custom Tool</strong></li>
+        <li>Deployed as a <strong>Model Serving endpoint</strong></li>
+        <li>Supervisor routes intent to the right agent</li>
+      </ul>
+    </div>
+    <div class="card reveal">
+      <h4>Identity Modes</h4>
+      <div class="card-red mt-1" style="padding:10px 14px">
+        <p style="font-size:var(--sz-small)"><span class="badge badge-red">OBO</span> Supervisor auto-forwards the user's token to <strong>all</strong> sub-agents. <code>current_user()</code> = human email everywhere.</p>
+      </div>
+      <div class="card mt-1" style="padding:10px 14px;border-left:4px solid var(--ink)">
+        <p style="font-size:var(--sz-small)"><span class="badge badge-ink">M2M</span> Supervisor uses its own SP credentials. Sub-agents see the SP identity.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 4: AGENT BRICKS — IDENTITY FLOW -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+  <div class="label reveal">Agent Bricks</div>
+  <h2 class="reveal">Identity Flow</h2>
+  <p class="reveal" style="color:var(--muted)">OBO token propagation from browser to the deepest tool call.</p>
+  <div class="flow-h mt-3 reveal" style="flex-wrap:wrap;gap:4px">
+    <div class="flow-box customer">User<small>Browser</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box app">Databricks App<small>X-Forwarded-Access-Token</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box platform">Agent Bricks<small>Model Serving</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box" style="border-color:var(--red);background:rgba(204,51,17,0.05)">ModelServingUserCredentials()<small>Extracts user identity</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box" style="border-color:var(--amber);background:var(--amber-bg)">Sub-agents<small>User context forwarded</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box" style="border-color:var(--green);background:var(--green-bg)">Resources<small>current_user() = human</small></div>
+  </div>
+  <div class="quote-block reveal mt-3">
+    <code>current_user()</code> returns the human email at every resource &mdash; from the supervisor down to the table query.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 5: AGENT BRICKS — GOTCHAS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label reveal">Agent Bricks</div>
+  <h2 class="reveal">Gotchas</h2>
+  <div class="two-col mt-2">
+    <div class="card card-red reveal">
+      <h4>Runtime Limits</h4>
+      <ul style="padding-left:18px;margin-top:8px">
+        <li>Max <strong>20 sub-agents</strong> per supervisor</li>
+        <li><code>ModelServingUserCredentials()</code> only works <strong>inside Model Serving</strong> &mdash; do not use in Apps code</li>
+        <li>Supervisor endpoint requires <strong>model-serving</strong> scope</li>
+      </ul>
+    </div>
+    <div class="card card-amber reveal">
+      <h4>Permissions &amp; Token Propagation</h4>
+      <ul style="padding-left:18px;margin-top:8px">
+        <li>Each sub-agent&rsquo;s tools must have their <strong>own UC grants</strong></li>
+        <li>Genie sub-agents need <strong>both</strong> <code>genie</code> and <code>dashboards.genie</code> scopes</li>
+        <li>Missing either scope &rarr; <code>403: &quot;required scopes: genie&quot;</code></li>
+        <li>Grant UC permissions to the <strong>SP</strong>, not the human user</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="max-width:100%;border-left:4px solid var(--ink)">
+    <p style="font-size:var(--sz-small)"><strong>Single App:</strong> <code>X-Forwarded-Access-Token</code> has the user&rsquo;s token &mdash; pass it as <code>Bearer</code> to Agent Bricks. Works fine. <strong>App &rarr; App (two-proxy):</strong> User token is lost. Use <code>X-Forwarded-Email</code> (survives proxy hops, cannot be forged) + M2M SQL.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 6: MCP ON DATABRICKS — THREE TYPES -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label reveal">MCP Servers</div>
+  <h2 class="reveal">MCP on Databricks &mdash; Three Types</h2>
+  <div class="three-col mt-2">
+    <div class="card card-blue reveal">
+      <h4>Managed MCP</h4>
+      <p style="font-size:var(--sz-small);margin-top:8px">Databricks-hosted, pre-built connectors (e.g., Unity Catalog). No code needed.</p>
+      <div class="mt-1"><span class="badge badge-blue">Zero Config</span></div>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small)">
+        <li>Unity Catalog tools</li>
+        <li>Pre-configured auth</li>
+        <li>Managed lifecycle</li>
+      </ul>
+    </div>
+    <div class="card card-green reveal">
+      <h4>Custom MCP</h4>
+      <p style="font-size:var(--sz-small);margin-top:8px">Your code, deployed as Databricks App. Full control over tools and auth.</p>
+      <div class="mt-1"><span class="badge badge-green">Full Control</span></div>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small)">
+        <li>Streamlit or FastAPI</li>
+        <li>OBO / M2M / mixed</li>
+        <li>Custom tool logic</li>
+      </ul>
+    </div>
+    <div class="card card-red reveal">
+      <h4>External MCP</h4>
+      <p style="font-size:var(--sz-small);margin-top:8px">Third-party MCP servers accessed via UC HTTP Connections.</p>
+      <div class="mt-1"><span class="badge badge-red">Governed</span></div>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small)">
+        <li>Jira, GitHub, Slack</li>
+        <li>USE CONNECTION grants</li>
+        <li>Credential-free code</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 7: CUSTOM MCP SERVER PATTERN -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label reveal">MCP Servers</div>
+  <h2 class="reveal">Custom MCP Server Pattern</h2>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Deployment</h4>
+      <ul style="padding-left:18px;margin-top:8px">
+        <li>Deploy as <strong>Databricks App</strong> (Streamlit/FastAPI)</li>
+        <li>App proxy injects <code>X-Forwarded-Email</code> (trustworthy, signed by proxy)</li>
+        <li>Tool registration via MCP protocol (<code>tools/list</code>, <code>tools/call</code>)</li>
+      </ul>
+      <h4 class="mt-2">Auth Options</h4>
+      <table style="margin-top:8px">
+        <tr><td><span class="badge badge-red">OBO</span></td><td>Read <code>X-Forwarded-Access-Token</code>, forward to downstream</td></tr>
+        <tr><td><span class="badge badge-ink">M2M</span></td><td><code>WorkspaceClient()</code> no-args, SP identity</td></tr>
+        <tr><td><span class="badge badge-muted">Mixed</span></td><td>M2M for data, OBO for user context</td></tr>
+      </table>
+    </div>
+    <div class="card reveal">
+      <h4>Example: Tool Registration</h4>
+      <pre><span style="color:#8a8"># tools/list response</span>
+{
+  "tools": [
+    {
+      "name": "query_genie",
+      "description": "Ask a question",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "question": {"type": "string"}
+        }
+      }
+    }
+  ]
+}
+
+<span style="color:#8a8"># tools/call invocation</span>
+POST /tools/call
+{
+  "name": "query_genie",
+  "arguments": {"question": "..."}
+}</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 8: EXTERNAL MCP VIA UC HTTP CONNECTIONS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label reveal">MCP Servers</div>
+  <h2 class="reveal">External MCP via UC HTTP Connections</h2>
+  <p class="reveal" style="color:var(--muted)">Access third-party MCP servers through governed connection objects.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>How It Works</h4>
+      <ul style="padding-left:18px;margin-top:8px">
+        <li>MCP servers <strong>outside Databricks</strong> (Jira, GitHub, Slack)</li>
+        <li>Connected through <strong>UC HTTP Connections</strong></li>
+        <li><code>GRANT USE CONNECTION</code> controls access</li>
+        <li>Platform injects auth headers automatically</li>
+      </ul>
+      <h4 class="mt-2">IDE Integration</h4>
+      <ul style="padding-left:18px;margin-top:8px">
+        <li><strong>uc-mcp-proxy</strong> for Cursor / Windsurf</li>
+        <li>Managed OAuth providers: Glean, GitHub, Atlassian</li>
+      </ul>
+    </div>
+    <div class="card reveal">
+      <h4>SDK Patterns</h4>
+      <div class="card mt-1" style="padding:10px 14px;border-left:4px solid var(--blue)">
+        <p style="font-size:var(--sz-small)"><strong>OpenAI Agents SDK + MCP</strong><br>Native MCP client integration. Each tool backed by a UC connection.</p>
+      </div>
+      <div class="card mt-1" style="padding:10px 14px;border-left:4px solid var(--green)">
+        <p style="font-size:var(--sz-small)"><strong>LangGraph + MCP</strong><br>MCP tools as LangGraph nodes. Graph orchestration with governed tool access.</p>
+      </div>
+      <div class="card mt-1" style="padding:10px 14px;border-left:4px solid var(--ink)">
+        <p style="font-size:var(--sz-small)"><strong>uc-mcp-proxy</strong><br>Local proxy bridges IDE MCP clients to Databricks-governed connections.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 9: UC CONNECTIONS — GOVERNED EXTERNAL ACCESS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label reveal">UC HTTP Connections</div>
+  <h2 class="reveal">Governed External Access</h2>
+  <p class="reveal" style="color:var(--muted)">UC Connections are the governance boundary for every external API call.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal" style="display:flex;flex-direction:column;justify-content:center">
+      <ul style="padding-left:18px;font-size:var(--sz-body);line-height:2.2">
+        <li>Every external API call goes through a <strong>UC Connection</strong></li>
+        <li>Credentials stored in UC, <strong>never in code</strong></li>
+        <li><code>GRANT USE CONNECTION</code> controls who can use each connection</li>
+        <li><code>REVOKE</code> removes access <strong>immediately</strong> (runtime enforcement)</li>
+        <li>Platform injects auth headers via <code>http_request()</code> / SDK</li>
+      </ul>
+    </div>
+    <div class="card reveal" style="display:flex;flex-direction:column;justify-content:center">
+      <div class="flow-v" style="gap:0">
+        <div class="flow-box platform" style="min-width:240px">Agent / Tool Code<small>No credentials in source</small></div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box" style="min-width:240px;border-color:var(--red);background:rgba(204,51,17,0.05)"><strong>UC Connection</strong><small>Credentials + GRANT/REVOKE</small></div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box customer" style="min-width:240px">External API<small>Jira / GitHub / Slack / etc.</small></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 10: FOUR AUTH METHODS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label reveal">UC HTTP Connections</div>
+  <h2 class="reveal">Four Auth Methods</h2>
+  <div class="four-col mt-2">
+    <div class="card card-red reveal">
+      <h4 style="font-size:var(--sz-small)">Bearer Token</h4>
+      <p style="font-size:var(--sz-label);margin-top:6px;color:var(--muted)">Static token stored in UC. Simple but shared identity.</p>
+      <div class="mt-1"><span class="badge badge-muted">Static</span></div>
+    </div>
+    <div class="card reveal" style="border-left:4px solid var(--ink)">
+      <h4 style="font-size:var(--sz-small)">OAuth M2M</h4>
+      <p style="font-size:var(--sz-label);margin-top:6px;color:var(--muted)">Client credentials flow. App-level identity at external service.</p>
+      <div class="mt-1"><span class="badge badge-ink">App Identity</span></div>
+    </div>
+    <div class="card card-amber reveal">
+      <h4 style="font-size:var(--sz-small)">OAuth U2M Shared</h4>
+      <p style="font-size:var(--sz-label);margin-top:6px;color:var(--muted)">One user&rsquo;s OAuth token shared across callers.</p>
+      <div class="mt-1"><span class="badge badge-muted">Shared</span></div>
+    </div>
+    <div class="card card-green reveal">
+      <h4 style="font-size:var(--sz-small)">OAuth U2M Per User</h4>
+      <p style="font-size:var(--sz-label);margin-top:6px;color:var(--muted)">Each user&rsquo;s own OAuth token. True per-user identity on both sides.</p>
+      <div class="mt-1"><span class="badge badge-green">Per-User</span></div>
+    </div>
+  </div>
+  <div class="quote-block reveal mt-2">
+    Per-user OAuth is the gold standard: the external service sees the actual human identity, not a shared service account. Use bearer tokens only for services that don&rsquo;t support OAuth.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 11: GRANT/REVOKE AS RUNTIME CONTROL -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label reveal">UC HTTP Connections</div>
+  <h2 class="reveal">GRANT/REVOKE as Runtime Control</h2>
+  <div class="reveal mt-2">
+    <pre><span style="color:var(--green)">-- Enable agent to use Jira</span>
+GRANT USE CONNECTION ON CONNECTION jira_mcp TO `agent-sp-uuid`;
+
+<span style="color:var(--red)">-- Immediately disable (no redeploy needed)</span>
+REVOKE USE CONNECTION ON CONNECTION jira_mcp FROM `agent-sp-uuid`;</pre>
+  </div>
+  <div class="card card-red mt-2 reveal" style="max-width:800px">
+    <p><strong>This is the kill switch.</strong> Revoke connection access and the agent loses the tool immediately. No code change, no redeploy.</p>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Before Revoke</h4>
+      <div class="flow-h" style="margin-top:12px">
+        <div class="flow-box platform">Agent</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box app">Jira Connection</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box customer">Jira API</div>
+      </div>
+      <p style="font-size:var(--sz-small);color:var(--green);margin-top:8px;text-align:center;font-weight:600">&#10003; Tool call succeeds</p>
+    </div>
+    <div class="card reveal">
+      <h4>After Revoke</h4>
+      <div class="flow-h" style="margin-top:12px">
+        <div class="flow-box platform">Agent</div>
+        <div class="flow-arrow" style="color:var(--red)">&rarr;</div>
+        <div class="flow-box" style="border-color:var(--red);background:rgba(204,51,17,0.08)">Jira Connection</div>
+        <div class="flow-arrow" style="opacity:0.3">&rarr;</div>
+        <div class="flow-box" style="opacity:0.3">Jira API</div>
+      </div>
+      <p style="font-size:var(--sz-small);color:var(--red);margin-top:8px;text-align:center;font-weight:600">&#10007; Permission denied at UC layer</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 12: APPKIT AUTH RECIPE — 4 PATTERNS IN ONE APP -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label reveal">Reference Architecture</div>
+  <h2 class="reveal">AppKit Recipe &mdash; 4 Governance Patterns in One App</h2>
+  <p class="reveal" style="color:var(--muted)">One AppKit app proves all auth patterns side by side. External service is provider-agnostic.</p>
+  <div class="flex-1 mt-2">
+    <table>
+      <thead>
+        <tr><th>Tab</th><th>Pattern</th><th>Identity</th><th>What It Proves</th></tr>
+      </thead>
+      <tbody>
+        <tr class="reveal">
+          <td><strong>SQL Analytics</strong></td>
+          <td>OBO vs M2M (<code>.obo.sql</code> / <code>.sql</code>)</td>
+          <td>User or SP</td>
+          <td>Row filters fire per-user with OBO; shared cache with SP</td>
+        </tr>
+        <tr class="reveal">
+          <td><strong>Genie Chat</strong></td>
+          <td>OBO token &rarr; Genie API</td>
+          <td>User</td>
+          <td><code>current_user()</code> = human, per-user data access</td>
+        </tr>
+        <tr class="reveal">
+          <td><strong>External Service</strong></td>
+          <td>UC Connection (U2M Per User)</td>
+          <td>User on <strong>both</strong> sides</td>
+          <td>Two-sided identity: Databricks &amp; external service see user</td>
+        </tr>
+        <tr class="reveal">
+          <td><strong>Connection Gov</strong></td>
+          <td>GRANT / REVOKE USE CONNECTION</td>
+          <td>Admin</td>
+          <td>Runtime kill switch &mdash; revoke = tool gone immediately</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card mt-2 reveal" style="border-left:4px solid var(--ink)">
+    <p style="font-size:var(--sz-small)"><strong>External Service tab is a template.</strong> Swap <code>connection_name</code> + <code>path</code> for Salesforce, Jira, GitHub, Slack, ServiceNow &mdash; same pattern, same code.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 13: APPKIT RECIPE — ARCHITECTURE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="13">
+  <div class="label reveal">Reference Architecture</div>
+  <h2 class="reveal">AppKit Recipe &mdash; How It Wires Together</h2>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Request Flow</h4>
+      <div style="font-family:var(--mono);font-size:var(--sz-code);line-height:1.8;margin-top:8px">
+        Browser &rarr; <strong style="color:var(--red)">Apps Proxy</strong><br>
+        &nbsp;&nbsp;<span style="color:var(--muted)">(injects OBO token)</span><br>
+        &rarr; <strong>AppKit Server</strong><br>
+        &nbsp;&nbsp;├── analytics() &rarr; SQL Warehouse<br>
+        &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;<span style="color:var(--muted)">.obo.sql = user, .sql = SP</span><br>
+        &nbsp;&nbsp;├── genie() &rarr; Genie API<br>
+        &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;<span style="color:var(--muted)">OBO auto-forwarded</span><br>
+        &nbsp;&nbsp;├── external-service &rarr; UC Connection<br>
+        &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;<span style="color:var(--muted)">Any OAuth provider</span><br>
+        &nbsp;&nbsp;└── connections &rarr; GRANT/REVOKE<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--muted)">Runtime governance</span>
+      </div>
+    </div>
+    <div class="card card-amber reveal">
+      <h4>Critical Post-Deploy Steps</h4>
+      <ol style="padding-left:18px;margin-top:8px;font-size:var(--sz-small);line-height:1.8">
+        <li>Re-grant UC permissions to new SP<br><span style="color:var(--muted)">Every deploy = new SP = zero grants</span></li>
+        <li>PATCH <code>genie</code> scope via account API<br><span style="color:var(--muted)">Not in UI &mdash; must use REST API</span></li>
+        <li>Set connection ownership to app SP<br><span style="color:var(--muted)">Required for GRANT/REVOKE</span></li>
+        <li>Verify scopes in incognito<br><span style="color:var(--muted)">Cached tokens miss new scopes</span></li>
+      </ol>
+      <div class="card mt-2" style="background:#fff;border:1.5px dashed var(--red);padding:8px">
+        <p style="font-size:var(--sz-small)"><strong>Deploy raw <code>.mjs</code> files</strong> &mdash; esbuild bundles break AppKit&rsquo;s runtime <code>import()</code>. Include <code>package.json</code>, exclude <code>.npmrc</code>.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 14: TOKEN FEDERATION (RFC 8693) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="14">
+  <div class="label reveal">Token Federation</div>
+  <h2 class="reveal">Token Federation (RFC 8693)</h2>
+  <p class="reveal" style="color:var(--muted)">Exchange a trusted IdP JWT for a Databricks OAuth token. No Databricks secrets needed.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>How It Works</h4>
+      <div class="flow-v mt-1" style="gap:0">
+        <div class="flow-box customer" style="min-width:260px">Your IdP<small>Issues JWT with user claims</small></div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box" style="min-width:260px;border-color:var(--red);background:rgba(204,51,17,0.05)">POST /oidc/v1/token<small>grant_type = token-exchange</small></div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box app" style="min-width:260px">Databricks OAuth Token<small>User or SP identity</small></div>
+      </div>
+    </div>
+    <div class="card reveal">
+      <h4>Key Properties</h4>
+      <ul style="padding-left:18px;margin-top:8px">
+        <li><strong>One endpoint:</strong> <code>POST /oidc/v1/token</code></li>
+        <li><strong>No Databricks secrets</strong> needed in your infrastructure</li>
+        <li>Works for <strong>user (U2M)</strong> and <strong>SP (M2M)</strong> identities</li>
+        <li>Standards-based: <strong>RFC 8693</strong> token exchange</li>
+        <li>Exchange trusted JWT &rarr; get Databricks token</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 15: TWO FEDERATION TYPES -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="15">
+  <div class="label reveal">Token Federation</div>
+  <h2 class="reveal">Two Federation Types</h2>
+  <div class="two-col mt-2">
+    <div class="card card-blue reveal">
+      <h4>Account Token Federation</h4>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small)">
+        <li>Users &amp; SPs from your IdP</li>
+        <li>SCIM required (sync users first)</li>
+        <li>Interactive + M2M flows</li>
+        <li>Refresh tokens for U2M</li>
+      </ul>
+    </div>
+    <div class="card card-green reveal">
+      <h4>Workload Identity Federation (WIF)</h4>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small)">
+        <li>CI/CD workloads &rarr; SP</li>
+        <li>No SCIM required</li>
+        <li>Per-SP policy</li>
+        <li>Secretless, M2M only</li>
+      </ul>
+    </div>
+  </div>
+  <div class="reveal mt-2">
+    <table>
+      <thead>
+        <tr><th>Feature</th><th>Account Federation</th><th>WIF</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Applies to</td><td>Users &amp; SPs</td><td>Workload &rarr; SP</td></tr>
+        <tr><td>SCIM required</td><td><strong>Yes</strong></td><td>No</td></tr>
+        <tr><td>Issuer limit</td><td>5</td><td><strong>Unlimited</strong></td></tr>
+        <tr><td>Secrets</td><td>None</td><td>None</td></tr>
+        <tr><td>Refresh tokens</td><td>Yes (U2M)</td><td>No</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 16: TOKEN TTL & IDP SUPPORT -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="16">
+  <div class="label reveal">Token Federation</div>
+  <h2 class="reveal">Token TTL &amp; IdP Support</h2>
+  <div class="two-col mt-2">
+    <div class="card card-amber reveal">
+      <h4>Token Lifetime</h4>
+      <p style="margin-top:8px">Databricks copies the IdP&rsquo;s <code>exp</code> claim <strong>verbatim</strong>.</p>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small)">
+        <li>No override, no extension</li>
+        <li>Short-lived IdP tokens = short-lived Databricks tokens</li>
+        <li>Plan token refresh in your client code</li>
+      </ul>
+    </div>
+    <div class="card reveal">
+      <h4>Supported IdPs</h4>
+      <table style="margin-top:8px">
+        <tr><td><strong>Entra ID</strong></td><td><span class="badge badge-green">Account + WIF</span></td></tr>
+        <tr><td><strong>Okta</strong></td><td><span class="badge badge-green">Account + WIF</span></td></tr>
+        <tr><td><strong>PingOne</strong></td><td><span class="badge badge-green">Account + WIF</span></td></tr>
+        <tr><td><strong>Google Cloud Identity</strong></td><td><span class="badge badge-green">Account + WIF</span></td></tr>
+        <tr><td><strong>Auth0</strong></td><td><span class="badge badge-green">Account + WIF</span></td></tr>
+        <tr><td><strong>AWS IAM</strong></td><td><span class="badge badge-blue">WIF only</span></td></tr>
+        <tr><td><strong>GitHub Actions OIDC</strong></td><td><span class="badge badge-blue">WIF only</span></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="border-left:4px solid var(--amber);max-width:100%">
+    <p style="font-size:var(--sz-small)"><strong>JDBC/ODBC driver support:</strong> Work in progress. Not all drivers support federation yet. Check driver release notes before depending on this path.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 17: AI GATEWAY V2 -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="17">
+  <div class="label reveal">AI Gateway</div>
+  <h2 class="reveal">AI Gateway v2</h2>
+  <p class="reveal" style="color:var(--muted)">Centralized model traffic management: rate limiting, cost tracking, guardrails, fallback routing.</p>
+  <div class="three-col mt-2">
+    <div class="card reveal">
+      <h4>Rate Limiting</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Per endpoint, per user, per model. Sliding window with configurable QPM/TPM.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Usage Tracking</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Token counts, latency, cost allocation per team/project/endpoint.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Guardrails</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Content filtering, PII detection, topic blocking on input and output.</p>
+    </div>
+  </div>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Fallback Routing</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Primary model fails &rarr; automatically route to secondary. No client code change.</p>
+    </div>
+    <div class="card reveal">
+      <h4>A/B Testing</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Traffic splitting across model versions with built-in metrics comparison.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 18: AI GATEWAY — WHEN TO USE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="18">
+  <div class="label reveal">AI Gateway</div>
+  <h2 class="reveal">When to Use What</h2>
+  <div class="reveal mt-2 flex-1">
+    <table>
+      <thead>
+        <tr><th>Scenario</th><th>AI Gateway</th><th>UC + Scopes</th><th>Both</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Rate limit model access</td><td style="color:var(--green);font-weight:700;text-align:center">&#10003;</td><td></td><td></td></tr>
+        <tr><td>Track token usage / cost</td><td style="color:var(--green);font-weight:700;text-align:center">&#10003;</td><td></td><td></td></tr>
+        <tr><td>Content guardrails</td><td style="color:var(--green);font-weight:700;text-align:center">&#10003;</td><td></td><td></td></tr>
+        <tr><td>Data access control</td><td></td><td style="color:var(--green);font-weight:700;text-align:center">&#10003;</td><td></td></tr>
+        <tr><td>External tool governance</td><td></td><td style="color:var(--green);font-weight:700;text-align:center">&#10003;</td><td></td></tr>
+        <tr><td>Production agent deployment</td><td></td><td></td><td style="color:var(--red);font-weight:700;text-align:center">&#10003;</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card card-red mt-2 reveal" style="text-align:center">
+    <p><strong>AI Gateway manages MODEL traffic.</strong> UC manages DATA and TOOL access. <strong>Both needed for production.</strong></p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 19: AI GATEWAY PATTERNS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="19">
+  <div class="label reveal">AI Gateway</div>
+  <h2 class="reveal">Gateway Patterns</h2>
+  <div class="three-col mt-2" style="flex:1">
+    <div class="card reveal">
+      <h4>1. Single Model + Guardrails</h4>
+      <div class="flow-v mt-2" style="gap:0">
+        <div class="flow-box" style="min-width:160px">Client Request</div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box" style="min-width:160px;border-color:var(--red);background:rgba(204,51,17,0.05)"><strong>AI Gateway</strong><small>Input filter</small></div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box platform" style="min-width:160px">Model Endpoint</div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box" style="min-width:160px;border-color:var(--red);background:rgba(204,51,17,0.05)"><strong>AI Gateway</strong><small>Output filter</small></div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box app" style="min-width:160px">Safe Response</div>
+      </div>
+    </div>
+    <div class="card reveal">
+      <h4>2. Fallback Routing</h4>
+      <div class="flow-v mt-2" style="gap:0">
+        <div class="flow-box" style="min-width:160px">Client Request</div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box" style="min-width:160px;border-color:var(--red);background:rgba(204,51,17,0.05)"><strong>AI Gateway</strong></div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box platform" style="min-width:160px">Primary Model</div>
+        <div class="flow-v-arrow" style="color:var(--amber)">&darr; on failure</div>
+        <div class="flow-box" style="min-width:160px;border-color:var(--amber);background:var(--amber-bg)">Secondary Model</div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box app" style="min-width:160px">Response</div>
+      </div>
+    </div>
+    <div class="card reveal">
+      <h4>3. A/B Testing</h4>
+      <div class="flow-v mt-2" style="gap:0">
+        <div class="flow-box" style="min-width:160px">Client Request</div>
+        <div class="flow-v-arrow">&darr;</div>
+        <div class="flow-box" style="min-width:160px;border-color:var(--red);background:rgba(204,51,17,0.05)"><strong>AI Gateway</strong><small>Traffic split</small></div>
+        <div style="display:flex;gap:12px;margin-top:6px">
+          <div style="text-align:center">
+            <div style="font-size:var(--sz-label);color:var(--muted);margin-bottom:4px">80%</div>
+            <div class="flow-box platform" style="min-width:70px;padding:6px 10px">Model A</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:var(--sz-label);color:var(--muted);margin-bottom:4px">20%</div>
+            <div class="flow-box" style="min-width:70px;padding:6px 10px;border-color:var(--amber);background:var(--amber-bg)">Model B</div>
+          </div>
+        </div>
+        <div class="flow-v-arrow" style="margin-top:6px">&darr;</div>
+        <div class="flow-box app" style="min-width:160px">Metrics Comparison</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 20: OBSERVABILITY STACK -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="20">
+  <div class="label reveal">Observability</div>
+  <h2 class="reveal">Observability Stack</h2>
+  <p class="reveal" style="color:var(--muted)">Three pillars. Join on request_id for end-to-end agent lineage.</p>
+  <div class="three-col mt-2">
+    <div class="card card-red reveal">
+      <h4>system.access.audit</h4>
+      <p style="font-size:var(--sz-small);margin-top:8px">Every API call logged. Join on SP UUID to trace agent actions.</p>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small)">
+        <li>Permission changes</li>
+        <li>Connection usage</li>
+        <li>Function executions</li>
+        <li>Token exchanges</li>
+      </ul>
+    </div>
+    <div class="card card-blue reveal">
+      <h4>MLflow Tracing</h4>
+      <p style="font-size:var(--sz-small);margin-top:8px">Every agent step, tool call, LLM invocation. Latency, tokens, errors.</p>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small)">
+        <li>Supervisor &rarr; sub-agent spans</li>
+        <li>Tool call duration</li>
+        <li>Token counts per step</li>
+        <li>Error propagation</li>
+      </ul>
+    </div>
+    <div class="card card-green reveal">
+      <h4>App Logs (OTel)</h4>
+      <p style="font-size:var(--sz-small);margin-top:8px">Structured application logs from Databricks Apps. Auto-configured OTel env vars.</p>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small)">
+        <li>10 env vars auto-set</li>
+        <li>OpenTelemetry export</li>
+        <li>Request correlation</li>
+        <li>App Insights (Beta)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="quote-block reveal mt-2">
+    Join <code>system.access.audit</code> + MLflow traces on <code>request_id</code> for end-to-end agent lineage.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 21: SECURITY MONITORING QUERIES -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="21">
+  <div class="label reveal">Observability</div>
+  <h2 class="reveal">Security Monitoring Queries</h2>
+  <div class="three-col mt-2" style="flex:1">
+    <div class="card reveal">
+      <h4 style="font-size:var(--sz-small)">Permission Changes</h4>
+      <pre style="font-size:clamp(0.6rem,0.9vw,0.75rem)"><span style="color:var(--green)">-- Who changed permissions?</span>
+SELECT *
+FROM system.access.audit
+WHERE action_name IN (
+  'grantPermission',
+  'revokePermission'
+)
+AND event_date >=
+  current_date() - 7;</pre>
+    </div>
+    <div class="card reveal">
+      <h4 style="font-size:var(--sz-small)">OBO Token Usage</h4>
+      <pre style="font-size:clamp(0.6rem,0.9vw,0.75rem)"><span style="color:var(--green)">-- OBO token usage</span>
+SELECT
+  request_params.user_email,
+  count(*)
+FROM system.access.audit
+WHERE source_ip_address
+  LIKE '10.%'
+AND user_identity.email
+  LIKE '%ServicePrincipal%'
+GROUP BY 1;</pre>
+    </div>
+    <div class="card reveal">
+      <h4 style="font-size:var(--sz-small)">Agent Tool Invocations</h4>
+      <pre style="font-size:clamp(0.6rem,0.9vw,0.75rem)"><span style="color:var(--green)">-- Agent tool invocations</span>
+SELECT *
+FROM system.access.audit
+WHERE action_name =
+  'executeFunction'
+AND user_identity.email =
+  '&lt;agent-sp-uuid&gt;';</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 22: OTEL IN DATABRICKS APPS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="22">
+  <div class="label reveal">Observability</div>
+  <h2 class="reveal">OTel in Databricks Apps</h2>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Auto-Configured Environment</h4>
+      <table style="margin-top:8px">
+        <tr><td style="font-family:var(--mono);font-size:var(--sz-label)">OTEL_EXPORTER_*</td><td>Export endpoint + protocol</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--sz-label)">OTEL_SERVICE_NAME</td><td>App name auto-set</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--sz-label)">OTEL_RESOURCE_*</td><td>Resource attributes</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--sz-label)">DATABRICKS_APP_PORT</td><td>Framework port</td></tr>
+      </table>
+      <p style="font-size:var(--sz-small);margin-top:12px;color:var(--muted)">10 env vars total, auto-configured at app startup. No manual OTel setup needed.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Runtime &amp; Limits</h4>
+      <table style="margin-top:8px">
+        <tr><td><strong>OS</strong></td><td>Ubuntu 22.04</td></tr>
+        <tr><td><strong>Python</strong></td><td>3.11</td></tr>
+        <tr><td><strong>Node</strong></td><td>22.16</td></tr>
+        <tr><td><strong>P50 latency</strong></td><td>~50ms</td></tr>
+        <tr><td><strong>P95 latency</strong></td><td>~200ms</td></tr>
+      </table>
+      <div class="card card-blue mt-2" style="padding:10px 14px">
+        <p style="font-size:var(--sz-small)"><strong>App Insights (Beta):</strong> Built-in dashboard in the App UI. Metrics, traces, and logs in one view.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 23: PRODUCTION CHECKLIST -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="23">
+  <div class="label reveal">Production Ready</div>
+  <h2 class="reveal">Production Checklist</h2>
+  <div class="check-grid mt-2 flex-1">
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Agent SP per capability boundary</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Not shared. Each agent gets its own SP with scoped permissions.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>UC grants: least privilege, explicit</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">No broad grants. GRANT only what is needed, REVOKE everything else.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Row filters: current_user() only</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Filter data to the calling user&rsquo;s identity, not the SP.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>UC Connections: USE CONNECTION grants</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Every external tool governed by GRANT/REVOKE on connection objects.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>OAuth scopes: minimal</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Not all-apis. Use sql, genie, serving, dashboards.genie as needed.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Token federation: no stored secrets</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">RFC 8693 exchange eliminates secrets in CI/CD and external apps.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Audit: system.access.audit enabled</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Every API call logged. Retention configured. Alerting on anomalies.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>MLflow tracing: enabled for all agents</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Every tool call, LLM invocation, and agent step traced.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>AI Gateway: rate limits + guardrails</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">QPM/TPM limits per user. Content filtering on input and output.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Tokens never in logs or error messages</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Bearer tokens excluded from all log output and exception payloads.</span></div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 24: CLOSING -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide slide-title" data-slide="24">
+  <h1 class="reveal" style="font-size:var(--sz-h1)">Orchestration is governance.</h1>
+  <div style="max-width:700px;text-align:center;margin:24px auto 0" class="reveal">
+    <p style="font-size:var(--sz-body);line-height:1.8;color:var(--muted)">
+      Every agent action traces back to an identity.<br>
+      Every tool call goes through UC.<br>
+      Every external service call goes through a connection.<br>
+      Every step is audited.
+    </p>
+  </div>
+  <div class="red-line reveal"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- JS: Navigation -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+
+function goTo(n) {
+  if (n < 0 || n >= total) return;
+  slides[current].classList.remove('active');
+  slides[current].classList.add('exit-left');
+  const prev = current;
+  current = n;
+  slides[current].classList.add('active');
+  setTimeout(() => slides[prev].classList.remove('exit-left'), 400);
+  document.getElementById('counter').textContent = `${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+  document.getElementById('progressBar').style.width = `${((current + 1) / total) * 100}%`;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current - 1); }
+  if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+  if (e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+});
+
+goTo(0);
+
+function updateNavBtns() {
+  document.getElementById('homeBtn').disabled = current === 0;
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === total - 1;
+}
+const origGoTo = goTo;
+goTo = function(n) { origGoTo(n); updateNavBtns(); };
+updateNavBtns();
+
+document.getElementById('helpBtn').addEventListener('click', () => document.getElementById('navOverlay').classList.add('visible'));
+document.getElementById('navOverlay').addEventListener('click', () => document.getElementById('navOverlay').classList.remove('visible'));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('navOverlay').classList.remove('visible'); });
+</script>
+</body>
+</html>

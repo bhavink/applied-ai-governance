@@ -128,22 +128,22 @@ h1 span { color: var(--red); }
             <p style="font-size:1.05rem;line-height:1.7;font-weight:600">Same data. Same AI capabilities. Same governance guarantees. Two completely different identity worlds.</p>
         </div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(1rem,2vw,1.5rem);margin-top:12px;border-left:4px solid var(--ink)">
-            <p style="font-size:0.92rem;line-height:1.7"><strong>On Databricks</strong>, this means <strong>Genie</strong> for natural language analytics, <strong>Vector Search</strong> for knowledge retrieval, <strong>Agent Bricks</strong> for multi-agent orchestration, <strong>MCP servers</strong> for tool governance, <strong>UC HTTP Connections</strong> for governed external service access, <strong>Unity Catalog</strong> for data access control, and <strong>AI Gateway</strong> for model traffic management. The seven decks below show you how to govern all of it.</p>
+            <p style="font-size:0.92rem;line-height:1.7"><strong>On Databricks</strong>, this means <strong>Genie</strong> for natural language analytics, <strong>Vector Search</strong> for knowledge retrieval, <strong>Agent Bricks</strong> for multi-agent orchestration, <strong>MCP servers</strong> for tool governance, <strong>UC HTTP Connections</strong> for governed external service access, <strong>Unity Catalog</strong> for data access control, and <strong>AI Gateway</strong> for model traffic management. The three decks below show you how to govern all of it.</p>
         </div>
     </div>
 
     <div class="section-label">Executive</div>
 
     <div class="deck-grid">
-        <a href="identity-governance-overview.html" class="deck-card">
+        <a href="01-ai-governance-complete.html" class="deck-card">
             <div class="deck-num">01</div>
             <div class="deck-body">
-                <h3>Identity & Governance Overview</h3>
-                <p>OBO vs M2M vs Federation, shared UC governance, scope-based access model, supervisor integration</p>
+                <h3>AI Governance — The Complete Picture</h3>
+                <p>One auth layer, three token paths, six enforcement layers, resource auth matrix, decision trees, prerequisites checklists.</p>
             </div>
             <div class="deck-meta">
                 <span class="badge badge-exec">Exec</span>
-                <div class="slide-count">18 slides</div>
+                <div class="slide-count">21 slides</div>
             </div>
         </a>
     </div>
@@ -151,76 +151,89 @@ h1 span { color: var(--red); }
     <div class="section-label">Technical</div>
 
     <div class="deck-grid">
-        <a href="identity-patterns.html" class="deck-card">
+        <a href="02-identity-authorization-by-resource.html" class="deck-card">
             <div class="deck-num">02</div>
             <div class="deck-body">
-                <h3>Identity Patterns</h3>
-                <p>OBO, M2M, Federation flows. AuthN vs AuthZ, decision guide, OAuth scopes, service principals.</p>
+                <h3>Identity & Authorization by Resource Type</h3>
+                <p>Serving Endpoints, Genie, UC Functions, Vector Search, UC HTTP Connections, Tables, Lakebase — auth model, identity flow, and gotchas for each.</p>
             </div>
             <div class="deck-meta">
                 <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">14 slides</div>
+                <div class="slide-count">23 slides</div>
             </div>
         </a>
 
-        <a href="federation-deep-dive.html" class="deck-card">
+        <a href="03-ai-orchestration-tool-governance.html" class="deck-card">
             <div class="deck-num">03</div>
             <div class="deck-body">
-                <h3>Federation Exchange Deep Dive</h3>
-                <p>Token anatomy at each stage, 7 governance enforcement points, UC grants checklist</p>
+                <h3>AI Orchestration & Tool Governance</h3>
+                <p>Agent Bricks, MCP servers, UC Connections, token federation, AI Gateway, observability — end-to-end orchestration governance.</p>
             </div>
             <div class="deck-meta">
                 <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">21 slides</div>
+                <div class="slide-count">24 slides</div>
             </div>
         </a>
+    </div>
 
+    <div class="section-label" style="margin-top:3rem">Archive (Previous Versions)</div>
+
+    <div class="deck-grid" style="opacity:0.5">
+        <a href="identity-governance-overview.html" class="deck-card">
+            <div class="deck-num" style="background:var(--muted)">—</div>
+            <div class="deck-body">
+                <h3>Identity & Governance Overview</h3>
+                <p>Superseded by Deck 01</p>
+            </div>
+            <div class="deck-meta"><div class="slide-count">18 slides</div></div>
+        </a>
+        <a href="identity-patterns.html" class="deck-card">
+            <div class="deck-num" style="background:var(--muted)">—</div>
+            <div class="deck-body">
+                <h3>Identity Patterns</h3>
+                <p>Superseded by Decks 01 + 02</p>
+            </div>
+            <div class="deck-meta"><div class="slide-count">14 slides</div></div>
+        </a>
+        <a href="federation-deep-dive.html" class="deck-card">
+            <div class="deck-num" style="background:var(--muted)">—</div>
+            <div class="deck-body">
+                <h3>Federation Exchange Deep Dive</h3>
+                <p>Superseded by Deck 03</p>
+            </div>
+            <div class="deck-meta"><div class="slide-count">21 slides</div></div>
+        </a>
         <a href="uc-governance.html" class="deck-card">
-            <div class="deck-num">04</div>
+            <div class="deck-num" style="background:var(--muted)">—</div>
             <div class="deck-body">
                 <h3>Unity Catalog Governance</h3>
-                <p>Four-layer access control, row filters, column masks, ABAC governed tags, decision patterns.</p>
+                <p>Superseded by Deck 02</p>
             </div>
-            <div class="deck-meta">
-                <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">14 slides</div>
-            </div>
+            <div class="deck-meta"><div class="slide-count">14 slides</div></div>
         </a>
-
         <a href="orchestration.html" class="deck-card">
-            <div class="deck-num">05</div>
+            <div class="deck-num" style="background:var(--muted)">—</div>
             <div class="deck-body">
                 <h3>AI Orchestration & Governance</h3>
-                <p>Agents, Databricks Apps, MCP integration, UC connection auth methods, external app auth, AI Gateway patterns.</p>
+                <p>Superseded by Deck 03</p>
             </div>
-            <div class="deck-meta">
-                <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">21 slides</div>
-            </div>
+            <div class="deck-meta"><div class="slide-count">21 slides</div></div>
         </a>
-
         <a href="ai-gateway-patterns-v2.html" class="deck-card">
-            <div class="deck-num">06</div>
+            <div class="deck-num" style="background:var(--muted)">—</div>
             <div class="deck-body">
                 <h3>AI Gateway Patterns</h3>
-                <p>When to use Databricks AI Gateway vs external gateway vs UC-native controls.</p>
+                <p>Superseded by Deck 03</p>
             </div>
-            <div class="deck-meta">
-                <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">14 slides</div>
-            </div>
+            <div class="deck-meta"><div class="slide-count">14 slides</div></div>
         </a>
-
         <a href="uc-connections.html" class="deck-card">
-            <div class="deck-num">07</div>
+            <div class="deck-num" style="background:var(--muted)">—</div>
             <div class="deck-body">
                 <h3>UC HTTP Connections</h3>
-                <p>Four auth methods (Bearer, M2M, U2M Shared, U2M Per User), provider prerequisites, setup walkthrough, governance model, common gotchas.</p>
+                <p>Superseded by Deck 02</p>
             </div>
-            <div class="deck-meta">
-                <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">15 slides</div>
-            </div>
+            <div class="deck-meta"><div class="slide-count">15 slides</div></div>
         </a>
     </div>
 

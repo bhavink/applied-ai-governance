@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Governance on Databricks — The Complete Picture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ──────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --white: #ffffff;
+  --ink: #1a1a1a;
+  --red: #cc3311;
+  --gray-100: #f5f5f5;
+  --gray-200: #e8e8e8;
+  --gray-300: #d0d0d0;
+  --gray-500: #888888;
+  --green: #1a8754;
+  --amber: #b8860b;
+  --blue: #2563eb;
+  --font-sans: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  background: var(--ink);
+  color: var(--ink);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Progress Bar ──────────────────────────────────────── */
+#progress {
+  position: fixed; top: 0; left: 0;
+  height: 3px; background: var(--red);
+  z-index: 1000; transition: width 0.4s ease;
+}
+
+/* ── Topbar ────────────────────────────────────────────── */
+#topbar {
+  position: fixed; top: 3px; left: 0; right: 0;
+  height: 48px; background: var(--ink);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; z-index: 999;
+  font-size: 14px; color: var(--white);
+}
+#topbar .deck-title {
+  font-weight: 600; letter-spacing: 0.02em;
+}
+#topbar .deck-title span { color: var(--red); }
+#topbar .counter {
+  font-family: var(--font-mono); font-size: 13px;
+  letter-spacing: 0.1em; opacity: 0.8;
+}
+
+/* ── Slide Container ───────────────────────────────────── */
+#deck {
+  position: fixed; top: 51px; left: 0; right: 0; bottom: 0;
+  overflow: hidden;
+}
+.slide {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: var(--white);
+  display: flex; flex-direction: column; justify-content: center;
+  padding: clamp(24px, 5vw, 80px) clamp(24px, 6vw, 120px);
+  opacity: 0; pointer-events: none;
+  transform: translateX(60px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  overflow-y: auto;
+}
+.slide.active {
+  opacity: 1; pointer-events: auto;
+  transform: translateX(0);
+}
+.slide.prev {
+  transform: translateX(-60px);
+}
+
+/* Stagger children */
+.slide.active > * {
+  animation: staggerIn 0.5s ease both;
+}
+.slide.active > *:nth-child(1) { animation-delay: 0.05s; }
+.slide.active > *:nth-child(2) { animation-delay: 0.12s; }
+.slide.active > *:nth-child(3) { animation-delay: 0.19s; }
+.slide.active > *:nth-child(4) { animation-delay: 0.26s; }
+.slide.active > *:nth-child(5) { animation-delay: 0.33s; }
+.slide.active > *:nth-child(6) { animation-delay: 0.40s; }
+.slide.active > *:nth-child(7) { animation-delay: 0.47s; }
+.slide.active > *:nth-child(8) { animation-delay: 0.54s; }
+
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Typography ────────────────────────────────────────── */
+h1 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 700; line-height: 1.1;
+  letter-spacing: -0.02em; color: var(--ink);
+}
+h2 {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 700; line-height: 1.15;
+  letter-spacing: -0.015em; color: var(--ink);
+  margin-bottom: 24px;
+}
+h3 {
+  font-size: clamp(1.1rem, 1.8vw, 1.4rem);
+  font-weight: 600; color: var(--ink);
+  margin-bottom: 12px;
+}
+p, li {
+  font-size: clamp(0.9rem, 1.4vw, 1.1rem);
+  line-height: 1.6; color: var(--ink);
+}
+.subtitle {
+  font-size: clamp(1rem, 1.8vw, 1.4rem);
+  font-weight: 400; color: var(--gray-500);
+  margin-top: 12px;
+}
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--gray-500); margin-bottom: 8px;
+}
+code, .mono {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+/* ── Red Line Accent ───────────────────────────────────── */
+.red-line {
+  width: 64px; height: 4px;
+  background: var(--red); margin: 24px 0;
+  border-radius: 2px;
+}
+
+/* ── Cards ─────────────────────────────────────────────── */
+.card-grid { display: grid; gap: 20px; margin-top: 20px; }
+.card-grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.card-grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.card-grid.cols-4 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-left: 4px solid var(--ink);
+  padding: 20px; border-radius: 4px;
+}
+.card.red    { border-left-color: var(--red); }
+.card.green  { border-left-color: var(--green); }
+.card.amber  { border-left-color: var(--amber); }
+.card.blue   { border-left-color: var(--blue); }
+
+.card h3 { margin-bottom: 8px; font-size: 1rem; }
+.card p  { font-size: 0.9rem; line-height: 1.5; color: #444; }
+
+/* ── Tables ────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; margin-top: 16px; }
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: clamp(0.75rem, 1.2vw, 0.9rem);
+}
+thead th {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--gray-500); text-align: left;
+  padding: 8px 12px; border-bottom: 2px solid var(--ink);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gray-200);
+  vertical-align: top;
+}
+tbody tr:last-child td { border-bottom: none; }
+
+/* ── Checklist ─────────────────────────────────────────── */
+.checklist { list-style: none; margin-top: 16px; }
+.checklist li {
+  padding: 10px 0 10px 32px;
+  position: relative;
+  border-bottom: 1px solid var(--gray-200);
+}
+.checklist li::before {
+  content: '';
+  position: absolute; left: 0; top: 14px;
+  width: 18px; height: 18px; border-radius: 3px;
+  border: 2px solid var(--red);
+}
+.checklist li:last-child { border-bottom: none; }
+
+/* Check grid (two-column checklist) */
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 4px 32px; margin-top: 16px;
+}
+.check-grid .checklist { margin-top: 0; }
+
+/* ── Ordered Steps ─────────────────────────────────────── */
+.steps { list-style: none; counter-reset: step; margin-top: 16px; }
+.steps li {
+  counter-increment: step;
+  padding: 10px 0 10px 40px; position: relative;
+  border-bottom: 1px solid var(--gray-200);
+}
+.steps li::before {
+  content: counter(step);
+  position: absolute; left: 0; top: 10px;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--ink); color: var(--white);
+  font-family: var(--font-mono); font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.steps li:last-child { border-bottom: none; }
+
+/* ── Vertical Stack (Layer Diagram) ────────────────────── */
+.layer-stack { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; }
+.layer {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 16px; border-radius: 4px;
+  font-size: clamp(0.8rem, 1.2vw, 0.95rem);
+}
+.layer .layer-num {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 700;
+  min-width: 24px; color: var(--white);
+}
+.layer .layer-label {
+  font-weight: 600; min-width: 200px; color: var(--white);
+  font-size: clamp(0.75rem, 1.1vw, 0.9rem);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.layer .layer-desc { color: rgba(255,255,255,0.8); font-size: 0.85rem; }
+.layer-6 { background: #7c3aed; }
+.layer-5 { background: #2563eb; }
+.layer-4 { background: #0891b2; }
+.layer-3 { background: #059669; }
+.layer-2 { background: #d97706; }
+.layer-1 { background: var(--red); }
+
+/* ── Decision Tree ─────────────────────────────────────── */
+.tree { margin-top: 20px; }
+.tree-branch {
+  padding: 14px 20px; margin-bottom: 8px;
+  background: var(--gray-100); border-radius: 4px;
+  border-left: 4px solid var(--ink);
+  font-size: 0.95rem;
+}
+.tree-branch strong { color: var(--ink); }
+.tree-branch .result {
+  display: inline-block; margin-top: 4px;
+  font-family: var(--font-mono); font-size: 0.85rem;
+  padding: 2px 10px; border-radius: 3px;
+  background: var(--red); color: var(--white); font-weight: 500;
+}
+.tree-branch .result.alt {
+  background: var(--ink);
+}
+
+/* ── Flow Arrow Diagram ────────────────────────────────── */
+.flow-row {
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap; margin-top: 20px;
+}
+.flow-box {
+  padding: 12px 20px; border-radius: 4px;
+  font-weight: 600; font-size: 0.9rem;
+  text-align: center;
+}
+.flow-box.idp { background: var(--red); color: var(--white); }
+.flow-box.path { background: var(--ink); color: var(--white); min-width: 100px; }
+.flow-arrow {
+  font-size: 1.4rem; color: var(--gray-300); font-weight: 300;
+}
+
+/* ── Callout ───────────────────────────────────────────── */
+.callout {
+  margin-top: 20px; padding: 16px 20px;
+  border-left: 4px solid var(--red);
+  background: #fff5f3; border-radius: 0 4px 4px 0;
+  font-size: 0.9rem; font-weight: 500;
+}
+.callout.ink {
+  border-left-color: var(--ink);
+  background: var(--gray-100);
+}
+
+/* ── Title Slide ───────────────────────────────────────── */
+.slide.title-slide {
+  justify-content: center;
+  background: var(--ink); color: var(--white);
+}
+.slide.title-slide h1 { color: var(--white); }
+.slide.title-slide .subtitle { color: var(--gray-300); }
+
+/* ── Tag ───────────────────────────────────────────────── */
+.tag {
+  display: inline-block;
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 2px 8px; border-radius: 3px;
+  background: var(--gray-100); color: var(--ink);
+  font-weight: 500;
+}
+.tag.red { background: #fde8e4; color: var(--red); }
+.tag.green { background: #e6f4ed; color: var(--green); }
+
+/* ── Navigation ────────────────────────────────────────── */
+#nav {
+  position: fixed; bottom: 24px; right: 24px;
+  display: flex; gap: 8px; z-index: 1000;
+}
+#nav button {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 2px solid var(--ink); background: var(--white);
+  color: var(--ink); font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s, opacity 0.2s;
+  font-family: var(--font-sans);
+}
+#nav button:hover:not(:disabled) {
+  background: var(--ink); color: var(--white);
+}
+#nav button:disabled {
+  opacity: 0.25; cursor: default;
+}
+
+/* ── Help Overlay ──────────────────────────────────────── */
+#help-overlay {
+  position: fixed; inset: 0;
+  background: rgba(26,26,26,0.85);
+  display: none; align-items: center; justify-content: center;
+  z-index: 2000;
+}
+#help-overlay.visible { display: flex; }
+#help-box {
+  background: var(--white); border-radius: 8px;
+  padding: 40px; max-width: 420px; width: 90%;
+}
+#help-box h3 { margin-bottom: 16px; }
+#help-box table { font-size: 0.9rem; }
+#help-box td { padding: 6px 12px 6px 0; }
+#help-box kbd {
+  font-family: var(--font-mono); font-size: 12px;
+  padding: 2px 8px; border-radius: 3px;
+  background: var(--gray-100); border: 1px solid var(--gray-200);
+}
+#help-box .close-help {
+  margin-top: 20px; padding: 8px 24px;
+  background: var(--ink); color: var(--white);
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: var(--font-sans); font-size: 14px;
+}
+
+/* ── Resource Grid ─────────────────────────────────────── */
+.resource-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px; margin-top: 20px;
+}
+.resource-card {
+  padding: 16px; border: 1px solid var(--gray-200);
+  border-radius: 4px; text-align: center;
+}
+.resource-card .num {
+  font-family: var(--font-mono); font-size: 24px;
+  font-weight: 700; color: var(--red); margin-bottom: 4px;
+}
+.resource-card .rname {
+  font-size: 0.85rem; font-weight: 600;
+}
+
+/* ── Print ─────────────────────────────────────────────── */
+@media print {
+  body { overflow: visible; }
+  #topbar, #nav, #progress, #help-overlay { display: none !important; }
+  #deck { position: static; }
+  .slide {
+    position: relative !important;
+    opacity: 1 !important; pointer-events: auto !important;
+    transform: none !important; page-break-after: always;
+    min-height: 100vh;
+  }
+}
+
+/* ── Mobile ────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .card-grid.cols-2, .card-grid.cols-3, .card-grid.cols-4 {
+    grid-template-columns: 1fr;
+  }
+  .check-grid { grid-template-columns: 1fr; }
+  .flow-row { flex-direction: column; }
+  .layer .layer-label { min-width: auto; }
+  .resource-grid { grid-template-columns: repeat(2, 1fr); }
+  #topbar { padding: 0 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Progress Bar -->
+<div id="progress" style="width: 5%;"></div>
+
+<!-- Topbar -->
+<div id="topbar">
+  <div class="deck-title"><span>//</span> AI Governance on Databricks</div>
+  <div class="counter" id="counter">01 / 20</div>
+</div>
+
+<!-- Slide Deck -->
+<div id="deck">
+
+  <!-- ── Slide 1: Title ──────────────────────────────── -->
+  <div class="slide title-slide active" data-slide="1">
+    <p class="label" style="color:var(--red);">Deck 01</p>
+    <h1>AI Governance<br>on Databricks</h1>
+    <div class="red-line" style="background:var(--red);"></div>
+    <h1 style="font-weight:300; font-size:clamp(1.4rem,2.8vw,2.2rem);">The Complete Picture</h1>
+    <p class="subtitle">Identity, Authorization, and Tool Governance for Enterprise AI</p>
+  </div>
+
+  <!-- ── Slide 2: The Challenge ──────────────────────── -->
+  <div class="slide" data-slide="2">
+    <p class="label">The Challenge</p>
+    <h2>Every enterprise wants the same thing</h2>
+    <div class="card-grid cols-2" style="margin-top:16px;">
+      <div class="card red">
+        <h3>Business users</h3>
+        <p>Ask plain-English questions, get governed answers. Search docs. Build dashboards.</p>
+      </div>
+      <div class="card red">
+        <h3>AI agents</h3>
+        <p>Multiple agents collaborate on complex tasks. Partners and customers need the same capabilities through their own portals.</p>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:24px;">
+      Same data. Same AI. Same governance.<br>
+      <strong>Two identity worlds:</strong> the human's identity, and the application's identity.
+    </div>
+  </div>
+
+  <!-- ── Slide 3: One Authentication Layer ───────────── -->
+  <div class="slide" data-slide="3">
+    <p class="label">Authentication</p>
+    <h2>One Authentication Layer</h2>
+    <p>Databricks has <strong>one</strong> auth layer. Every identity authenticates against the same IdP configured at the account level.</p>
+    <div class="card-grid cols-3" style="margin-top:20px;">
+      <div class="card blue">
+        <h3>Azure</h3>
+        <p>Entra ID</p>
+      </div>
+      <div class="card blue">
+        <h3>AWS</h3>
+        <p>BYO IdP (Okta, Ping, any SAML/OIDC)</p>
+      </div>
+      <div class="card blue">
+        <h3>GCP</h3>
+        <p>Cloud Identity or BYO IdP</p>
+      </div>
+    </div>
+    <div class="callout ink" style="margin-top:24px;">
+      No separate auth for apps, endpoints, or agents. One IdP, one trust boundary.
+    </div>
+  </div>
+
+  <!-- ── Slide 4: Three Token Paths ──────────────────── -->
+  <div class="slide" data-slide="4">
+    <p class="label">Token Architecture</p>
+    <h2>Three Token Paths<br><span style="font-weight:300;font-size:0.7em;">Not Three Auth Systems</span></h2>
+    <p>U2M, OBO, and M2M are <strong>token acquisition paths</strong>, not different authentication systems.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Path</th><th>Who Authenticates</th><th>Identity in UC</th><th>Token Acquired By</th></tr></thead>
+        <tbody>
+          <tr><td><strong>U2M</strong></td><td>The human (directly)</td><td>The human</td><td>Human's client</td></tr>
+          <tr><td><strong>OBO</strong></td><td>The human (via app)</td><td>The human</td><td>App, forwarding token</td></tr>
+          <tr><td><strong>M2M</strong></td><td>Service Principal</td><td>The SP</td><td>The application itself</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="flow-row">
+      <div class="flow-box idp">Single IdP</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box path">U2M</div>
+      <div class="flow-box path">OBO</div>
+      <div class="flow-box path">M2M</div>
+    </div>
+  </div>
+
+  <!-- ── Slide 5: Restaurant Analogy (ELI5) ─────────── -->
+  <div class="slide" data-slide="5">
+    <p class="label">ELI5</p>
+    <h2>The Restaurant Analogy</h2>
+    <p>One restaurant (Databricks). One ID-check at the door (your company IdP). Same bouncer for everyone.</p>
+    <div class="card-grid cols-3" style="margin-top:20px;">
+      <div class="card" style="border-left:4px solid var(--blue);">
+        <h3 style="color:var(--blue);">U2M</h3>
+        <p style="font-size:var(--sz-body);line-height:1.7">You walk in <strong>yourself</strong>, show your badge at the door, sit down and order. The kitchen checks <strong>your</strong> allergy list, serves <strong>your</strong> food.</p>
+        <p style="font-size:var(--sz-small);color:var(--muted);margin-top:8px;font-style:italic">You're the one at the table.</p>
+      </div>
+      <div class="card" style="border-left:4px solid var(--red);">
+        <h3 style="color:var(--red);">OBO</h3>
+        <p style="font-size:var(--sz-body);line-height:1.7">You're in a meeting, so you send your <strong>assistant</strong> with <strong>your badge</strong>. Same door, same bouncer. Kitchen checks <strong>your</strong> allergy list.</p>
+        <p style="font-size:var(--sz-small);color:var(--muted);margin-top:8px;font-style:italic">Assistant carries the tray. Never shows their own badge.</p>
+      </div>
+      <div class="card" style="border-left:4px solid var(--ink);">
+        <h3>M2M</h3>
+        <p style="font-size:var(--sz-body);line-height:1.7">Your company has a <strong>catering account</strong>. The catering bot shows the <strong>company badge</strong>. Standard menu, same meal for everyone.</p>
+        <p style="font-size:var(--sz-small);color:var(--muted);margin-top:8px;font-style:italic">Doesn't matter who placed the order.</p>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:16px;">
+      The door (IdP) is always the same. The kitchen (UC) always checks the badge that was presented. The only difference is <strong>whose badge gets shown</strong>.
+    </div>
+  </div>
+
+  <!-- ── Slide 6: Decision Tree ──────────────────────── -->
+  <div class="slide" data-slide="6">
+    <p class="label">Decision Framework</p>
+    <h2>Who should UC see as the identity?</h2>
+    <div class="tree">
+      <div class="tree-branch" style="border-left-color:var(--red);">
+        <strong>THE ACTUAL HUMAN</strong> &mdash; Does the human call Databricks directly?
+        <br><span class="result">Yes &rarr; U2M</span>
+        <br><span class="result alt">No, through an app &rarr; OBO</span>
+      </div>
+      <div class="tree-branch" style="border-left-color:var(--ink);">
+        <strong>THE APPLICATION (SP)</strong> &mdash; Shared data access, background jobs, RAG pipelines
+        <br><span class="result alt">M2M</span>
+      </div>
+    </div>
+    <div class="callout ink" style="margin-top:24px;">
+      Start with the identity question. Everything else follows from the answer.
+    </div>
+  </div>
+
+  <!-- ── Slide 7: The Resource Lens ──────────────────── -->
+  <div class="slide" data-slide="7">
+    <p class="label">Resource Model</p>
+    <h2>The Resource Lens</h2>
+    <p>Authorization differs by <strong>what</strong> you're accessing, not where the app runs.</p>
+    <div class="resource-grid">
+      <div class="resource-card"><div class="num">1</div><div class="rname">Serving Endpoints<br><span style="font-size:0.75rem;color:var(--gray-500);">Agent Bricks</span></div></div>
+      <div class="resource-card"><div class="num">2</div><div class="rname">Genie Spaces</div></div>
+      <div class="resource-card"><div class="num">3</div><div class="rname">UC Functions</div></div>
+      <div class="resource-card"><div class="num">4</div><div class="rname">Vector Search</div></div>
+      <div class="resource-card"><div class="num">5</div><div class="rname">UC HTTP Connections</div></div>
+      <div class="resource-card"><div class="num">6</div><div class="rname">Tables<br><span style="font-size:0.75rem;color:var(--gray-500);">Row Filters, Column Masks</span></div></div>
+      <div class="resource-card"><div class="num">7</div><div class="rname">Lakebase<br><span style="font-size:0.75rem;color:var(--gray-500);">PG-native exception</span></div></div>
+    </div>
+  </div>
+
+  <!-- ── Slide 8: Resource Auth Matrix ───────────────── -->
+  <div class="slide" data-slide="8">
+    <p class="label">Authorization Matrix</p>
+    <h2>Resource Auth Matrix</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Resource</th><th>Recommended Path</th><th>Identity in UC</th><th>AuthZ Model</th></tr></thead>
+        <tbody>
+          <tr><td>Serving Endpoints</td><td>OBO or M2M</td><td>User or SP</td><td>UC + OAuth scopes</td></tr>
+          <tr><td>Genie</td><td>OBO</td><td>Calling user</td><td>UC + genie scopes</td></tr>
+          <tr><td>UC Functions</td><td>OBO or M2M</td><td>User or SP</td><td>UC EXECUTE</td></tr>
+          <tr><td>Vector Search</td><td>M2M</td><td>App SP</td><td>UC SELECT</td></tr>
+          <tr><td>UC HTTP Connections</td><td>M2M + per-user OAuth</td><td>SP + external user</td><td>USE CONNECTION</td></tr>
+          <tr><td>Tables</td><td>Any</td><td>Depends on path</td><td>Row filters, column masks</td></tr>
+          <tr><td style="color:var(--red);font-weight:600;">Lakebase</td><td>M2M</td><td>App SP (PG role)</td><td>PG-native (GRANT, RLS) &mdash; <strong>NOT UC</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Slide 9: The Six Enforcement Layers ─────────── -->
+  <div class="slide" data-slide="9">
+    <p class="label">Defense in Depth</p>
+    <h2>The Six Enforcement Layers</h2>
+    <div class="layer-stack">
+      <div class="layer layer-6"><span class="layer-num">6</span><span class="layer-label">Audit &amp; Observability</span><span class="layer-desc">system.access.audit + MLflow traces</span></div>
+      <div class="layer layer-5"><span class="layer-num">5</span><span class="layer-label">Execution Boundary</span><span class="layer-desc">Model Serving, Apps, serverless</span></div>
+      <div class="layer layer-4"><span class="layer-num">4</span><span class="layer-label">Outbound Control</span><span class="layer-desc">UC Connections, network policies</span></div>
+      <div class="layer layer-3"><span class="layer-num">3</span><span class="layer-label">Data Governance</span><span class="layer-desc">Row Filters, Column Masks, ABAC</span></div>
+      <div class="layer layer-2"><span class="layer-num">2</span><span class="layer-label">Permission Model</span><span class="layer-desc">UC privileges, least-privilege SP grants</span></div>
+      <div class="layer layer-1"><span class="layer-num">1</span><span class="layer-label">Identity</span><span class="layer-desc">Agent SP, User OBO, Token federation</span></div>
+    </div>
+    <div class="callout" style="margin-top:16px;">
+      Never accept a design that relies on a single layer.
+    </div>
+  </div>
+
+  <!-- ── Slide 10: current_user() vs is_member() ──────── -->
+  <div class="slide" data-slide="10">
+    <p class="label">Common Pitfall</p>
+    <h2><code>current_user()</code> vs <code>is_member()</code></h2>
+    <p>The #1 source of auth bugs in AI apps.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Path</th><th>current_user() Returns</th><th>is_member() Evaluates</th></tr></thead>
+        <tbody>
+          <tr><td>U2M</td><td>Human email</td><td>Human's groups <span class="tag green">&#10003;</span></td></tr>
+          <tr><td>OBO (direct SQL)</td><td>Human email</td><td>Human's groups <span class="tag green">&#10003;</span></td></tr>
+          <tr><td>OBO (via Genie / Agent Bricks)</td><td>Human email</td><td>Execution service identity <span class="tag red">&#10007;</span></td></tr>
+          <tr><td>M2M</td><td>SP UUID</td><td>SP's groups <span class="tag green">&#10003;</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout" style="margin-top:16px;">
+      <strong>Universal rule:</strong> Use <code>current_user()</code> for row filters. It works correctly in every path.
+    </div>
+  </div>
+
+  <!-- ── Slide 11: Two-Sided Identity Problem ────────── -->
+  <div class="slide" data-slide="11">
+    <p class="label">External Identity</p>
+    <h2>The Two-Sided Identity Problem</h2>
+    <p>U2M / OBO / M2M answer "who does <strong>Databricks</strong> see?" External connections add: "who does the <strong>external service</strong> see?"</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Connection Auth Method</th><th>Databricks Sees</th><th>External Service Sees</th></tr></thead>
+        <tbody>
+          <tr><td>Bearer Token</td><td>Caller</td><td>Shared</td></tr>
+          <tr><td>OAuth M2M</td><td>Caller</td><td>Shared</td></tr>
+          <tr><td>OAuth U2M Shared</td><td>Caller</td><td>Shared</td></tr>
+          <tr><td>OAuth U2M Per User</td><td>Caller</td><td><strong style="color:var(--green);">Per-user &#10003;</strong></td></tr>
+          <tr><td>Managed OAuth</td><td>Caller</td><td><strong style="color:var(--green);">Per-user &#10003;</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Slide 12: Token Federation ──────────────────── -->
+  <div class="slide" data-slide="12">
+    <p class="label">Federation</p>
+    <h2>Token Federation</h2>
+    <p>Any app with a trusted IdP JWT can exchange it for a Databricks token (RFC 8693). <strong>No secrets.</strong></p>
+    <div class="card-grid cols-2" style="margin-top:20px;">
+      <div class="card blue">
+        <h3>Account Token Federation</h3>
+        <p>Users &amp; SPs. Requires SCIM sync. 5 issuer limit per account.</p>
+      </div>
+      <div class="card">
+        <h3>Workload Identity Federation</h3>
+        <p>CI/CD pipelines. Per-SP binding. Unlimited issuers. Completely secretless.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Slide 13: OAuth Scopes ──────────────────────── -->
+  <div class="slide" data-slide="13">
+    <p class="label">Scopes</p>
+    <h2>OAuth Scopes</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Operation</th><th>Required Scope</th></tr></thead>
+        <tbody>
+          <tr><td>Genie</td><td><code>dashboards.genie</code> + <code>genie</code> <span class="tag red">both required</span></td></tr>
+          <tr><td>Agent Bricks / Serving</td><td><code>model-serving</code></td></tr>
+          <tr><td>SQL</td><td><code>sql</code></td></tr>
+          <tr><td>UC / External MCP</td><td><code>unity-catalog</code></td></tr>
+          <tr><td>Vector Search</td><td><code>vector-search</code></td></tr>
+          <tr><td>Refresh tokens</td><td><code>offline_access</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout" style="margin-top:20px;">
+      Scopes enforce least privilege at the token level. Request only what you need.
+    </div>
+  </div>
+
+  <!-- ── Slide 14: Lakebase — The Exception ──────────── -->
+  <div class="slide" data-slide="14">
+    <p class="label">Exception</p>
+    <h2>Lakebase &mdash; The Exception</h2>
+    <p>Lakebase uses <strong>PG-native authorization</strong> (roles, GRANT, RLS), <strong>not UC</strong>.</p>
+    <div class="card-grid cols-2" style="margin-top:20px;">
+      <div class="card red">
+        <h3>AuthN</h3>
+        <p>Databricks OAuth (token as PG password) or native PG roles</p>
+      </div>
+      <div class="card red">
+        <h3>AuthZ</h3>
+        <p>PG GRANT + RLS policies. Not Unity Catalog.</p>
+      </div>
+      <div class="card">
+        <h3>Roles</h3>
+        <p>Instance owner (LOGIN, CREATEDB, CREATEROLE). App SP &rarr; auto-created PG role. System roles for sync/monitoring.</p>
+      </div>
+      <div class="card">
+        <h3>UC Registration + Lakehouse Sync</h3>
+        <p>Register &rarr; read-only UC catalog for cross-source queries. Lakehouse Sync &rarr; continuous CDC to Delta (SCD2 history via wal2delta).</p>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:16px;">
+      PG-native authZ for direct connections. But UC Registration + Lakehouse Sync bridge Lakebase data into UC governance.
+    </div>
+  </div>
+
+  <!-- ── Slide 15: Agent Architecture Pattern ────────── -->
+  <div class="slide" data-slide="15">
+    <p class="label">Agent Pattern</p>
+    <h2>Agent Architecture Pattern</h2>
+    <p>How agents are governed &mdash; mapped to the six enforcement layers.</p>
+    <ol class="steps">
+      <li><strong>Identity (Layer 1)</strong> &mdash; Agent gets a dedicated Service Principal</li>
+      <li><strong>Permissions (Layer 2)</strong> &mdash; SP has explicit UC grants &mdash; zero default access</li>
+      <li><strong>Data Governance (Layer 3)</strong> &mdash; Row filters fire on every data access</li>
+      <li><strong>Outbound Control (Layer 4)</strong> &mdash; External calls via UC Connections with USE CONNECTION</li>
+      <li><strong>Execution Boundary (Layer 5)</strong> &mdash; Runs in Model Serving / Apps sandbox</li>
+      <li><strong>Audit (Layer 6)</strong> &mdash; All traced via MLflow + <code>system.access.audit</code></li>
+    </ol>
+  </div>
+
+  <!-- ── Slide 16: OBO Prerequisites ─────────────────── -->
+  <div class="slide" data-slide="16">
+    <p class="label">Checklist</p>
+    <h2>OBO Prerequisites</h2>
+    <ul class="checklist">
+      <li>User exists in Databricks (SCIM sync active)</li>
+      <li>Token federation policy or OAuth app integration configured</li>
+      <li>Row filters use <code>current_user()</code>, not <code>is_member()</code></li>
+      <li>App passes a valid Databricks user token (not its own)</li>
+      <li>Receiving endpoint supports OBO token extraction</li>
+    </ul>
+  </div>
+
+  <!-- ── Slide 17: M2M Prerequisites ─────────────────── -->
+  <div class="slide" data-slide="17">
+    <p class="label">Checklist</p>
+    <h2>M2M Prerequisites</h2>
+    <ul class="checklist">
+      <li>Service Principal exists in Databricks account</li>
+      <li>SP has explicit UC grants (zero default access)</li>
+      <li>SP credentials available (auto-injected in Apps / Model Serving)</li>
+      <li>Row filters account for SP identity (<code>current_user()</code> returns SP UUID)</li>
+    </ul>
+  </div>
+
+  <!-- ── Slide 18: Security Checklist ────────────────── -->
+  <div class="slide" data-slide="18">
+    <p class="label">Security</p>
+    <h2>Security Checklist</h2>
+    <div class="check-grid">
+      <ul class="checklist">
+        <li>No secrets in env vars (UC connections hold credentials)</li>
+        <li>OAuth scopes enforce least privilege</li>
+        <li>UC governance at SQL engine level</li>
+        <li>Tool-level RBAC (defense in depth)</li>
+        <li>Rate limiting (Genie 5 QPM, connection pools)</li>
+      </ul>
+      <ul class="checklist">
+        <li>Async audit (never blocks request path)</li>
+        <li>Structured JSON logging with <code>request_id</code></li>
+        <li>Input validation + HTTPS-only</li>
+        <li>Retry with jitter (429 / 503)</li>
+        <li>Tokens never logged</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── Slide 19: What's Different ──────────────────── -->
+  <div class="slide" data-slide="19">
+    <p class="label">Differentiation</p>
+    <h2>What's Different About This Approach</h2>
+    <div class="card-grid cols-3" style="margin-top:20px;">
+      <div class="card red">
+        <h3>Identity, not secrets</h3>
+        <p>No PATs, no static credentials. Federation + OAuth everywhere.</p>
+      </div>
+      <div class="card">
+        <h3>Authorization at the resource</h3>
+        <p>UC grants per resource type, not blanket access.</p>
+      </div>
+      <div class="card blue">
+        <h3>Audit is automatic</h3>
+        <p><code>system.access.audit</code> captures every API call. MLflow traces every agent step.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Slide 20: Getting Started ───────────────────── -->
+  <div class="slide" data-slide="20">
+    <p class="label">Implementation</p>
+    <h2>Getting Started</h2>
+    <ol class="steps">
+      <li>Configure account-level IdP (Entra ID / BYO SAML/OIDC)</li>
+      <li>Enable SCIM sync for users and groups</li>
+      <li>Create Service Principals per capability boundary</li>
+      <li>Set UC grants with least privilege</li>
+      <li>Configure UC Connections for external services</li>
+      <li>Deploy with OBO for user-facing, M2M for background</li>
+      <li>Monitor via <code>system.access.audit</code> + MLflow</li>
+    </ol>
+  </div>
+
+  <!-- ── Slide 21: Closing ───────────────────────────── -->
+  <div class="slide title-slide" data-slide="21">
+    <p class="label" style="color:var(--red);">Summary</p>
+    <h1>One IdP.<br>Three Token Paths.<br>Six Enforcement Layers.</h1>
+    <div class="red-line" style="background:var(--red);"></div>
+    <p class="subtitle" style="max-width:640px;">Same governance model &mdash; whether the user is internal or external, whether the app runs on Databricks or outside.</p>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- Navigation -->
+<div id="nav">
+  <button id="btn-home" title="Home" aria-label="Home">&#8962;</button>
+  <button id="btn-prev" title="Previous" aria-label="Previous">&larr;</button>
+  <button id="btn-next" title="Next" aria-label="Next">&rarr;</button>
+  <button id="btn-help" title="Keyboard shortcuts" aria-label="Help">?</button>
+</div>
+
+<!-- Help Overlay -->
+<div id="help-overlay">
+  <div id="help-box">
+    <h3>Keyboard Shortcuts</h3>
+    <table>
+      <tr><td><kbd>&rarr;</kbd> or <kbd>Space</kbd></td><td>Next slide</td></tr>
+      <tr><td><kbd>&larr;</kbd></td><td>Previous slide</td></tr>
+      <tr><td><kbd>Home</kbd></td><td>First slide</td></tr>
+      <tr><td><kbd>End</kbd></td><td>Last slide</td></tr>
+      <tr><td><kbd>?</kbd></td><td>Toggle this help</td></tr>
+    </table>
+    <button class="close-help" onclick="toggleHelp()">Close</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+  let direction = 1; // 1 = forward, -1 = back
+
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('counter');
+  const btnHome = document.getElementById('btn-home');
+  const btnPrev = document.getElementById('btn-prev');
+  const btnNext = document.getElementById('btn-next');
+  const btnHelp = document.getElementById('btn-help');
+  const helpOverlay = document.getElementById('help-overlay');
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function goTo(idx) {
+    if (idx < 0 || idx >= total || idx === current) return;
+    direction = idx > current ? 1 : -1;
+    slides[current].classList.remove('active');
+    slides[current].classList.remove('prev');
+    if (direction === 1) {
+      slides[current].classList.add('prev');
+    }
+    current = idx;
+    slides.forEach((s, i) => {
+      if (i !== current) {
+        s.classList.remove('active');
+        // Reset non-active slides based on position relative to current
+        if (i < current) {
+          s.classList.add('prev');
+        } else {
+          s.classList.remove('prev');
+        }
+      }
+    });
+    slides[current].classList.remove('prev');
+    slides[current].classList.add('active');
+    update();
+  }
+
+  function update() {
+    const pct = ((current + 1) / total) * 100;
+    progress.style.width = pct + '%';
+    counter.textContent = pad(current + 1) + ' / ' + pad(total);
+    btnHome.disabled = current === 0;
+    btnPrev.disabled = current === 0;
+    btnNext.disabled = current === total - 1;
+  }
+
+  function next() { goTo(current + 1); }
+  function prev() { goTo(current - 1); }
+  function home() { goTo(0); }
+  function end()  { goTo(total - 1); }
+
+  window.toggleHelp = function() {
+    helpOverlay.classList.toggle('visible');
+  };
+
+  // Button events
+  btnHome.addEventListener('click', home);
+  btnPrev.addEventListener('click', prev);
+  btnNext.addEventListener('click', next);
+  btnHelp.addEventListener('click', window.toggleHelp);
+
+  // Close help on overlay click
+  helpOverlay.addEventListener('click', function(e) {
+    if (e.target === helpOverlay) window.toggleHelp();
+  });
+
+  // Keyboard
+  document.addEventListener('keydown', function(e) {
+    if (helpOverlay.classList.contains('visible')) {
+      if (e.key === 'Escape' || e.key === '?') window.toggleHelp();
+      return;
+    }
+    switch(e.key) {
+      case 'ArrowRight': case ' ':
+        e.preventDefault(); next(); break;
+      case 'ArrowLeft':
+        e.preventDefault(); prev(); break;
+      case 'Home':
+        e.preventDefault(); home(); break;
+      case 'End':
+        e.preventDefault(); end(); break;
+      case '?':
+        window.toggleHelp(); break;
+    }
+  });
+
+  // Touch / swipe
+  let touchStartX = 0;
+  let touchStartY = 0;
+  document.addEventListener('touchstart', function(e) {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  });
+  document.addEventListener('touchend', function(e) {
+    const dx = e.changedTouches[0].screenX - touchStartX;
+    const dy = e.changedTouches[0].screenY - touchStartY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      if (dx < 0) next(); else prev();
+    }
+  });
+
+  // Init
+  update();
+})();
+</script>
+</body>
+</html>
