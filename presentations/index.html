@@ -192,9 +192,11 @@ h1 span { color: var(--red); }
         </a>
     </div>
 
-    <div class="section-label" style="margin-top:3rem">Archive (Previous Versions)</div>
+    <div class="section-label" style="margin-top:3rem;cursor:pointer;user-select:none" onclick="var el=document.getElementById('archive');var arr=document.getElementById('archive-arrow');if(el.style.display==='none'){el.style.display='flex';arr.textContent='▾'}else{el.style.display='none';arr.textContent='▸'}">
+        <span id="archive-arrow">▸</span> Archive (Previous Versions)
+    </div>
 
-    <div class="deck-grid" style="opacity:0.5">
+    <div id="archive" class="deck-grid" style="opacity:0.5;display:none">
         <a href="identity-governance-overview.html" class="deck-card">
             <div class="deck-num" style="background:var(--muted)">—</div>
             <div class="deck-body">
