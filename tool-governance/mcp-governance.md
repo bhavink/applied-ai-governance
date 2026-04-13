@@ -55,101 +55,31 @@ Agent needs to call a tool
 | External | `USE CONNECTION` on the UC HTTP connection |
 | Custom | Whatever your tool code enforces (OBO → user identity propagated; M2M → SP identity) |
 
----
+### External Connection Tools — Agent Framework Integration
 
-## Custom MCP Server — Auth Patterns
+External connection tools are the Agent Framework's native path for third-party API access. The flow:
 
-### The Two-Proxy Problem
+1. Create UC HTTP connection (stores credentials)
+2. Mark as MCP connection (enables `/api/2.0/mcp/external/{conn_name}` proxy)
+3. `GRANT USE CONNECTION` to authorized identities
+4. Agent discovers tools from the external MCP server via the proxy
 
-When a Databricks App (Proxy 1) calls a custom MCP App (Proxy 2), both proxies intervene independently:
-
-```
-User browser
-    ↓
-[main-app proxy]        ← Proxy 1: injects Token A (user's token)
-    ↓  Authorization: Bearer {Token A}
-[custom-mcp proxy]      ← Proxy 2: STRIPS Authorization header
-    ↓  injects X-Forwarded-Access-Token (Token B — MCP app's SP token)
-    ↓  injects X-Forwarded-Email (correctly set to user's email)
-server/main.py (FastMCP)
-```
-
-Token B's `sub` claim is the MCP SP's UUID — not the user. `ModelServingUserCredentials()` reads Model Serving's internal request context (does not exist in Apps) and silently falls back to M2M, returning the SP identity instead of the user.
-
-**Solution**: Use `X-Forwarded-Email` for identity — set by Proxy 2 from Token A's validated identity. Cannot be forged by the calling app.
-
-### OBO Identity Extraction
-
-```python
-# X-Forwarded-Email is proxy-injected and cannot be forged by the calling app.
-# Use pure ASGI middleware (NOT BaseHTTPMiddleware) — BaseHTTPMiddleware runs
-# call_next in a new asyncio task, breaking ContextVar inheritance.
-
-import contextvars
-from starlette.types import ASGIApp, Receive, Scope, Send
-
-_request_caller: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "request_caller", default=""
-)
-
-class ExtractTokenMiddleware:
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http":
-            headers = {k.lower(): v for k, v in scope.get("headers", [])}
-            caller_email = headers.get(b"x-forwarded-email", b"").decode("utf-8")
-            token = _request_caller.set(caller_email)
-            try:
-                await self.app(scope, receive, send)
-            finally:
-                _request_caller.reset(token)
-            return
-        await self.app(scope, receive, send)
-
-def _caller_email() -> str:
-    return _request_caller.get("")
-```
-
-### M2M Pattern
-
-```python
-from databricks.sdk import WorkspaceClient
-
-def _m2m_client() -> WorkspaceClient:
-    # Runs as APP SERVICE PRINCIPAL.
-    # SDK auto-discovers DATABRICKS_CLIENT_ID/SECRET from env vars.
-    return WorkspaceClient()
-```
-
-### Critical: `ModelServingUserCredentials()` Does Not Work in Databricks Apps
-
-`ModelServingUserCredentials()` only works inside Databricks Model Serving. In a Databricks App context it silently falls back to M2M, returning the SP identity rather than the calling user. Do not use it for OBO identity in Apps. Read `X-Forwarded-Email` instead.
+The governance model: UC checks `USE CONNECTION` before every proxy request. The agent code never touches raw credentials — Databricks injects them server-side. `REVOKE USE CONNECTION` is instant, requires no redeployment, and is audited in `system.access.audit`.
 
 ---
 
-## URL Patterns Cheatsheet
+## Custom MCP Server — Governance Considerations
 
-```
-# Managed MCP — Databricks-hosted servers
-Genie:          {host}/api/2.0/mcp/genie/{genie_space_id}
-Vector Search:  {host}/api/2.0/mcp/vector-search/{catalog}/{schema}/{index_name}
-UC Functions:   {host}/api/2.0/mcp/functions/{catalog}/{schema}
-DBSQL:          {host}/api/2.0/mcp/sql
+Custom MCP servers introduce the **two-proxy problem**: when one Databricks App calls another, Proxy 2 strips the user's token and replaces it with the downstream SP's token. The user's identity is lost at the data plane unless `authorization: disabled` is set on the downstream app.
 
-# External MCP — proxied through UC HTTP connection
-External:       {host}/api/2.0/mcp/external/{uc_connection_name}
+**Key governance points:**
 
-# Custom MCP — your server hosted on Databricks Apps
-Custom:         https://{app-url}/mcp
-```
+- `X-Forwarded-Email` is the only reliable identity source in custom MCP servers — set by the proxy, cannot be forged
+- `ModelServingUserCredentials()` does NOT work in Databricks Apps — silently falls back to M2M, returning SP identity instead of user
+- Each app deployment gets its own SP — grants don't carry over between deployments
+- Custom MCP servers use OAuth only (no PATs) and Streamable HTTP transport
 
----
-
-## Transport
-
-All Databricks MCP servers use **Streamable HTTP** transport. WebSocket and stdio-based MCP servers are not supported.
+For the two-proxy architecture diagram, ASGI middleware patterns, and code examples, see [Proxy Architecture](../identity/proxy-architecture.md) and the [fieldkit custom MCP guide](https://github.com/bhavink/fieldkit).
 
 ---
 

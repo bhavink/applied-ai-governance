@@ -51,6 +51,27 @@ Scorers run asynchronously on production traces with zero impact on application 
 
 **Gotcha**: The assessment field is `a.name`, NOT `a.assessment_name`. Early documentation referenced `assessment_name`, which does not exist.
 
+### Multi-Turn Conversation Judges
+
+For agents with multi-turn conversations, single-trace quality is insufficient. Session-level judges evaluate conversation quality:
+
+| Judge | What it evaluates |
+|---|---|
+| `UserFrustration` | Signs of user frustration across the conversation (repeated questions, escalation language) |
+| `ConversationCompleteness` | Whether the user's goal was achieved by conversation end |
+| `ConversationalSafety` | Safety across the full conversation (not just individual turns) |
+
+These judges group traces by session ID and evaluate the conversation arc, not individual responses. Register them the same way as single-turn scorers.
+
+### Scorer Governance
+
+| Constraint | Detail |
+|---|---|
+| Maximum scorers | 20 per experiment |
+| Immutable pattern | Registered scorers cannot be modified — register a new version, archive the old |
+| Sampling strategy | 100% for safety/security (non-negotiable), 30-50% for quality/guidelines, 5-20% for expensive custom judges |
+| Backfill | `backfill_scorers()` runs scorers on historical traces with custom time ranges — use for retroactive compliance checks |
+
 ### MLflow Tracing — Implementation Patterns
 
 #### Auto-Instrumentation (One Line)

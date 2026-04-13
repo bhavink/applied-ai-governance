@@ -66,6 +66,17 @@ Need per-user identity at the external service?
         +-- Static API key only?                                --> Bearer Token
 ```
 
+### Choosing the Right Auth Method
+
+| Method | Identity seen by external service | Credential lifecycle | Governance strength | Best for |
+|---|---|---|---|---|
+| **Bearer Token** | Shared service account | Manual rotation; stored in UC connection | Moderate — shared credential, audit shows connection use but not individual user | Internal APIs, services without OAuth |
+| **OAuth M2M** | Shared service account | Auto-rotation via client credentials | Moderate — same as Bearer but credentials auto-refresh | SaaS APIs with OAuth support |
+| **OAuth U2M Shared** | Shared service account (authorized by one user) | Single-user authorization; auto-refresh | Low — one user authorizes, all users use that identity | Quick setup; not recommended for audit |
+| **OAuth U2M Per User** | Individual user | Each user authorizes separately; per-user refresh tokens | **High** — end-to-end per-user identity and audit trail | Regulated access, per-user audit requirements |
+
+**The governance principle**: Use OAuth U2M Per User when you need per-user audit trails at the external service. Use Bearer Token or OAuth M2M when a shared service identity is acceptable and UC `USE CONNECTION` audit is sufficient.
+
 ---
 
 ## Bearer Token

@@ -163,6 +163,58 @@ How it works: define governed tags (e.g., `sensitivity: [low, high, critical]`),
 
 Reference: [ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac), [ABAC Tutorial](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/tutorial), [Governed Tags](https://docs.databricks.com/aws/en/admin/governed-tags/)
 
+### Data Classification — The ABAC Input
+
+Auto-classification scans table samples and detects PII/PHI/PCI patterns using built-in semantic detectors (email, SSN, credit card, DoB, passport, IBAN, phone, IP address, street address). Results are written as `databricks:classifier:*` governed tags on columns.
+
+**Governance workflow:**
+1. **Enable** classification at metastore level (metastore admin)
+2. **Scan** runs automatically on new and existing tables
+3. **Review** results via `system.information_schema.column_tags`
+4. **Apply** column masks to classified columns
+5. **Alert** on unmasked PII columns (classification without mask = gap)
+
+Classification does NOT automatically apply masks — it identifies; you enforce.
+
+```sql
+-- Find all PII columns without masks
+SELECT t.catalog_name, t.schema_name, t.table_name, t.column_name, t.tag_value AS pii_type
+FROM system.information_schema.column_tags t
+LEFT JOIN system.information_schema.column_masks m
+  ON t.catalog_name = m.catalog_name
+  AND t.schema_name = m.schema_name
+  AND t.table_name = m.table_name
+  AND t.column_name = m.column_name
+WHERE t.tag_name = 'databricks:classifier:pii_type'
+  AND m.mask_function IS NULL;
+```
+
+### Governed Tags — The ABAC Primitive
+
+Tags are key-value metadata on UC securables (catalogs, schemas, tables, columns). They propagate hierarchically and are the foundation of ABAC.
+
+| Behavior | Detail |
+|---|---|
+| Propagation | Parent tags inherit downward (catalog → schema → table → column) |
+| Override | Child can override inherited tag value; cannot remove inherited tag |
+| Privilege | `APPLY TAG` is separate from data access — data stewards tag, analysts query |
+| Queryable | `system.information_schema.column_tags`, `table_tags`, `schema_tags`, `catalog_tags` |
+
+```sql
+-- Tag a table
+ALTER TABLE catalog.schema.employees SET TAGS ('sensitivity' = 'pii', 'domain' = 'hr');
+
+-- Tag a column
+ALTER TABLE catalog.schema.employees ALTER COLUMN ssn SET TAGS ('pii_type' = 'ssn');
+
+-- Query all tags with inheritance
+SELECT tag_name, tag_value, inherited_from_name, inherited_from_type
+FROM system.information_schema.column_tags
+WHERE catalog_name = 'my_catalog' AND table_name = 'employees';
+```
+
+The governance pattern: classify columns with tags, write policy functions that reference tags (or use ABAC policies), and tag-driven governance scales without per-table configuration.
+
 ## The Account vs Workspace Group Problem
 
 Three distinct failures when groups are misconfigured:
