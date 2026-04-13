@@ -454,7 +454,7 @@ tbody tr:last-child td { border-bottom: none; }
   <div class="slide" data-slide="3">
     <p class="label">Authentication</p>
     <h2>One Authentication Layer</h2>
-    <p>Databricks has <strong>one</strong> auth layer. Every identity authenticates against the same IdP configured at the account level.</p>
+    <p>Databricks has <strong>one authorization layer</strong> — Unity Catalog. Authentication can come from multiple sources: the workspace IdP for internal users, or external IdPs via token federation for partners and customers. All paths converge on UC, which enforces governance regardless of how the token was obtained.</p>
     <div class="card-grid cols-3" style="margin-top:20px;">
       <div class="card blue">
         <h3>Azure</h3>
@@ -470,7 +470,7 @@ tbody tr:last-child td { border-bottom: none; }
       </div>
     </div>
     <div class="callout ink" style="margin-top:24px;">
-      No separate auth for apps, endpoints, or agents. One IdP, one trust boundary.
+      Multiple authentication paths (workspace IdP, federation, M2M credentials) — but one authorization engine. Unity Catalog is the single trust boundary.
     </div>
   </div>
 
@@ -642,7 +642,7 @@ tbody tr:last-child td { border-bottom: none; }
   <div class="slide" data-slide="12">
     <p class="label">Federation</p>
     <h2>Token Federation</h2>
-    <p>Any app with a trusted IdP JWT can exchange it for a Databricks token (RFC 8693). <strong>No secrets.</strong></p>
+    <p>Any app with a trusted IdP JWT can exchange it for a Databricks token via federation. <strong>No secrets.</strong></p>
     <div class="card-grid cols-2" style="margin-top:20px;">
       <div class="card blue">
         <h3>Account Token Federation</h3>

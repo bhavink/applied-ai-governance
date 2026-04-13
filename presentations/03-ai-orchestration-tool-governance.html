@@ -583,11 +583,11 @@ REVOKE USE CONNECTION ON CONNECTION jira_mcp FROM `agent-sp-uuid`;</pre>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 14: TOKEN FEDERATION (RFC 8693) -->
+<!-- SLIDE 14: TOKEN FEDERATION -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="14">
   <div class="label reveal">Token Federation</div>
-  <h2 class="reveal">Token Federation (RFC 8693)</h2>
+  <h2 class="reveal">Token Federation</h2>
   <p class="reveal" style="color:var(--muted)">Exchange a trusted IdP JWT for a Databricks OAuth token. No Databricks secrets needed.</p>
   <div class="two-col mt-2">
     <div class="card reveal">
@@ -606,7 +606,7 @@ REVOKE USE CONNECTION ON CONNECTION jira_mcp FROM `agent-sp-uuid`;</pre>
         <li><strong>One endpoint:</strong> <code>POST /oidc/v1/token</code></li>
         <li><strong>No Databricks secrets</strong> needed in your infrastructure</li>
         <li>Works for <strong>user (U2M)</strong> and <strong>SP (M2M)</strong> identities</li>
-        <li>Standards-based: <strong>RFC 8693</strong> token exchange</li>
+        <li>Standards-based: OAuth token exchange</li>
         <li>Exchange trusted JWT &rarr; get Databricks token</li>
       </ul>
     </div>
@@ -940,7 +940,7 @@ AND user_identity.email =
     <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Row filters: current_user() only</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Filter data to the calling user&rsquo;s identity, not the SP.</span></div></div>
     <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>UC Connections: USE CONNECTION grants</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Every external tool governed by GRANT/REVOKE on connection objects.</span></div></div>
     <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>OAuth scopes: minimal</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Not all-apis. Use sql, genie, serving, dashboards.genie as needed.</span></div></div>
-    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Token federation: no stored secrets</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">RFC 8693 exchange eliminates secrets in CI/CD and external apps.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Token federation: no stored secrets</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Token federation exchange eliminates secrets in CI/CD and external apps.</span></div></div>
     <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Audit: system.access.audit enabled</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Every API call logged. Retention configured. Alerting on anomalies.</span></div></div>
     <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>MLflow tracing: enabled for all agents</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Every tool call, LLM invocation, and agent step traced.</span></div></div>
     <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>AI Gateway: rate limits + guardrails</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">QPM/TPM limits per user. Content filtering on input and output.</span></div></div>

@@ -4,7 +4,7 @@
 
 ## When to Use
 
-- The user calling the external app is already a Databricks user (same IdP, has a workspace account)
+- The user calling the external app is already a Databricks user (registered in the workspace via the workspace-configured IdP)
 - You want `current_user()` = human email end-to-end (not an SP)
 - The external app is NOT running on Databricks (CF Pages, custom SPA, mobile app)
 - UC row filters, column masks, and `USE CONNECTION` should fire per individual user
