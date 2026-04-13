@@ -15,7 +15,7 @@ The app forwards the user's own token. Databricks sees the human.
 - Audit trail records the human's identity
 - **When to use**: Internal apps where users have Databricks workspace accounts. Streamlit dashboards, interactive analytics, agent tools.
 
-The Databricks Apps proxy handles this automatically. When a user accesses a Databricks App, the platform authenticates them via the workspace IdP, creates a scoped token, and injects it as `X-Forwarded-Access-Token`. Your app code reads the header and passes it to downstream calls.
+The Databricks Apps proxy handles this automatically. When a user accesses a Databricks App, the proxy authenticates them via the workspace IdP and injects identity headers including `X-Forwarded-Email` and `X-Forwarded-Access-Token`. **Important**: `X-Forwarded-Access-Token` is a minimal OIDC identity token — it does NOT carry `sql` scope, regardless of the OAuth integration's `user_authorized_scopes` configuration. Use it for Genie and Model Serving OBO calls; use M2M (`WorkspaceClient()`) for SQL operations with identity from `X-Forwarded-Email`. See [Proxy Architecture](proxy-architecture.md) for the complete header reference.
 
 Reference: [Databricks Apps authentication](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth), [App key concepts](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/key-concepts)
 
@@ -78,6 +78,8 @@ Scopes control what the **token** can do. They are a capability ceiling, not an 
 
 Configure scopes via the Databricks Apps UI "User authorization" panel for OBO tokens.
 
+For the complete reference of all 45 scopes, blast-radius tiers, SQL identity functions, and known gotchas, see [OAuth Scopes Reference](oauth-scopes-reference.md).
+
 Reference: [App resources and authorization](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/resources)
 
 ## Service Principals
@@ -108,6 +110,18 @@ Every SP has:
 
 This is the single most common silent failure in row filters and column masks: the SP is in the right account-level group, but `is_member()` returns false because it only checks workspace groups.
 
+**Second failure mode (Genie OBO)**: Even when groups are at the workspace level, `is_member()` under Genie OBO evaluates the session user's group membership, which resolves to the Genie service context — not the human's workspace groups. This means `is_member('executives')` in a row filter returns false under Genie OBO even if the human is in the `executives` group. **Workaround**: Use `current_user()` with an allowlist table lookup instead of `is_member()`:
+
+```sql
+-- Broken under Genie OBO:
+CREATE FUNCTION mask_quota(val DECIMAL) RETURNS DECIMAL
+  RETURN IF(is_member('executives'), val, NULL);
+
+-- Correct:
+CREATE FUNCTION mask_quota(val DECIMAL) RETURNS DECIMAL
+  RETURN IF(current_user() IN (SELECT email FROM quota_viewers), val, NULL);
+```
+
 ## The UC Governance Model
 
 Unity Catalog is the single authorization engine for all Databricks services. It governs:
@@ -124,6 +138,14 @@ Unity Catalog is the single authorization engine for all Databricks services. It
 The critical property: **UC enforcement fires at the SQL engine level.** It doesn't matter which AI service issues the query (Genie, Agent Bricks, custom MCP, notebook, BI tool). The same row filters, column masks, and grants apply. Applications cannot bypass UC governance.
 
 Reference: [Unity Catalog](https://docs.databricks.com/en/data-governance/unity-catalog/index.html), [Access Control](https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control), [ABAC tutorial](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/tutorial)
+
+## Related
+
+- [Proxy Architecture](proxy-architecture.md) — complete header reference, two-proxy problem, `authorization: disabled`
+- [OAuth Scopes Reference](oauth-scopes-reference.md) — all 45 scopes, LPA blast-radius tiers, SQL identity functions
+- [Cloud Auth Patterns](cloud-auth-patterns.md) — Entra ID, Azure Managed Identity, Okta token federation
+- [Federation Exchange](federation.md) — external users without Databricks accounts
+- [U2M from External Apps](u2m-external-obo.md) — Databricks users from external SPAs
 
 ## Building AI Apps: Key Patterns
 

@@ -12,11 +12,11 @@ Your business needs an AI platform where users get governed answers from live da
 
 | Pillar | Path | Contents |
 |--------|------|----------|
-| Identity & Access Control | [identity/](identity/) | AuthN (IdP delegation), AuthZ (OBO, M2M, Federation), UC governance, scopes, SPs |
-| Data Governance | [data-governance/](data-governance/) | Row filters, column masks, ABAC, governed tags, Genie multi-team patterns |
-| Tool & API Governance | [tool-governance/](tool-governance/) | AI Gateway patterns, UC HTTP Connections (4 auth methods), USE CONNECTION governance |
-| Prompt Security | [prompt-security/](prompt-security/) | Prompt attack surfaces, hardening patterns, Unicode normalization, defense-in-depth |
-| Observability & Audit | [observability/](observability/) | System tables, MLflow traces, audit patterns |
+| Identity & Access Control | [identity/](identity/) | AuthN (IdP delegation), AuthZ (OBO, M2M, Federation), [proxy architecture](identity/proxy-architecture.md), [OAuth scopes](identity/oauth-scopes-reference.md), [cloud auth](identity/cloud-auth-patterns.md), SPs |
+| Data Governance | [data-governance/](data-governance/) | Row filters, column masks, ABAC, group gotchas, best practices, Genie multi-team patterns |
+| Tool & API Governance | [tool-governance/](tool-governance/) | AI Gateway patterns, [MCP governance](tool-governance/mcp-governance.md), [agent governance](tool-governance/agent-governance.md), UC HTTP Connections |
+| Prompt Security | [prompt-security/](prompt-security/) | Attack surfaces (9), hardening patterns, [threat intel log](prompt-security/threat-intel-log.md), defense-in-depth |
+| Observability & Audit | [observability/](observability/) | Two-layer model, system tables, MLflow tracing patterns, audit correlation |
 
 Network, developer guardrails, and policy/compliance pillars are defined in the [Governance Framework](GOVERNANCE-FRAMEWORK.md) and will be added as content is built and validated.
 

@@ -303,9 +303,9 @@ This repository is organized around the pillars:
 
 | Pillar | Key Documents |
 |--------|--------------|
-| Identity & Access | [Authentication](identity/authentication.md), [Authorization](identity/authorization.md), [Federation](identity/federation.md) |
+| Identity & Access | [Authentication](identity/authentication.md), [Authorization](identity/authorization.md), [Federation](identity/federation.md), [Proxy Architecture](identity/proxy-architecture.md), [OAuth Scopes](identity/oauth-scopes-reference.md), [Cloud Auth](identity/cloud-auth-patterns.md) |
 | Data Governance | [UC Governance](data-governance/uc-governance.md) |
-| Tool Governance | [AI Gateway Patterns](tool-governance/ai-gateway-patterns.md), [UC Connections](tool-governance/uc-connections.md) |
+| Tool Governance | [AI Gateway Patterns](tool-governance/ai-gateway-patterns.md), [UC Connections](tool-governance/uc-connections.md), [MCP Governance](tool-governance/mcp-governance.md), [Agent Governance](tool-governance/agent-governance.md) |
 | Observability | [Audit Reference](observability/audit-reference.md) |
 
 **Cross-cutting:** [Prompt Security](prompt-security/) — attack surfaces, hardening patterns, and defense-in-depth for every surface where prompts are accepted. Not a separate pillar; a concern that touches Identity (who sent the prompt), Data Governance (UC blocks unauthorized access regardless of prompt manipulation), Tool Governance (tool description poisoning, response injection), and Observability (detecting successful injection after the fact).

@@ -17,6 +17,7 @@ Before mapping surfaces, here are the attack classes referenced throughout this 
 | **Cross-agent injection** | In multi-agent systems, adversarial content from one agent's response influences the supervisor's routing or another agent's behavior |
 | **Return value injection** | Data returned by tools or functions contains text that the LLM interprets as instructions |
 | **Guardrail bypass** | Techniques that evade safety, PII, or keyword filters — including encoding tricks and semantic rephrasing |
+| **Embedding collision** | Adversarial text designed to be semantically similar to target queries, ensuring retrieval from vector indexes regardless of topical relevance |
 
 ---
 
@@ -151,46 +152,55 @@ Before mapping surfaces, here are the attack classes referenced throughout this 
 
 ---
 
-### 8. Vector Search (as Retrieval Source)
+### 8. Vector Search (RAG Retrieval)
 
-**What it does**: Semantic search over document embeddings, returning relevant chunks to agents.
+**What it does**: Returns document chunks from a vector index based on semantic similarity to a query.
 
 | Trust boundary | Detail |
 |---|---|
-| Query | Agent-generated (influenced by user prompt) |
-| Retrieved chunks | Data from indexed documents — fed into LLM context |
+| User queries | Untrusted — natural language search queries |
+| Indexed documents | Semi-trusted — sourced from UC-governed tables, but document content is user-uploaded |
+| Returned chunks | Semi-trusted — subset of indexed content matching the query |
 
-**Attack classes that apply**: Indirect prompt injection (via indexed documents), Unicode obfuscation (in source content).
+**Attack classes that apply**: Indirect prompt injection (adversarial content in indexed documents), Unicode obfuscation (bidi controls in document text), embedding collision (adversarial text designed to be semantically similar to target queries, ensuring retrieval).
 
-**Platform defense**: UC permissions on the source table govern what can be indexed and retrieved.
+**Why this matters**: Vector Search is the primary RAG retrieval mechanism. Documents are indexed as data but consumed by the LLM as context. An attacker who can upload documents to the source table can inject content that will be retrieved and influence LLM responses. The embedding collision variant targets the retrieval step itself — crafting text that embeds close to target queries.
 
-**Builder action**: This is the standard indirect injection vector in RAG architectures — documents are indexed as data but consumed as context. Sanitize at ingestion time and test with adversarial documents. See [Hardening Patterns](hardening-patterns.md#agent-bricks-ka-and-mas).
+**Builder action**: Sanitize documents at ingestion (strip Unicode control characters, normalize text). Monitor for anomalous document upload patterns. Consider content validation before indexing. UC controls who can write to the source table — this is the primary defense.
 
 ---
 
-### 9. Model Serving Endpoints (Direct API)
+### 9. Model Serving Endpoints
 
-**What it does**: Direct API access to hosted models. Caller controls the full prompt.
+**What it does**: Hosts ML models and agents for real-time inference via REST API.
 
-**Attack classes that apply**: All prompt injection techniques. This is the most general surface — defense depends entirely on the developer's implementation choices.
+| Trust boundary | Detail |
+|---|---|
+| API request payload | Untrusted — caller-supplied input |
+| Model code | Trusted — deployed by model owner |
+| Agent tool responses | Semi-trusted — tool outputs may contain adversarial content |
 
-**Platform defenses**: AI Gateway guardrails (if configured), rate limiting, inference tables for audit.
+**Attack classes that apply**: Direct prompt injection (via API input), indirect prompt injection (via tool responses consumed by hosted agents), return value injection (tool outputs interpreted as instructions).
+
+**Why this matters**: Serving endpoints are the runtime execution boundary for agents. When an agent is deployed as a serving endpoint, it processes user input AND tool responses in the same LLM context. A compromised tool response can influence the agent's subsequent behavior.
+
+**Builder action**: Apply AI Gateway guardrails (input/output filters) to serving endpoints. Use OBO authentication where per-user governance is needed. Monitor via `system.serving.endpoint_usage` and MLflow traces.
 
 ---
 
 ## Summary Matrix
 
-| Surface | Direct injection | Indirect injection | Unicode obfuscation | Tool poisoning | Cross-agent | Guardrail bypass |
-|---|---|---|---|---|---|---|
-| Genie Spaces | Yes | — | Yes | — | — | — |
-| Genie Code | Yes | Yes | Yes | — | — | — |
-| Agent Bricks KA | — | **Yes** | **Yes** | — | — | — |
-| Agent Bricks MAS | — | **Yes** | **Yes** | — | **Yes** | — |
-| MCP (Custom/External) | — | Yes | **Yes** | **Yes** | — | — |
-| AI Gateway | — | — | **Yes** | — | — | **Yes** |
-| UC Functions | — | Yes | — | — | — | — |
-| Vector Search | — | **Yes** | **Yes** | — | — | — |
-| Model Serving | **Yes** | Yes | Yes | Yes | — | Yes |
+| Surface | Direct injection | Indirect injection | Unicode obfuscation | Tool poisoning | Cross-agent | Guardrail bypass | Embedding collision |
+|---|---|---|---|---|---|---|---|
+| Genie Spaces | Yes | — | Yes | — | — | — | — |
+| Genie Code | Yes | Yes | Yes | — | — | — | — |
+| Agent Bricks KA | — | **Yes** | **Yes** | — | — | — | — |
+| Agent Bricks MAS | — | **Yes** | **Yes** | — | **Yes** | — | — |
+| MCP (Custom/External) | — | Yes | **Yes** | **Yes** | — | — | — |
+| AI Gateway | — | — | **Yes** | — | — | **Yes** | — |
+| UC Functions | — | Yes | — | — | — | — | — |
+| Vector Search | — | **Yes** | **Yes** | — | — | — | **Yes** |
+| Model Serving | **Yes** | Yes | Yes | Yes | — | Yes | — |
 
 **Bold** = primary attack vector for that surface.
 

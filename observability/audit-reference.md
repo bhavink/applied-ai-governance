@@ -51,6 +51,72 @@ Scorers run asynchronously on production traces with zero impact on application 
 
 **Gotcha**: The assessment field is `a.name`, NOT `a.assessment_name`. Early documentation referenced `assessment_name`, which does not exist.
 
+### MLflow Tracing — Implementation Patterns
+
+#### Auto-Instrumentation (One Line)
+
+```python
+import mlflow
+
+# Enable for your framework (call BEFORE creating any model/chain objects)
+mlflow.langchain.autolog()       # LangChain + LangGraph
+mlflow.openai.autolog()          # OpenAI SDK
+mlflow.databricks.autolog()      # Databricks SDK (FMAPI)
+
+# Set where traces go
+mlflow.set_experiment("/Users/me@company.com/my-agent-experiment")
+```
+
+| Framework | Autolog call | What it captures |
+|---|---|---|
+| LangChain / LangGraph | `mlflow.langchain.autolog()` | LLM calls (prompt/response), tool invocations (args/results), chain execution time |
+| OpenAI SDK | `mlflow.openai.autolog()` | Chat completions, function calls, token usage |
+| Databricks SDK (FMAPI) | `mlflow.databricks.autolog()` | Serving endpoint queries, responses |
+
+#### Manual Spans (Granular Control)
+
+Use `@mlflow.trace` for custom tool calls or business logic not covered by auto-instrumentation:
+
+```python
+@mlflow.trace(span_type="TOOL", name="lookup_customer")
+def lookup_customer(customer_id: str) -> dict:
+    # Your tool logic
+    result = query_database(customer_id)
+    mlflow.update_current_trace(tags={"caller": caller_email, "auth_pattern": "M2M"})
+    return result
+```
+
+#### Span Type Taxonomy
+
+| Span type | Use for |
+|---|---|
+| `CHAIN` | Top-level agent invocation |
+| `LLM` | LLM call (auto-captured by autolog) |
+| `TOOL` | Tool invocation |
+| `RETRIEVAL` | Vector Search or document retrieval |
+| `AGENT` | Sub-agent call |
+| `EMBEDDING` | Embedding generation |
+
+#### Querying Traces
+
+```python
+# Python SDK
+traces = mlflow.search_traces(
+    experiment_ids=["<experiment-id>"],
+    filter_string="tags.caller = 'alice@company.com'",
+    max_results=100,
+)
+```
+
+```sql
+-- SQL (after trace archival to Delta)
+SELECT request_id, tags, latency_ms, status
+FROM my_catalog.traces.archived_traces
+WHERE tags['caller'] = 'alice@company.com'
+  AND timestamp > current_date() - INTERVAL 7 DAYS
+ORDER BY timestamp DESC;
+```
+
 ---
 
 ## 3. Data-Plane Audit (system.access.audit)

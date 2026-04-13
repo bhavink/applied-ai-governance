@@ -47,6 +47,54 @@ ALTER TABLE schema.deals SET ROW FILTER schema.region_filter ON (region);
 | Hierarchical | `owner = current_user() OR is_member('managers')` | Manager visibility |
 | Multi-tenant | `tenant_id = extract_tenant(current_user())` | SaaS isolation |
 
+### Row Filter Patterns by Execution Context
+
+| Context | `current_user()` | `is_member()` | Row filters fire as |
+|---|---|---|---|
+| SQL Warehouse (OBO + `sql` scope via UI) | Human email | Human's workspace groups | Individual user |
+| SQL Warehouse (M2M) | SP UUID | SP's groups | Service principal |
+| Genie Space (OBO) | Human email | **Genie service context** (not human) | User for `current_user()`, broken for `is_member()` |
+| Agent Bricks KA (OBO) | Human email | Human's workspace groups | Individual user |
+| Agent Bricks MAS (OBO) | Human email | Human's workspace groups | Individual user |
+| Databricks App (OBO via proxy) | Human email (if X-Forwarded-Access-Token used) | Human's workspace groups | Individual user |
+| Databricks App (M2M) | SP UUID | SP's groups | Service principal |
+| Custom MCP Server (M2M) | SP UUID | SP's groups | Service principal — app filters by `X-Forwarded-Email` |
+
+### Verification Queries
+
+```sql
+-- Confirm what identity UC sees
+SELECT current_user() AS who_am_i, session_user() AS session;
+
+-- Verify row filter function is attached
+DESCRIBE TABLE EXTENDED my_catalog.sales.opportunities;
+
+-- Check what rows a specific identity sees (run as that user or SP)
+SELECT COUNT(*) FROM my_catalog.sales.opportunities;
+-- Compare to unfiltered count (as admin):
+SELECT COUNT(*) FROM my_catalog.sales.opportunities WITH (NO ROW FILTER);
+-- Note: WITH (NO ROW FILTER) requires OWNER on the table
+```
+
+### Performance Considerations
+
+| Factor | Impact |
+|---|---|
+| Filter function complexity | Simple `is_member()` checks: <1ms overhead. Subqueries against lookup tables: 5-50ms depending on table size. |
+| Number of groups checked | Each `is_member()` call is a group membership lookup. Minimize OR chains; use a lookup table for >5 groups. |
+| Row filter on large tables | Filter applies per row. On billion-row tables, use partition pruning WHERE possible. |
+| Multiple filters on one table | AND logic (all must pass). Each adds overhead. Prefer one filter with multiple conditions. |
+
+### Row Filter Gotchas
+
+| Issue | Impact | Fix |
+|---|---|---|
+| `is_member()` only checks workspace-level groups | Account-level groups return false | Use `is_account_group_member()` or lookup table |
+| `is_member()` under Genie OBO evaluates service context | Row filter appears broken for group-based access | Use `current_user()` + allowlist table lookup |
+| Row filter on a view is not inherited from base table | View needs its own filter | Apply filters to both table and view |
+| Filter function references deleted group | `is_member('gone')` returns false for everyone | Monitor for 0-row results |
+| SP-executed queries bypass per-user filters | M2M sees all rows matching SP identity | Design SP-level filters or use OBO |
+
 Reference: [Row Filters and Column Masks](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-row-filter-column-mask.html)
 
 ## Column Masks
@@ -67,6 +115,37 @@ ALTER TABLE schema.deals ALTER COLUMN margin_pct SET MASK schema.mask_margin;
 | Partial | `CONCAT('***', SUBSTR(VALUE, -4))` |
 | Role-based | Multiple `WHEN is_member()` branches |
 
+### Column Mask Pattern Library
+
+```sql
+-- Pattern 1: NULL for unauthorized
+CREATE OR REPLACE FUNCTION masks.mask_salary(salary DOUBLE)
+RETURNS DOUBLE
+AS (CASE WHEN is_member('hr_team') OR is_member('managers') THEN salary ELSE NULL END);
+
+-- Pattern 2: Partial reveal (last 4 digits)
+CREATE OR REPLACE FUNCTION masks.mask_ssn(ssn STRING)
+RETURNS STRING
+AS (CASE WHEN is_member('hr_compliance') THEN ssn ELSE CONCAT('***-**-', RIGHT(ssn, 4)) END);
+
+-- Pattern 3: Email masking (domain only)
+CREATE OR REPLACE FUNCTION masks.mask_email(email STRING)
+RETURNS STRING
+AS (CASE WHEN is_member('admins') THEN email
+    WHEN current_user() = email THEN email
+    ELSE CONCAT('***@', SPLIT_PART(email, '@', 2)) END);
+
+-- Pattern 4: Constant redaction
+CREATE OR REPLACE FUNCTION masks.redact_pii(value STRING)
+RETURNS STRING
+AS (CASE WHEN is_member('pii_authorized') THEN value ELSE 'REDACTED' END);
+
+-- Pattern 5: Lookup table (for account-level groups)
+CREATE OR REPLACE FUNCTION masks.mask_phone(phone STRING)
+RETURNS STRING
+AS (CASE WHEN current_user() IN (SELECT email FROM authorized_viewers) THEN phone ELSE NULL END);
+```
+
 ## ABAC (Attribute-Based Access Control)
 
 > Public Preview. Databricks recommends ABAC for governance at scale.
@@ -83,6 +162,32 @@ ABAC uses governed tags to drive centralized policies. Instead of configuring fi
 How it works: define governed tags (e.g., `sensitivity: [low, high, critical]`), apply to objects, create UDFs for logic, create ABAC policies referencing tags and UDFs.
 
 Reference: [ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac), [ABAC Tutorial](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/tutorial), [Governed Tags](https://docs.databricks.com/aws/en/admin/governed-tags/)
+
+## The Account vs Workspace Group Problem
+
+Three distinct failures when groups are misconfigured:
+
+| Failure | Cause | Symptom |
+|---|---|---|
+| Account-level group invisible to `is_member()` | `is_member()` checks workspace groups only | Row filter returns 0 rows for everyone |
+| Account-level group invisible to `is_account_group_member()` when group not assigned to workspace | Group exists at account level but not assigned to workspace | Same as above |
+| Genie OBO evaluates service context | `is_member()` checks session_user's groups, which is Genie's identity | Even workspace-level groups fail |
+
+### Three Workarounds
+
+**1. Lookup table (recommended)**
+```sql
+-- Replace is_member() with current_user() + lookup
+CREATE OR REPLACE FUNCTION filters.region_filter(region STRING)
+RETURNS BOOLEAN
+AS (current_user() IN (SELECT email FROM region_access WHERE access_region = region));
+```
+
+**2. Workspace group mirroring**
+Sync account-level groups to workspace-level via SCIM or IdP sync. Adds operational overhead.
+
+**3. Explicit email allowlist**
+Hardcode emails in the filter function. Does not scale but works for small, stable groups.
 
 ## The Critical Choice: `current_user()` vs `is_member()`
 
@@ -202,6 +307,34 @@ Provide role descriptions, common business term definitions, and column/table re
 | Genie generates wrong SQL | Improve instructions with column names, business terms, role-specific examples |
 
 Reference: [Genie Space](https://docs.databricks.com/aws/en/genie/)
+
+## Best Practices
+
+### Identity and Group Design
+- Grant to groups, never to individual users
+- Use account-level groups for cross-workspace consistency
+- Create a standard group taxonomy: `<catalog>_readers`, `<catalog>_writers`, `pii_readers`, `data_stewards`
+
+### Catalog Design
+- Use catalogs as environment boundaries: prod, staging, dev, sandbox
+- Never run AI tools against prod with write permissions without approval workflow
+- Don't use `main` catalog for production
+
+### MCP and AI Agent Governance
+- One SP per capability boundary — read-only agent and write agent must have different SPs
+- `USE CONNECTION` is the on/off switch for external service access
+- OBO for user-facing calls; M2M for background tasks
+- Application WHERE clauses are not governance — they are bypassed if someone queries the table directly, an agent uses a different code path, or a BI tool generates its own SQL
+
+### Common Anti-Patterns
+
+| Anti-Pattern | Risk | Correct Approach |
+|---|---|---|
+| `GRANT ALL PRIVILEGES ON CATALOG` | Admin access to everything | Grant specific privileges on specific objects |
+| Application-level WHERE clauses | Bypassed by direct SQL access | Use UC row filters |
+| Shared SP for all services | Lateral movement on compromise | One SP per capability boundary |
+| `GRANT ... TO account users` | Everyone in the account gets access | Use named groups |
+| Credentials in agent code | Exfiltration risk | Use UC Connections or Databricks Secrets |
 
 ---
 
