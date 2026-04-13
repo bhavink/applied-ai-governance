@@ -278,7 +278,7 @@ The framework is designed to absorb change at every layer:
 | New external tool (e.g., new MCP server) | Connection governance, confused deputy defense | `CREATE CONNECTION` + `GRANT USE CONNECTION`: one SQL command |
 | New identity source (e.g., new IDP) | Token exchange, SP mapping, UC groups | Update federation policy; same SP architecture, same UC groups |
 | New compliance requirement (e.g., new data classification) | ABAC framework, governed tags | Add tag + row filter; no code changes |
-| New attack surface (e.g., prompt injection via tool) | Defense in depth: each layer denies independently | UC enforcement at SQL layer is immune to prompt injection |
+| New attack surface (e.g., prompt injection via tool) | Defense in depth: each layer denies independently | UC enforcement at SQL layer blocks unauthorized data access regardless of prompt manipulation. Indirect injection (via retrieved docs, tool responses, cross-agent data) requires additional mitigations — see [Prompt Security](prompt-security/) |
 | New AI coding tool | Developer guardrail patterns | Context-aware classification adapts; threat categories are stable |
 
 The pattern: **new capabilities are additive, not architectural**. You never redesign the governance framework. You extend it by adding a connection, a grant, a tag, or a policy.
@@ -305,9 +305,10 @@ This repository is organized around the pillars:
 |--------|--------------|
 | Identity & Access | [Authentication](identity/authentication.md), [Authorization](identity/authorization.md), [Federation](identity/federation.md) |
 | Data Governance | [UC Governance](data-governance/uc-governance.md) |
-| Tool Governance | [AI Gateway Patterns](tool-governance/ai-gateway-patterns.md), [Federation](identity/federation.md) |
+| Tool Governance | [AI Gateway Patterns](tool-governance/ai-gateway-patterns.md), [UC Connections](tool-governance/uc-connections.md) |
 | Observability | [Audit Reference](observability/audit-reference.md) |
-| Architecture | [Orchestration Architecture](tool-governance/orchestration-architecture.md), [Authorization](identity/authorization.md) |
+
+**Cross-cutting:** [Prompt Security](prompt-security/) — attack surfaces, hardening patterns, and defense-in-depth for every surface where prompts are accepted. Not a separate pillar; a concern that touches Identity (who sent the prompt), Data Governance (UC blocks unauthorized access regardless of prompt manipulation), Tool Governance (tool description poisoning, response injection), and Observability (detecting successful injection after the fact).
 
 Network access controls and developer guardrails are covered in companion resources:
 - Network: [bhavink/databricks](https://github.com/bhavink/databricks) (multi-cloud Private Link, VPC-SC, NCC patterns)

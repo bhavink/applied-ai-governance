@@ -15,6 +15,7 @@ Your business needs an AI platform where users get governed answers from live da
 | Identity & Access Control | [identity/](identity/) | AuthN (IdP delegation), AuthZ (OBO, M2M, Federation), UC governance, scopes, SPs |
 | Data Governance | [data-governance/](data-governance/) | Row filters, column masks, ABAC, governed tags, Genie multi-team patterns |
 | Tool & API Governance | [tool-governance/](tool-governance/) | AI Gateway patterns, UC HTTP Connections (4 auth methods), USE CONNECTION governance |
+| Prompt Security | [prompt-security/](prompt-security/) | Prompt attack surfaces, hardening patterns, Unicode normalization, defense-in-depth |
 | Observability & Audit | [observability/](observability/) | System tables, MLflow traces, audit patterns |
 
 Network, developer guardrails, and policy/compliance pillars are defined in the [Governance Framework](GOVERNANCE-FRAMEWORK.md) and will be added as content is built and validated.
@@ -33,13 +34,17 @@ Network, developer guardrails, and policy/compliance pillars are defined in the 
 
 | # | Deck | Audience | Topic |
 |---|------|----------|-------|
-| 1 | [Identity & Governance Overview](https://bhavink.github.io/applied-ai-governance/presentations/identity-governance-overview.html) | Exec | OBO vs M2M vs Federation, shared UC governance, scope model |
-| 2 | [Federation Deep Dive](https://bhavink.github.io/applied-ai-governance/presentations/federation-deep-dive.html) | Technical | Token anatomy, enforcement points, grants checklist |
-| 3 | [Identity Patterns](https://bhavink.github.io/applied-ai-governance/presentations/identity-patterns.html) | Technical | OBO, M2M, Federation flows, decision guide, scopes, SPs |
-| 4 | [UC Governance](https://bhavink.github.io/applied-ai-governance/presentations/uc-governance.html) | Technical | Four-layer access control, row filters, column masks, ABAC |
-| 5 | [Orchestration](https://bhavink.github.io/applied-ai-governance/presentations/orchestration.html) | Technical | Agents, Apps, MCP, AI Gateway, external auth |
-| 6 | [AI Gateway Patterns](https://bhavink.github.io/applied-ai-governance/presentations/ai-gateway-patterns-v2.html) | Technical | Gateway traffic patterns and decision framework |
-| 7 | [UC HTTP Connections](https://bhavink.github.io/applied-ai-governance/presentations/uc-connections.html) | Technical | Four auth methods, setup walkthrough, governance model, gotchas |
+| 01 | [AI Governance — The Complete Picture](https://bhavink.github.io/applied-ai-governance/presentations/01-ai-governance-complete.html) | Exec | One auth layer, three token paths, six enforcement layers, resource auth matrix, decision trees, prerequisites checklists |
+| 02 | [Identity & Authorization by Resource Type](https://bhavink.github.io/applied-ai-governance/presentations/02-identity-authorization-by-resource.html) | Technical | Serving Endpoints, Genie, UC Functions, Vector Search, UC HTTP Connections, Tables, Lakebase — auth model, identity flow, and gotchas for each |
+| 03 | [AI Orchestration & Tool Governance](https://bhavink.github.io/applied-ai-governance/presentations/03-ai-orchestration-tool-governance.html) | Technical | Agent Bricks, MCP servers, UC Connections, token federation, AI Gateway, observability — end-to-end orchestration governance |
+
+**Implementation Guides:**
+
+| # | Guide | Topic |
+|---|-------|-------|
+| IG | [Federation Token Exchange — Implementation Blueprint](https://bhavink.github.io/applied-ai-governance/presentations/federation-implementation-blueprint.html) | 12 prerequisites, 7-step flow, Auth0 / Okta / Entra ID walkthroughs, error catalog, smoke tests |
+
+Previous versions (identity-governance-overview, identity-patterns, federation-deep-dive, uc-governance, orchestration, ai-gateway-patterns-v2, uc-connections) are archived in the [presentations directory](https://bhavink.github.io/applied-ai-governance/presentations/).
 
 Browse all decks: [Presentations](https://bhavink.github.io/applied-ai-governance/presentations/)
 
@@ -83,4 +88,4 @@ A: Yes, using OAuth U2M Per User connections. Each user authenticates separately
 
 ---
 
-*Last updated: 2026-03-23*
+*Last updated: 2026-04-13*
