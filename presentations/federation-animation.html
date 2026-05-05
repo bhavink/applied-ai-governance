@@ -8,7 +8,41 @@
 <style>
 :root{--white:#fff;--ink:#1a1a1a;--red:#cc3311;--offwhite:#f8f8f4;--border:#e0e0e0;--muted:#888;--green:#1e7e34;--green-bg:#e6f4ea;--ink-60:rgba(26,26,26,0.6);--ink-20:rgba(26,26,26,0.2);--ink-10:rgba(26,26,26,0.1);--red-10:rgba(204,51,17,0.1);--red-20:rgba(204,51,17,0.2);--font:'Space Grotesk',system-ui,sans-serif;--mono:'DM Mono',monospace}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:var(--font);background:var(--white);color:var(--ink);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+body{font-family:var(--font);background:var(--white);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden;overflow-y:auto}
+.animation-stage{height:100vh;display:flex;flex-direction:column;flex-shrink:0}
+
+/* Story section */
+.story{padding:clamp(2rem,5vw,4rem) clamp(1.5rem,4vw,3.5rem);max-width:1100px;margin:0 auto;width:100%}
+.story .eyebrow{font-size:0.65rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--red);margin-bottom:8px}
+.story h1{font-size:clamp(1.6rem,3.4vw,2.4rem);font-weight:700;letter-spacing:-0.02em;line-height:1.15;margin-bottom:6px}
+.story .lead{font-size:clamp(0.95rem,1.4vw,1.1rem);color:var(--ink-60);line-height:1.55;max-width:780px;margin-bottom:clamp(1.4rem,2.5vw,2rem)}
+.story .red-line{width:60px;height:3px;background:var(--red);margin:14px 0 24px}
+.story h2{font-size:clamp(1.05rem,1.6vw,1.25rem);font-weight:600;letter-spacing:-0.01em;margin:1.6rem 0 0.6rem;display:flex;align-items:center;gap:8px}
+.story h2 .num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;font-size:0.7rem;font-weight:700}
+.story p{font-size:0.92rem;line-height:1.65;margin-bottom:0.7rem;color:var(--ink)}
+.story p.muted{color:var(--ink-60)}
+.story .scenario{background:var(--offwhite);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:4px;padding:clamp(0.9rem,1.6vw,1.4rem)}
+.story .constraints{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:0.8rem}
+.story .constraints > div{background:var(--white);border:1px solid var(--border);border-radius:4px;padding:10px 12px}
+.story .constraints strong{display:block;font-size:0.78rem;font-weight:700;color:var(--red);margin-bottom:4px;letter-spacing:0.02em}
+.story .constraints span{font-size:0.82rem;line-height:1.5;color:var(--ink-60)}
+.story table{width:100%;border-collapse:collapse;margin-top:0.6rem;font-size:0.84rem}
+.story table th{text-align:left;font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:2px solid var(--ink)}
+.story table td{vertical-align:top;padding:10px;border-bottom:1px solid var(--border);line-height:1.5}
+.story table td:first-child{font-weight:600;width:32%}
+.story .tag{display:inline-block;font-size:0.65rem;font-weight:600;letter-spacing:0.04em;padding:2px 6px;border-radius:3px;margin-right:4px;vertical-align:middle}
+.story .tag.red{background:var(--red-10);color:var(--red)}
+.story .tag.green{background:var(--green-bg);color:var(--green)}
+.story .relate{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:0.8rem}
+.story .relate > div{background:var(--white);border:1px solid var(--border);border-radius:4px;padding:12px;font-size:0.85rem;line-height:1.5}
+.story .relate strong{display:block;font-size:0.7rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--red);margin-bottom:6px}
+.story .docs-link{display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:#fff;font-size:0.85rem;font-weight:500;padding:8px 14px;border-radius:3px;text-decoration:none;margin-top:1rem;transition:opacity 0.15s}
+.story .docs-link:hover{opacity:0.85}
+.story .docs-link .arrow{font-size:0.95rem}
+.story .scroll-cue{margin-top:clamp(1.5rem,3vw,2.4rem);text-align:center;font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.15em;animation:bounce 2.4s ease-in-out infinite}
+.story .scroll-cue .arrow{display:block;font-size:1.2rem;color:var(--red);margin-top:6px}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+@media(max-width:780px){.story .constraints,.story .relate{grid-template-columns:1fr}}
 .topbar{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:var(--ink);color:#fff;flex-shrink:0}
 .topbar .title{font-size:0.85rem;font-weight:600}.topbar .title span{color:var(--red)}
 .topbar .controls{display:flex;gap:6px;align-items:center}
@@ -60,6 +94,77 @@ svg{width:100%;height:100%}
 </style>
 </head>
 <body>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     STORY — Real-life scenario + relation to Databricks external embedding
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="story">
+  <div class="eyebrow">Federation Pattern &middot; Real-life Walkthrough</div>
+  <h1>How a SaaS embeds AI dashboards for customers <em style="font-style:normal;color:var(--red)">without</em> giving them Databricks accounts</h1>
+  <div class="red-line"></div>
+  <p class="lead">External users authenticate with their own identity provider, your app exchanges that identity for a scoped Databricks token, and Unity Catalog enforces per-customer data filtering on every query. No Databricks accounts for end users. No custom row-level access layer in app code.</p>
+
+  <div class="scenario">
+    <strong style="font-size:0.7rem;letter-spacing:0.1em;color:var(--red);text-transform:uppercase">Scenario</strong>
+    <p style="margin-top:6px;margin-bottom:0">
+      <strong>Acme Logistics</strong> runs shipping analytics for thousands of retail clients. Each client logs into <code style="font-family:var(--mono);font-size:0.82rem;background:var(--ink-10);padding:1px 5px;border-radius:2px">portal.acme.com</code> with their own Okta or Entra ID and expects to see <strong>AI-powered dashboards</strong> &mdash; refund rates, ETA forecasts, cost-per-shipment &mdash; <strong>scoped to their own data only</strong>.
+    </p>
+  </div>
+
+  <h2><span class="num">1</span> The constraints</h2>
+  <div class="constraints">
+    <div><strong>No Databricks accounts</strong><span>Provisioning UC users for 10,000+ end customers is unmanageable.</span></div>
+    <div><strong>No custom ACL layer</strong><span>Filtering in app code is fragile &mdash; one bug exposes another customer's data.</span></div>
+    <div><strong>Audit by external identity</strong><span>Compliance must trace activity back to the actual end user, not a shared service principal.</span></div>
+  </div>
+
+  <h2><span class="num">2</span> Two patterns solve this &mdash; same architecture, different productization</h2>
+  <table>
+    <thead>
+      <tr><th>Pattern</th><th>Use case</th><th>Auth mechanism</th><th>What carries the user identity</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag red">RFC 8693</span> OAuth federation <em style="font-style:normal;color:var(--muted);font-size:0.75rem">(animation below)</em></td>
+        <td>Custom apps, agents, MCP servers, anything beyond dashboards</td>
+        <td>External IdP JWT exchanged for a scoped Databricks SP token at <code style="font-family:var(--mono);font-size:0.78rem;background:var(--ink-10);padding:1px 4px;border-radius:2px">/oidc/v1/token</code></td>
+        <td>SP bound to a UC group &rarr; row filters, column masks, USE CONNECTION fire on every query</td>
+      </tr>
+      <tr>
+        <td><span class="tag green">Databricks AI/BI</span> External dashboard embedding</td>
+        <td>Read-only AI/BI dashboards inside customer portals</td>
+        <td>OAuth M2M (service principal client credentials) + scoped per-viewer token mint</td>
+        <td><code style="font-family:var(--mono);font-size:0.78rem;background:var(--ink-10);padding:1px 4px;border-radius:2px">external_viewer_id</code> + <code style="font-family:var(--mono);font-size:0.78rem;background:var(--ink-10);padding:1px 4px;border-radius:2px">external_value</code> in the scoped token, used as <code style="font-family:var(--mono);font-size:0.78rem;background:var(--ink-10);padding:1px 4px;border-radius:2px">__aibi_external_value</code> SQL filter</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2><span class="num">3</span> How they relate</h2>
+  <p>Both patterns share the same core architecture &mdash; only the API surface and use case differ:</p>
+  <div class="relate">
+    <div><strong>Identity in</strong>An external user authenticates against an identity provider <em style="font-style:normal;color:var(--muted)">your app trusts</em>. The end user never gets a Databricks account.</div>
+    <div><strong>Scoped token out</strong>Your server exchanges that identity for a <em style="font-style:normal;color:var(--muted)">short-lived, narrowly-scoped Databricks token</em> &mdash; either an SP token (RFC 8693) or a per-viewer token (AI/BI embedding).</div>
+    <div><strong>Server-side enforcement</strong>Unity Catalog (RFC 8693) or scoped SQL variables (AI/BI) <em style="font-style:normal;color:var(--muted)">enforce per-user data filtering at query time</em> &mdash; not in app code.</div>
+  </div>
+
+  <p class="muted" style="margin-top:1rem;font-size:0.85rem">
+    The animation below shows the <strong style="color:var(--ink)">general OAuth federation pattern</strong> &mdash; the canonical RFC 8693 token exchange used by custom apps, agents, and MCP servers. <strong style="color:var(--ink)">Databricks external dashboard embedding</strong> is a productized, dashboard-focused variant of the same idea: simpler API surface (M2M + token scoping endpoint instead of full RFC 8693), narrower use case (read-only AI/BI dashboards), but the architectural principle &mdash; external identity in, scoped token out, server-side filtering &mdash; is identical.
+  </p>
+
+  <a class="docs-link" href="https://docs.databricks.com/aws/en/dashboards/share/embedding/external-embed" target="_blank" rel="noopener">
+    Databricks docs &middot; Embed AI/BI dashboards in external apps <span class="arrow">&rarr;</span>
+  </a>
+
+  <div class="scroll-cue">
+    Step through the federation pattern below
+    <span class="arrow">&darr;</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     ANIMATION STAGE — fills the next viewport
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="animation-stage">
 <div class="topbar">
   <div class="title">OAuth Federation <span>Exchange</span></div>
   <div class="controls">
@@ -289,7 +394,8 @@ svg{width:100%;height:100%}
   <div class="info-title" id="infoTitle" style="display:inline">OAuth Federation Exchange</div>
   <div class="info-detail" id="infoDetail">Press <strong>Space</strong> or click <strong>Play</strong> to step through the identity chain. Token Inspector (right) shows JWT fields and how they map at each stage.</div>
 </div>
-</div>
+</div><!-- /.main -->
+</div><!-- /.animation-stage -->
 
 <script>
 // Token panel states per step — includes deep explanations
@@ -407,7 +513,14 @@ function toggleAuto(){
   if(currentStep<0)nextStep();
 }
 function stopAuto(){if(autoInterval){clearInterval(autoInterval);autoInterval=null;}document.getElementById('btnAuto').textContent="Auto";}
+function animationInView(){
+  const stage=document.querySelector('.animation-stage');
+  if(!stage)return true;
+  const rect=stage.getBoundingClientRect();
+  return rect.top<=80; // intercept only when user has scrolled to (or past) the animation stage
+}
 document.addEventListener('keydown',e=>{
+  if(!animationInView())return;
   if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();nextStep();}
   if(e.key==='ArrowLeft'){e.preventDefault();prevStep();}
   if(e.key==='r'||e.key==='R'){e.preventDefault();resetAll();}
