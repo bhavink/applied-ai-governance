@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/token-federation.md, auth/_azure/token-federation.md, auth/_okta/token-federation.md, auth/gcp-wif-databricks.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/
+    - https://learn.microsoft.com/en-us/azure/databricks/
+  This file is auto-prepared and human-reviewed before publish.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -149,7 +157,7 @@ tr:hover td{background:var(--surface)}
   <div class="label reveal">The Challenge</div>
   <h2 class="reveal">Your AI platform works for internal teams. Now the business needs it to work for everyone else.</h2>
   <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--red)">
-    <p>Channel partners need the same governed analytics your internal sales team uses. External auditors need read access to compliance data without seeing customer records. Consultants need to query project data for the three months they are engaged, then lose access the day the contract ends.</p>
+    <p>Channel partners need the same governed analytics your internal sales team uses. External auditors need read access to compliance data without seeing individual end-user records. Consultants need to query project data for the three months they are engaged, then lose access the day the contract ends.</p>
     <p class="mt-1">None of these people are in your corporate directory. They authenticate through their own identity providers: Auth0, Okta, Entra, whatever their organization uses. They will never have accounts on your platform.</p>
   </div>
   <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--ink)">
@@ -247,14 +255,14 @@ tr:hover td{background:var(--surface)}
       </table>
       <pre style="font-size:0.58rem;margin-top:6px;padding:6px 8px"><span class="cmt">// IDP config</span>
 {
-  "identifier": "<span class="str">https://adb-123.azuredatabricks.net</span>"
+  "identifier": "<span class="str">https://workspace-host.azuredatabricks.net</span>"
 }
 
 <span class="cmt">// JWT claim produced</span>
-"aud": "<span class="str">https://adb-123.azuredatabricks.net</span>"
+"aud": "<span class="str">https://workspace-host.azuredatabricks.net</span>"
 
 <span class="cmt">// Databricks federation policy</span>
-"audiences": ["<span class="str">https://adb-123.azuredatabricks.net</span>"]</pre>
+"audiences": ["<span class="str">https://workspace-host.azuredatabricks.net</span>"]</pre>
     </div>
 
     <div class="card" style="border-left:4px solid var(--ink)">
@@ -271,7 +279,7 @@ POST /oauth/token
 {
   "client_id": "<span class="str">your-m2m-client-id</span>",
   "client_secret": "<span class="str">***</span>",
-  "audience": "<span class="str">https://adb-123...</span>",
+  "audience": "<span class="str">https://workspace-host...</span>",
   "grant_type": "<span class="str">client_credentials</span>"
 }
 
@@ -293,19 +301,19 @@ POST /oauth/token
 <span class="cmt">// It runs at token issuance time.</span>
 
 token.claims["/role"] = user.role;
-  <span class="cmt">// → "west_sales"</span>
+  <span class="cmt">// → "sales_west"</span>
 token.claims["/email"] = user.email;
   <span class="cmt">// → "sarah@partner.com"</span>
 
 <span class="cmt">// ID token the browser receives</span>
 {
   "email": "<span class="str">sarah@partner.com</span>",
-  "<span class="str">https://fed/role</span>": "<span class="str">west_sales</span>",
+  "<span class="str">https://fed/role</span>": "<span class="str">sales_west</span>",
   "<span class="str">https://fed/groups</span>": ["<span class="str">sales</span>"]
 }
 
 <span class="cmt">// Your app reads role → picks SP</span>
-"west_sales" &rarr; SP <span class="str">sp-west-sales-id</span></pre>
+"sales_west" &rarr; SP <span class="str">sp-sales-west-id</span></pre>
     </div>
   </div>
 
@@ -360,7 +368,7 @@ token.claims["/email"] = user.email;
         <div class="flow-connector"></div>
         <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><strong>IDP issues JWT + custom claims</strong><p><code>role</code>, <code>email</code>, <code>groups</code></p></div></div>
         <div class="flow-connector"></div>
-        <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><strong>App resolves role &rarr; SP</strong><p><code>"west_sales" &rarr; sp-west-sales-id</code></p></div></div>
+        <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><strong>App resolves role &rarr; SP</strong><p><code>"sales_west" &rarr; sp-sales-west-id</code></p></div></div>
         <div class="flow-connector"></div>
         <div class="flow-step"><div class="flow-num red">4</div><div class="flow-content"><strong>Token Exchange</strong><p>IDP JWT &rarr; scoped Databricks SP token</p></div></div>
         <div class="flow-connector"></div>
@@ -373,9 +381,108 @@ token.claims["/email"] = user.email;
         <div class="flow-step"><div class="flow-num">8</div><div class="flow-content"><strong>Audit with external identity</strong><p>Email, role, tool, latency recorded</p></div></div>
       </div>
     </div>
-    <div class="card" style="display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:0;text-align:center;padding:clamp(1rem,2vw,2rem)">
-      <h4 style="margin-bottom:8px">Token Flow Summary</h4>
-      <p style="font-size:var(--sz-small);color:var(--muted);max-width:300px">External IdP JWT is exchanged for a scoped Databricks SP token via RFC 8693. UC governance fires per SP group membership at every SQL query.</p>
+    <div style="display:flex;flex-direction:column;gap:clamp(0.5rem,1vw,0.8rem);min-height:0;overflow:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <h4 style="font-size:var(--sz-h3);font-weight:600;letter-spacing:-0.01em">Token Flow &mdash; Actor View</h4>
+        <span style="font-size:var(--sz-label);color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">steps 1&ndash;8</span>
+      </div>
+
+      <svg viewBox="0 0 820 470" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;font-family:'Space Grotesk',sans-serif;flex:1;min-height:0" aria-label="Token flow sequence diagram">
+        <defs>
+          <marker id="ah-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1a1a1a"/></marker>
+          <marker id="ah-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#cc3311"/></marker>
+          <marker id="ah-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1e7e34"/></marker>
+        </defs>
+
+        <!-- Actor headers -->
+        <g font-size="11" font-weight="600" text-anchor="middle">
+          <rect x="20"  y="6" width="120" height="28" rx="4" fill="#f7f7f7" stroke="#1a1a1a"/><text x="80"  y="24">User</text>
+          <rect x="180" y="6" width="120" height="28" rx="4" fill="#f7f7f7" stroke="#1a1a1a"/><text x="240" y="24">IdP</text>
+          <rect x="340" y="6" width="120" height="28" rx="4" fill="#f7f7f7" stroke="#1a1a1a"/><text x="400" y="24">Federation App</text>
+          <rect x="500" y="6" width="120" height="28" rx="4" fill="#f7f7f7" stroke="#1a1a1a"/><text x="560" y="24">Databricks</text>
+          <rect x="660" y="6" width="120" height="28" rx="4" fill="#f7f7f7" stroke="#1a1a1a"/><text x="720" y="24">MCP server</text>
+        </g>
+
+        <!-- Lifelines -->
+        <g stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2 4">
+          <line x1="80"  y1="38" x2="80"  y2="450"/>
+          <line x1="240" y1="38" x2="240" y2="450"/>
+          <line x1="400" y1="38" x2="400" y2="450"/>
+          <line x1="560" y1="38" x2="560" y2="450"/>
+          <line x1="720" y1="38" x2="720" y2="450"/>
+        </g>
+
+        <!-- Step rows: arrows + labels + numbered chips -->
+        <g font-family="DM Mono, monospace" font-size="10.5">
+
+          <!-- 1: User -> IdP -->
+          <text x="160" y="62" text-anchor="middle" fill="#1a1a1a">PKCE / authorization code</text>
+          <line x1="80" y1="72" x2="240" y2="72" stroke="#1a1a1a" stroke-width="1.4" marker-end="url(#ah-ink)"/>
+          <circle cx="160" cy="72" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="1.4"/>
+          <text x="160" y="76" text-anchor="middle" font-size="10" font-weight="700" font-family="Space Grotesk, sans-serif" fill="#1a1a1a">1</text>
+
+          <!-- 2: IdP -> User -->
+          <text x="160" y="100" text-anchor="middle" fill="#1a1a1a">JWT (role, email, groups)</text>
+          <line x1="240" y1="110" x2="80" y2="110" stroke="#1a1a1a" stroke-width="1.4" marker-end="url(#ah-ink)"/>
+          <circle cx="160" cy="110" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="1.4"/>
+          <text x="160" y="114" text-anchor="middle" font-size="10" font-weight="700" font-family="Space Grotesk, sans-serif" fill="#1a1a1a">2</text>
+
+          <!-- 3: User -> Federation App (passes JWT) + App self-loop (resolve role -> SP) -->
+          <text x="240" y="138" text-anchor="middle" fill="#1a1a1a">JWT</text>
+          <line x1="80" y1="148" x2="400" y2="148" stroke="#1a1a1a" stroke-width="1.4" marker-end="url(#ah-ink)"/>
+          <circle cx="240" cy="148" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="1.4"/>
+          <text x="240" y="152" text-anchor="middle" font-size="10" font-weight="700" font-family="Space Grotesk, sans-serif" fill="#1a1a1a">3</text>
+          <path d="M400,160 Q442,160 442,172 Q442,184 400,184" fill="none" stroke="#1a1a1a" stroke-width="1.4" marker-end="url(#ah-ink)"/>
+          <text x="448" y="176" font-size="10" fill="#1a1a1a">resolve <tspan font-style="italic">sales_west &rarr; sp-sales-west-id</tspan></text>
+
+          <!-- 4: Federation App <-> Databricks (RFC 8693 token exchange) -->
+          <text x="480" y="206" text-anchor="middle" fill="#cc3311">RFC 8693: subject_token = JWT</text>
+          <line x1="400" y1="216" x2="560" y2="216" stroke="#cc3311" stroke-width="1.6" marker-end="url(#ah-red)"/>
+          <line x1="560" y1="234" x2="400" y2="234" stroke="#cc3311" stroke-width="1.6" marker-end="url(#ah-red)"/>
+          <text x="480" y="248" text-anchor="middle" fill="#cc3311">Databricks SP token (scoped, +1h)</text>
+          <circle cx="480" cy="225" r="11" fill="#cc3311"/>
+          <text x="480" y="229" text-anchor="middle" font-size="11" font-weight="700" font-family="Space Grotesk, sans-serif" fill="#fff">4</text>
+
+          <!-- 5: Federation App -> MCP -->
+          <text x="560" y="272" text-anchor="middle" fill="#1a1a1a">DB token + IdP JWT + role header</text>
+          <line x1="400" y1="282" x2="720" y2="282" stroke="#1a1a1a" stroke-width="1.4" marker-end="url(#ah-ink)"/>
+          <circle cx="560" cy="282" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="1.4"/>
+          <text x="560" y="286" text-anchor="middle" font-size="10" font-weight="700" font-family="Space Grotesk, sans-serif" fill="#1a1a1a">5</text>
+
+          <!-- 6: MCP -> IdP (JWKS verify) -->
+          <text x="480" y="306" text-anchor="middle" fill="#1e7e34">independent JWKS verify</text>
+          <line x1="720" y1="316" x2="240" y2="316" stroke="#1e7e34" stroke-width="1.4" marker-end="url(#ah-green)"/>
+          <circle cx="480" cy="316" r="11" fill="#1e7e34"/>
+          <text x="480" y="320" text-anchor="middle" font-size="11" font-weight="700" font-family="Space Grotesk, sans-serif" fill="#fff">6</text>
+
+          <!-- 7: MCP -> Databricks (UC governance fires) -->
+          <text x="640" y="340" text-anchor="middle" fill="#1e7e34">query as SP &mdash; UC enforces grants</text>
+          <line x1="720" y1="350" x2="560" y2="350" stroke="#1e7e34" stroke-width="1.4" marker-end="url(#ah-green)"/>
+          <circle cx="640" cy="350" r="11" fill="#1e7e34"/>
+          <text x="640" y="354" text-anchor="middle" font-size="11" font-weight="700" font-family="Space Grotesk, sans-serif" fill="#fff">7</text>
+          <!-- UC enforcement chips inline under step 7 -->
+          <g font-size="9" font-family="Space Grotesk, sans-serif" text-anchor="middle">
+            <rect x="498" y="364" width="62"  height="18" rx="4" fill="#e6f4ea" stroke="#c8e6cf"/><text x="529" y="377" fill="#1e7e34" font-weight="600">row filter</text>
+            <rect x="566" y="364" width="74"  height="18" rx="4" fill="#e6f4ea" stroke="#c8e6cf"/><text x="603" y="377" fill="#1e7e34" font-weight="600">column mask</text>
+            <rect x="646" y="364" width="92"  height="18" rx="4" fill="#e6f4ea" stroke="#c8e6cf"/><text x="692" y="377" fill="#1e7e34" font-weight="600">USE CONNECTION</text>
+          </g>
+
+          <!-- 8: Databricks self-loop (audit) -->
+          <path d="M560,402 Q608,402 608,416 Q608,430 560,430" fill="none" stroke="#1a1a1a" stroke-width="1.4" marker-end="url(#ah-ink)"/>
+          <circle cx="562" cy="416" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="1.4"/>
+          <text x="562" y="420" text-anchor="middle" font-size="10" font-weight="700" font-family="Space Grotesk, sans-serif" fill="#1a1a1a">8</text>
+          <text x="616" y="420" font-size="10" fill="#1a1a1a">audit: external email, role, tool, latency</text>
+        </g>
+
+        <!-- Legend -->
+        <g font-family="Space Grotesk, sans-serif" font-size="10" font-weight="500">
+          <rect x="20"  y="453" width="14" height="3" fill="#cc3311"/><text x="40" y="458" fill="#1a1a1a">RFC 8693 token exchange</text>
+          <rect x="220" y="453" width="14" height="3" fill="#1e7e34"/><text x="240" y="458" fill="#1a1a1a">UC governance enforcement</text>
+          <rect x="450" y="453" width="14" height="3" fill="#1a1a1a"/><text x="470" y="458" fill="#1a1a1a">standard request / response</text>
+        </g>
+      </svg>
+
+      <p style="font-size:var(--sz-label);color:var(--muted);line-height:1.5">External IdP JWT is exchanged for a scoped Databricks SP token via RFC 8693 (step 4). MCP independently verifies the JWT (step 6). UC governance fires per SP group membership at every SQL query (step 7). External identity is preserved to audit (step 8).</p>
     </div>
   </div>
 </div>
@@ -426,7 +533,7 @@ token.claims["/email"] = user.email;
 <span class="kw">SELECT</span> *
 <span class="kw">FROM</span> sales.opportunities
 <span class="cmt">-- UC auto-applies:</span>
-<span class="kw">WHERE</span> is_member(<span class="str">'west_sales'</span>)
+<span class="kw">WHERE</span> is_member(<span class="str">'sales_west'</span>)
   <span class="kw">AND</span> opp_region = <span class="str">'WEST'</span>
 
 <span class="cmt">-- Column mask function</span>
@@ -595,7 +702,7 @@ token.claims["/email"] = user.email;
 
       <div class="card card-red mb-2">
         <h4 style="font-size:var(--sz-body)"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:0.6rem;font-weight:700;margin-right:6px">7</span>Add SPs to Workspace Groups</h4>
-        <p style="font-size:var(--sz-small);color:var(--ink-60)">Create workspace groups (e.g., <code>west_sales</code>) and add each SP. These groups are what <code>is_member()</code> checks in row filters and column masks.</p>
+        <p style="font-size:var(--sz-small);color:var(--ink-60)">Create workspace groups (e.g., <code>sales_west</code>) and add each SP. These groups are what <code>is_member()</code> checks in row filters and column masks.</p>
       </div>
 
       <div class="card card-red mb-2">
@@ -677,8 +784,8 @@ POST accounts/{account_id}
 <pre style="font-size:0.6rem;padding:8px">
 <span class="cmt">// App server config (env var)</span>
 ROLE_SP_MAP = {
-  "west_sales":  "<span class="str">sp-west-sales-id</span>",
-  "east_sales":  "<span class="str">sp-east-sales-id</span>",
+  "sales_west":  "<span class="str">sp-sales-west-id</span>",
+  "sales_east":  "<span class="str">sp-sales-east-id</span>",
   "managers":    "<span class="str">sp-managers-id</span>",
   "executive":   "<span class="str">sp-executive-id</span>",
   "finance":     "<span class="str">sp-finance-id</span>",
@@ -686,9 +793,9 @@ ROLE_SP_MAP = {
 }
 
 <span class="cmt">// Runtime flow:</span>
-<span class="cmt">// 1. SPA login → IDP token: role="west_sales"</span>
-<span class="cmt">// 2. App looks up ROLE_SP_MAP["west_sales"]</span>
-<span class="cmt">// 3. Token exchange: client_id=sp-west-sales-id</span></pre>
+<span class="cmt">// 1. SPA login → IDP token: role="sales_west"</span>
+<span class="cmt">// 2. App looks up ROLE_SP_MAP["sales_west"]</span>
+<span class="cmt">// 3. Token exchange: client_id=sp-sales-west-id</span></pre>
       <p style="font-size:var(--sz-label);color:var(--muted);margin-top:6px">These are <strong>Databricks SP application_ids</strong> — not IDP client_ids. Created during setup, static thereafter. Only changes when you add/remove roles.</p>
     </div>
 
@@ -1251,8 +1358,8 @@ Scope:      Any scope</pre>
         </tr>
       </thead>
       <tbody>
-        <tr><td><strong>Sarah Chen</strong><br><span style="color:var(--muted)">West Territory Lead</span></td><td>west_sales</td><td>west_sales</td><td style="color:var(--red)">WEST only</td><td>NULL</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td></tr>
-        <tr><td><strong>Marcus Johnson</strong><br><span style="color:var(--muted)">East Territory Lead</span></td><td>east_sales</td><td>east_sales</td><td style="color:var(--red)">EAST only</td><td>NULL</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td></tr>
+        <tr><td><strong>Sarah Chen</strong><br><span style="color:var(--muted)">West Territory Lead</span></td><td>sales_west</td><td>sales_west</td><td style="color:var(--red)">WEST only</td><td>NULL</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td></tr>
+        <tr><td><strong>Marcus Johnson</strong><br><span style="color:var(--muted)">East Territory Lead</span></td><td>sales_east</td><td>sales_east</td><td style="color:var(--red)">EAST only</td><td>NULL</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td></tr>
         <tr><td><strong>David Park</strong><br><span style="color:var(--muted)">Sales Manager</span></td><td>managers</td><td>managers</td><td style="color:var(--green)">ALL</td><td>NULL</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td></tr>
         <tr><td><strong>Priya Sharma</strong><br><span style="color:var(--muted)">VP of Sales</span></td><td>executive</td><td>executives</td><td style="color:var(--green)">ALL</td><td style="color:var(--green)">Real</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td></tr>
         <tr><td><strong>Lisa Okafor</strong><br><span style="color:var(--muted)">External Auditor</span></td><td>finance</td><td>finance</td><td style="color:var(--green)">ALL</td><td style="color:var(--green)">Real</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--green)">Y</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--red)">&mdash;</td><td style="color:var(--green)">Y</td></tr>
