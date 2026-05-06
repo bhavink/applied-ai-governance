@@ -96,18 +96,18 @@ svg{width:100%;height:100%}
 <body>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     STORY — Real-life scenario + relation to Databricks external embedding
+     STORY — Real-life scenario + scope (apps vs AI/BI dashboard embedding)
      ═══════════════════════════════════════════════════════════════════ -->
 <section class="story">
   <div class="eyebrow">Federation Pattern &middot; Real-life Walkthrough</div>
-  <h1>How a SaaS embeds AI dashboards for customers <em style="font-style:normal;color:var(--red)">without</em> giving them Databricks accounts</h1>
+  <h1>Bring external users into a Databricks-governed app <em style="font-style:normal;color:var(--red)">without</em> giving them Databricks accounts</h1>
   <div class="red-line"></div>
-  <p class="lead">External users authenticate with their own identity provider, your app exchanges that identity for a scoped Databricks token, and Unity Catalog enforces per-customer data filtering on every query. No Databricks accounts for end users. No custom row-level access layer in app code.</p>
+  <p class="lead">External users authenticate with their own identity provider, your app server exchanges that identity for a scoped Databricks SP token, and Unity Catalog enforces per-user data filtering on every query. The end user's identity travels all the way through &mdash; into UC governance and into the audit trail.</p>
 
   <div class="scenario">
     <strong style="font-size:0.7rem;letter-spacing:0.1em;color:var(--red);text-transform:uppercase">Scenario</strong>
     <p style="margin-top:6px;margin-bottom:0">
-      <strong>Acme Logistics</strong> runs shipping analytics for thousands of retail clients. Each client logs into <code style="font-family:var(--mono);font-size:0.82rem;background:var(--ink-10);padding:1px 5px;border-radius:2px">portal.acme.com</code> with their own Okta or Entra ID and expects to see <strong>AI-powered dashboards</strong> &mdash; refund rates, ETA forecasts, cost-per-shipment &mdash; <strong>scoped to their own data only</strong>.
+      <strong>Acme Logistics</strong> runs shipping analytics for thousands of retail clients. Each client logs into <code style="font-family:var(--mono);font-size:0.82rem;background:var(--ink-10);padding:1px 5px;border-radius:2px">portal.acme.com</code> with their own Okta or Entra ID. Behind the portal, Acme runs a <strong>custom React app</strong> that calls Databricks <strong>Genie</strong>, a <strong>Mosaic AI agent</strong>, and an <strong>MCP server</strong> &mdash; and every query must be scoped to that customer's own data, with the customer's identity carried through to UC governance and audit.
     </p>
   </div>
 
@@ -118,41 +118,47 @@ svg{width:100%;height:100%}
     <div><strong>Audit by external identity</strong><span>Compliance must trace activity back to the actual end user, not a shared service principal.</span></div>
   </div>
 
-  <h2><span class="num">2</span> Two patterns solve this &mdash; same architecture, different productization</h2>
-  <table>
+  <h2><span class="num">2</span> What this pattern is &mdash; and is NOT &mdash; for</h2>
+  <p>The animation below shows the <strong>OAuth token federation</strong> pattern (RFC 8693). Use it when your <strong>app server, agent, or MCP server</strong> needs to carry the end user's external IdP identity into Databricks so that UC can enforce per-user grants, row filters, column masks, and USE CONNECTION at query time.</p>
+  <table style="table-layout:fixed">
+    <colgroup><col style="width:50%"><col style="width:50%"></colgroup>
     <thead>
-      <tr><th>Pattern</th><th>Use case</th><th>Auth mechanism</th><th>What carries the user identity</th></tr>
+      <tr><th style="font-weight:600;width:50%">Use this federation pattern for&hellip;</th><th style="font-weight:600;width:50%">Not for&hellip;</th></tr>
     </thead>
     <tbody>
       <tr>
-        <td><span class="tag red">RFC 8693</span> OAuth federation <em style="font-style:normal;color:var(--muted);font-size:0.75rem">(animation below)</em></td>
-        <td>Custom apps, agents, MCP servers, anything beyond dashboards</td>
-        <td>External IdP JWT exchanged for a scoped Databricks SP token at <code style="font-family:var(--mono);font-size:0.78rem;background:var(--ink-10);padding:1px 4px;border-radius:2px">/oidc/v1/token</code></td>
-        <td>SP bound to a UC group &rarr; row filters, column masks, USE CONNECTION fire on every query</td>
-      </tr>
-      <tr>
-        <td><span class="tag green">Databricks AI/BI</span> External dashboard embedding</td>
-        <td>Read-only AI/BI dashboards inside customer portals</td>
-        <td>OAuth M2M (service principal client credentials) + scoped per-viewer token mint</td>
-        <td><code style="font-family:var(--mono);font-size:0.78rem;background:var(--ink-10);padding:1px 4px;border-radius:2px">external_viewer_id</code> + <code style="font-family:var(--mono);font-size:0.78rem;background:var(--ink-10);padding:1px 4px;border-radius:2px">external_value</code> in the scoped token, used as <code style="font-family:var(--mono);font-size:0.78rem;background:var(--ink-10);padding:1px 4px;border-radius:2px">__aibi_external_value</code> SQL filter</td>
+        <td style="width:50%;font-weight:400">
+          <span class="tag red">YES</span> Custom apps (Databricks Apps or external) calling Genie, Vector Search, UC Functions, model serving<br>
+          <span class="tag red">YES</span> Mosaic AI agents and MCP servers acting on behalf of an external end user<br>
+          <span class="tag red">YES</span> Any flow that needs the <strong>end-user identity to reach Databricks</strong> for UC enforcement and audit<br>
+          <span class="tag red">YES</span> Per-user row filters / column masks / ABAC tied to the end user's group membership
+        </td>
+        <td style="width:50%;font-weight:400">
+          <span class="tag" style="background:#fdecea;color:var(--red)">NO</span> <strong>AI/BI external dashboard embedding</strong> &mdash; that is a different mechanism (see callout below)<br>
+          <span class="tag" style="background:#fdecea;color:var(--red)">NO</span> Anywhere only the service principal needs to authenticate to Databricks<br>
+          <span class="tag" style="background:#fdecea;color:var(--red)">NO</span> Read-only embedded dashboards where the end user's IdP identity does <strong>not</strong> need to reach UC
+        </td>
       </tr>
     </tbody>
   </table>
 
-  <h2><span class="num">3</span> How they relate</h2>
-  <p>Both patterns share the same core architecture &mdash; only the API surface and use case differ:</p>
-  <div class="relate">
-    <div><strong>Identity in</strong>An external user authenticates against an identity provider <em style="font-style:normal;color:var(--muted)">your app trusts</em>. The end user never gets a Databricks account.</div>
-    <div><strong>Scoped token out</strong>Your server exchanges that identity for a <em style="font-style:normal;color:var(--muted)">short-lived, narrowly-scoped Databricks token</em> &mdash; either an SP token (RFC 8693) or a per-viewer token (AI/BI embedding).</div>
-    <div><strong>Server-side enforcement</strong>Unity Catalog (RFC 8693) or scoped SQL variables (AI/BI) <em style="font-style:normal;color:var(--muted)">enforce per-user data filtering at query time</em> &mdash; not in app code.</div>
+  <div class="scenario" style="margin-top:1.2rem;border-left-color:var(--ink);background:var(--white)">
+    <strong style="font-size:0.7rem;letter-spacing:0.1em;color:var(--ink);text-transform:uppercase">Scope callout &mdash; AI/BI dashboard embedding is a different mechanism</strong>
+    <p style="margin-top:6px;margin-bottom:0;font-size:0.9rem;line-height:1.65">
+      Databricks <a href="https://docs.databricks.com/aws/en/dashboards/share/embedding/external-embed" target="_blank" rel="noopener" style="color:var(--red);font-weight:600;text-decoration:underline">AI/BI external dashboard embedding</a> is <strong>not</strong> token federation. The end user's IdP identity <strong>does not propagate</strong> to Databricks. Your app authenticates the end user itself, then uses a single <strong>service principal (OAuth M2M)</strong> to mint a <strong>per-viewer scoped token</strong>. UC sees only the service principal &mdash; not the end user. The <code style="font-family:var(--mono);font-size:0.82rem;background:var(--ink-10);padding:1px 5px;border-radius:2px">external_viewer_id</code> is an <strong>opaque tracking string your app chooses</strong> (no PII allowed); it appears in audit logs and is injected into queries via <code style="font-family:var(--mono);font-size:0.82rem;background:var(--ink-10);padding:1px 5px;border-radius:2px">__aibi_external_value</code> for SQL-level filtering. It is not a federated identity, not a JWT exchange, not RFC 8693. Use it when you only need read-only embedded dashboards. Use the federation pattern below when your app, agent, or MCP needs the actual end-user identity inside Databricks.
+    </p>
   </div>
 
-  <p class="muted" style="margin-top:1rem;font-size:0.85rem">
-    The animation below shows the <strong style="color:var(--ink)">general OAuth federation pattern</strong> &mdash; the canonical RFC 8693 token exchange used by custom apps, agents, and MCP servers. <strong style="color:var(--ink)">Databricks external dashboard embedding</strong> is a productized, dashboard-focused variant of the same idea: simpler API surface (M2M + token scoping endpoint instead of full RFC 8693), narrower use case (read-only AI/BI dashboards), but the architectural principle &mdash; external identity in, scoped token out, server-side filtering &mdash; is identical.
-  </p>
+  <h2><span class="num">3</span> What the animation shows</h2>
+  <p>The animation walks through the canonical OAuth federation flow for an external app:</p>
+  <div class="relate">
+    <div><strong>Identity in</strong>An external user authenticates against an identity provider <em style="font-style:normal;color:var(--muted)">your app trusts</em>. The end user never gets a Databricks account.</div>
+    <div><strong>Scoped SP token out</strong>Your server exchanges the IdP JWT for a <em style="font-style:normal;color:var(--muted)">short-lived, downscoped Databricks SP token</em> at <code style="font-family:var(--mono);font-size:0.78rem;background:var(--ink-10);padding:1px 4px;border-radius:2px">/oidc/v1/token</code> via RFC 8693.</div>
+    <div><strong>UC enforcement</strong>The SP carries a stable identity bound to a UC group &mdash; <em style="font-style:normal;color:var(--muted)">row filters, column masks, USE CONNECTION grants fire on every SQL query</em>. Audit records the external email, role, and tool.</div>
+  </div>
 
   <a class="docs-link" href="https://docs.databricks.com/aws/en/dashboards/share/embedding/external-embed" target="_blank" rel="noopener">
-    Databricks docs &middot; Embed AI/BI dashboards in external apps <span class="arrow">&rarr;</span>
+    For read-only dashboard embedding instead, see: AI/BI External Embedding docs <span class="arrow">&rarr;</span>
   </a>
 
   <div class="scroll-cue">
