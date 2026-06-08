@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/overview.md, auth/oauth-scopes.md, auth/obo-passthrough.md, auth/m2m-service-principal.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/
+    - https://learn.microsoft.com/en-us/azure/databricks/
+  This file is auto-prepared and human-reviewed before publish.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -187,7 +195,7 @@ tr:hover td{background:var(--surface)}
   <div class="three-col mt-2">
     <div class="card reveal">
       <h4 style="color:var(--blue)">Azure</h4>
-      <p><strong>Entra ID</strong> (customer tenant)</p>
+      <p><strong>Entra ID</strong> (your tenant)</p>
       <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">Default. Users authenticate via Entra. SSO, MFA, Conditional Access all work.</p>
     </div>
     <div class="card reveal">
@@ -208,7 +216,7 @@ tr:hover td{background:var(--surface)}
     </div>
     <div class="card card-red reveal">
       <h4>Apps OUTSIDE Databricks &rarr; Federation</h4>
-      <p>An external app (partner portal, customer SaaS, internal tool on separate infra) authenticates users with its own IdP. These users <strong>don't have Databricks accounts</strong>. Federation Exchange bridges the external IdP to Databricks via token exchange (RFC 8693).</p>
+      <p>An external app (partner portal, end-user SaaS, internal tool on separate infra) authenticates users with its own IdP. These users <strong>don't have Databricks accounts</strong>. Federation Exchange bridges the external IdP to Databricks via token exchange (RFC 8693).</p>
     </div>
   </div>
 </div>

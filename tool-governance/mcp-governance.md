@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: mcp/overview.md, mcp/managed-mcp.md, mcp/custom-mcp.md, mcp/external-mcp.md, mcp/external-connection-tools.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/generative-ai/mcp/
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # MCP Governance — Server Types, Tool Selection, and Auth Patterns
 
 > **TL;DR**: Databricks supports three MCP server types: Managed, Custom, and External. All are enforced by Unity Catalog. MCP-first is the recommended tool selection strategy — agents discover tools dynamically at runtime rather than hardcoding definitions.

@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: governance/unity-catalog.md, governance/abac.md, governance/row-filters.md, governance/column-masks.md, governance/governed-tags.md, governance/data-classification.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/
+    - https://learn.microsoft.com/en-us/azure/databricks/
+  This file is auto-prepared and human-reviewed before publish.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -151,7 +159,7 @@ tr:hover td{background:var(--surface)}
   <div class="label reveal">The Challenge</div>
   <h2 class="reveal">Once identity is resolved, what can each user actually see?</h2>
   <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--red)">
-    <p>Your AI platform answers questions from live data, but not every user should see every answer. <strong>Sales reps</strong> should only see their own region's pipeline. <strong>Partners</strong> should see aggregated metrics but never individual customer records. <strong>Auditors</strong> need read access to compliance tables but nothing else.</p>
+    <p>Your AI platform answers questions from live data, but not every user should see every answer. <strong>Sales reps</strong> should only see their own region's pipeline. <strong>Partners</strong> should see aggregated metrics but never individual end-user records. <strong>Auditors</strong> need read access to compliance tables but nothing else.</p>
   </div>
   <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--ink)">
     <p>These rules must apply consistently whether the question comes from a Genie space, a Vector Search query, an agent workflow, or a direct SQL call. <strong>Unity Catalog</strong> is the single enforcement layer that makes this possible: row filters, column masks, attribute-based access control, all resolved from the caller's identity.</p>
@@ -172,7 +180,7 @@ tr:hover td{background:var(--surface)}
       <pre style="font-size:var(--sz-code)"><span style="color:var(--red)">catalog</span>.<span style="color:#4ec9b0">schema</span>.<span style="color:#dcdcaa">table</span>
 
 -- Example
-<span style="color:var(--red)">applied_ai_gov</span>.<span style="color:#4ec9b0">sales</span>.<span style="color:#dcdcaa">deals</span></pre>
+<span style="color:var(--red)">demo_governance</span>.<span style="color:#4ec9b0">sales</span>.<span style="color:#dcdcaa">deals</span></pre>
       <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Tables, views, functions, volumes, models, and connections all live inside this hierarchy.</p>
     </div>
     <div class="card reveal">
@@ -247,7 +255,7 @@ tr:hover td{background:var(--surface)}
       <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Grant read access</span>
 GRANT SELECT ON TABLE
   catalog.schema.deals
-  TO `east_sales`;
+  TO `sales_east`;
 
 <span style="color:var(--green)">-- Grant at schema level</span>
 GRANT USE SCHEMA ON SCHEMA
@@ -274,7 +282,7 @@ CREATE FUNCTION sales_filter(region STRING)
 RETURN
   is_member('admin')
   OR region = 'WEST'
-    AND is_member('west_sales');
+    AND is_member('sales_west');
 
 <span style="color:var(--green)">-- Apply to table</span>
 ALTER TABLE deals
@@ -319,7 +327,7 @@ WHERE owner = current_user()</pre>
       <h4>is_member()</h4>
       <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">Returns TRUE if the executing identity belongs to a workspace group.</p>
       <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Filter: role-based access</span>
-WHERE is_member('west_sales')
+WHERE is_member('sales_west')
   AND region = 'WEST'</pre>
       <table class="mt-1">
         <tr><td style="font-weight:600;width:80px">M2M</td><td>Evaluates the SP's group membership. Works well when you control the SP.</td></tr>
@@ -398,7 +406,7 @@ is_member('admins') => TRUE
     <div class="card card-amber reveal">
       <h4>OBO: is_member() evaluates the service layer</h4>
       <p style="font-size:var(--sz-small);margin-bottom:8px">In Genie or Agent Bricks OBO flows, <code>is_member()</code> evaluates the service layer's identity, not the calling user's groups. This is a known behavior.</p>
-      <pre style="font-size:var(--sz-code)"><span style="color:var(--amber)">-- Workaround: use allowlist table</span>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--amber)">-- Pattern: use allowlist table</span>
 CASE
   WHEN EXISTS (
     SELECT 1 FROM role_allowlist
@@ -504,8 +512,8 @@ CREATE ACCESS POLICY high_sens_policy
 CREATE FUNCTION deals_row_filter(region STRING)
 RETURN
   is_member('admin') OR
-  (region = 'WEST' AND is_member('west_sales')) OR
-  (region = 'EAST' AND is_member('east_sales'));
+  (region = 'WEST' AND is_member('sales_west')) OR
+  (region = 'EAST' AND is_member('sales_east'));
 
 ALTER TABLE deals SET ROW FILTER deals_row_filter ON (region);
 
@@ -605,7 +613,7 @@ ALTER TABLE deals ALTER COLUMN margin_pct SET MASK mask_margin;</pre>
     </div>
     <div class="card card-green reveal">
       <h4>Cannot Bypass</h4>
-      <p style="font-size:var(--sz-small)">Row filters and column masks are injected by the engine. No SQL trick, no API shortcut, no SDK workaround can skip them. The only override is ownership or admin privilege.</p>
+      <p style="font-size:var(--sz-small)">Row filters and column masks are injected by the engine. No SQL trick, no API shortcut, no SDK shortcut can skip them. The only override is ownership or admin privilege.</p>
     </div>
     <div class="card card-green reveal">
       <h4>Full Audit Trail</h4>

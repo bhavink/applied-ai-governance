@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: ai/ai-gateway.md
+  Public docs grounding:
+    - https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/overview-beta
+    - https://docs.databricks.com/aws/en/ai-gateway/
+  This file is auto-prepared and human-reviewed before publish.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -329,7 +337,7 @@
             padding: clamp(0.75rem,1.4vw,1.25rem);
             border-radius: 2px;
         }
-        .scenario.broken { border-top: 3px solid var(--p4); }
+        .scenario.incorrect { border-top: 3px solid var(--p4); }
         .scenario.ok     { border-top: 3px solid var(--p1); }
 
         /* Result box */
@@ -549,7 +557,7 @@
                 <div class="prow-icon" style="background:var(--p4-bg);">🔴</div>
                 <div>
                     <div class="prow-title" style="color:var(--p4);">Pattern 4 — Inbound External</div>
-                    <div class="prow-desc">External clients calling Databricks · Enterprise apps · Partners · Customer portals</div>
+                    <div class="prow-desc">External clients calling Databricks · Enterprise apps · Partners · End-user portals</div>
                 </div>
                 <span class="badge p4">External Gateway</span>
             </div>
@@ -602,7 +610,7 @@
         <h2 class="reveal" style="margin-bottom: var(--gap);">A gateway in the OBO path breaks governance</h2>
 
         <div class="cols-2 reveal">
-            <div class="scenario broken">
+            <div class="scenario incorrect">
                 <div style="font-size:var(--sz-label); font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--p4); margin-bottom:var(--gap-sm);">❌ Gateway intercepts</div>
                 <div class="steps">
                     <div class="step">
@@ -658,27 +666,35 @@
         </div>
         <h2 class="reveal" style="margin-bottom: var(--gap);">Databricks AI Gateway</h2>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--gap-sm);" class="reveal">
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--gap-sm);" class="reveal">
             <div class="card p2">
                 <div style="font-weight:600; font-size:var(--sz-body); color:var(--p2); margin-bottom:5px;">Rate Limiting</div>
-                <p>Per Databricks user, group, or endpoint. Tokens per minute + requests per minute. Enforced using UC identity — the same model as row filters and column masks.</p>
+                <p>Per user, group, service principal, or endpoint. Calls per minute and tokens per minute. Enforced using UC identity — the same model as row filters and column masks.</p>
             </div>
             <div class="card p2">
                 <div style="font-weight:600; font-size:var(--sz-body); color:var(--p2); margin-bottom:5px;">Content Guardrails</div>
-                <p>Input and output safety filtering. PII detection (block or mask). Topic filtering. Applied uniformly at the endpoint — no per-application code needed.</p>
+                <p>Input and output safety filtering. PII detection (block or mask). Keyword filters. Applied uniformly at the endpoint — no per-application code needed.</p>
             </div>
             <div class="card p2">
                 <div style="font-weight:600; font-size:var(--sz-body); color:var(--p2); margin-bottom:5px;">Usage Tracking</div>
-                <p>Token consumption per identity to system tables. Cost attribution by team, application, or user group. MLflow integration for experiment tracking.</p>
+                <p>Token consumption per identity to <code>system.serving.endpoint_usage</code> and <code>system.ai_gateway.usage</code>. Cost attribution by team or app via <code>usage_context</code>.</p>
             </div>
             <div class="card p2">
-                <div style="font-weight:600; font-size:var(--sz-body); color:var(--p2); margin-bottom:5px;">Fallback Routing</div>
-                <p>Route to a backup model if the primary exceeds latency thresholds. Traffic splitting across model versions. Zero custom throttling code.</p>
+                <div style="font-weight:600; font-size:var(--sz-body); color:var(--p2); margin-bottom:5px;">Fallbacks &amp; Splits</div>
+                <p>Route to a backup model on 429 or 5XX. Traffic splitting across served entities. Multi-provider failover without custom routing code.</p>
+            </div>
+            <div class="card p2">
+                <div style="font-weight:600; font-size:var(--sz-body); color:var(--p2); margin-bottom:5px;">Coding Agents</div>
+                <p>Govern Cursor, Codex CLI, Gemini CLI, and Claude Code under the same access controls. OpenAI-compatible base URLs per agent (<code>/cursor/v1</code>, <code>/codex/v1</code>, <code>/gemini</code>). Built-in dashboard for usage and spend.</p>
+            </div>
+            <div class="card p2">
+                <div style="font-weight:600; font-size:var(--sz-body); color:var(--p2); margin-bottom:5px;">Custom APIs &amp; OTel</div>
+                <p>Govern arbitrary external APIs (not just LLMs) under the same controls. Coding agents export OpenTelemetry metrics and logs to UC Delta tables via the <code>X-Databricks-UC-Table-Name</code> routing header.</p>
             </div>
         </div>
 
         <div class="callout reveal" style="margin-top: var(--gap);">
-            Configured <em>directly on</em> the serving endpoint — not a separate infrastructure hop. Works with OBO and M2M token flows. Compatible with FM API, custom models, and external models via AI Gateway.
+            Two configuration surfaces, one governance model. Configure on a serving endpoint for guardrails, custom models, and existing inference workloads. Use the standalone Unity AI Gateway for coding agent governance, native multi-provider APIs (OpenAI Responses, Anthropic Messages, Gemini), and custom API governance. Both work with OBO and M2M token flows.
         </div>
     </div>
     <div class="slide-num">07 / 14</div>
@@ -912,7 +928,7 @@
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--gap);">
                 <div class="card p4" style="display:flex; flex-direction:column; gap:var(--gap-sm);">
                     <div style="font-weight:700; font-size:var(--sz-body); color:var(--p4);">Outside Databricks</div>
-                    <p style="font-size:var(--sz-small);">Enterprise apps · partners · customer portals · external workflows</p>
+                    <p style="font-size:var(--sz-small);">Enterprise apps · partners · end-user portals · external workflows</p>
                     <div style="margin-top:auto;"><span class="badge p4">→ Pattern 4 — External Gateway</span></div>
                 </div>
 

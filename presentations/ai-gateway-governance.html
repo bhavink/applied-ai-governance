@@ -1,0 +1,1014 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: ai/ai-gateway.md
+  Public docs grounding:
+    - https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/overview-beta
+    - https://docs.databricks.com/aws/en/ai-gateway/
+  This file is auto-prepared and human-reviewed before publish.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified AI Governance on Databricks</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ===========================================
+           SWISS MODERN SAMURAI THEME
+           60% white (#ffffff)
+           30% ink (#1a1a1a)
+           10% vermillion (#cc3311)
+           =========================================== */
+        :root {
+            --white: #ffffff;
+            --ink: #1a1a1a;
+            --vermillion: #cc3311;
+            --vermillion-soft: rgba(204, 51, 17, 0.08);
+            --vermillion-glow: rgba(204, 51, 17, 0.15);
+            --gray-100: #f7f7f7;
+            --gray-200: #e8e8e8;
+            --gray-300: #d0d0d0;
+            --gray-500: #888888;
+            --gray-700: #444444;
+
+            --font: 'Space Grotesk', sans-serif;
+            --title-size: clamp(2rem, 5.5vw, 4.2rem);
+            --h2-size: clamp(1.4rem, 3.5vw, 2.6rem);
+            --h3-size: clamp(1rem, 2.2vw, 1.5rem);
+            --body-size: clamp(0.72rem, 1.3vw, 1.05rem);
+            --small-size: clamp(0.6rem, 0.9vw, 0.8rem);
+            --slide-padding: clamp(1.5rem, 4vw, 5rem);
+            --content-gap: clamp(0.6rem, 1.8vw, 1.8rem);
+            --element-gap: clamp(0.3rem, 0.8vw, 0.8rem);
+
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html {
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+            height: 100%;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--white);
+            color: var(--ink);
+            overflow-x: hidden;
+            height: 100%;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===========================================
+           SLIDE BASE
+           =========================================== */
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            padding: var(--slide-padding);
+        }
+
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 100%;
+            overflow: hidden;
+        }
+
+        /* ===========================================
+           TYPOGRAPHY
+           =========================================== */
+        h1 {
+            font-size: var(--title-size);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.05;
+            color: var(--ink);
+        }
+
+        h2 {
+            font-size: var(--h2-size);
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            line-height: 1.15;
+            color: var(--ink);
+            margin-bottom: var(--content-gap);
+        }
+
+        h3 {
+            font-size: var(--h3-size);
+            font-weight: 600;
+            color: var(--ink);
+            line-height: 1.2;
+        }
+
+        p, li {
+            font-size: var(--body-size);
+            line-height: 1.55;
+            color: var(--gray-700);
+        }
+
+        .subtitle {
+            font-size: clamp(0.85rem, 1.8vw, 1.3rem);
+            font-weight: 400;
+            color: var(--gray-500);
+            letter-spacing: 0.02em;
+        }
+
+        .label {
+            font-size: var(--small-size);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--vermillion);
+        }
+
+        /* ===========================================
+           ACCENT ELEMENTS
+           =========================================== */
+        .vermillion { color: var(--vermillion); }
+        .ink-bg { background: var(--ink); color: var(--white); }
+        .ink-bg h2, .ink-bg h3 { color: var(--white); }
+        .ink-bg p, .ink-bg li { color: var(--gray-300); }
+        .ink-bg .label { color: var(--vermillion); }
+
+        .accent-line {
+            width: 48px;
+            height: 3px;
+            background: var(--vermillion);
+            margin-bottom: var(--element-gap);
+        }
+
+        .accent-dot::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background: var(--vermillion);
+            border-radius: 50%;
+            margin-right: 0.6em;
+            vertical-align: middle;
+        }
+
+        /* ===========================================
+           LAYOUT COMPONENTS
+           =========================================== */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--content-gap);
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--content-gap);
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--element-gap);
+        }
+
+        .pillar-card {
+            background: var(--gray-100);
+            border-radius: 8px;
+            padding: clamp(0.8rem, 2vw, 1.6rem);
+            border-top: 3px solid var(--vermillion);
+        }
+
+        .pillar-card h3 { margin-bottom: 0.4em; }
+
+        .bullet-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--element-gap);
+        }
+
+        .bullet-list li {
+            padding-left: 1.2em;
+            position: relative;
+        }
+
+        .bullet-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.55em;
+            width: 5px;
+            height: 5px;
+            background: var(--vermillion);
+            border-radius: 50%;
+        }
+
+        /* ===========================================
+           TABLE
+           =========================================== */
+        .gov-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--small-size);
+        }
+
+        .gov-table th {
+            background: var(--ink);
+            color: var(--white);
+            padding: clamp(0.3rem, 0.8vw, 0.6rem) clamp(0.4rem, 1vw, 0.8rem);
+            text-align: left;
+            font-weight: 600;
+            font-size: var(--small-size);
+        }
+
+        .gov-table td {
+            padding: clamp(0.25rem, 0.6vw, 0.5rem) clamp(0.4rem, 1vw, 0.8rem);
+            border-bottom: 1px solid var(--gray-200);
+            font-size: var(--small-size);
+            color: var(--gray-700);
+        }
+
+        .gov-table tr:nth-child(even) td { background: var(--gray-100); }
+        .gov-table td:first-child { font-weight: 600; color: var(--ink); }
+
+        /* ===========================================
+           LAYER STACK
+           =========================================== */
+        .layer-stack {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.2rem, 0.5vw, 0.4rem);
+        }
+
+        .layer {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.4rem, 1vw, 0.8rem);
+            padding: clamp(0.4rem, 1vw, 0.7rem) clamp(0.6rem, 1.5vw, 1.2rem);
+            border-radius: 6px;
+            border-left: 3px solid var(--vermillion);
+        }
+
+        .layer:nth-child(1) { background: rgba(204,51,17,0.08); }
+        .layer:nth-child(2) { background: rgba(204,51,17,0.06); }
+        .layer:nth-child(3) { background: rgba(204,51,17,0.05); }
+        .layer:nth-child(4) { background: rgba(204,51,17,0.04); }
+        .layer:nth-child(5) { background: rgba(204,51,17,0.03); }
+
+        .layer-num {
+            font-size: var(--small-size);
+            font-weight: 700;
+            color: var(--vermillion);
+            min-width: 1.4em;
+        }
+
+        .layer-title {
+            font-weight: 600;
+            font-size: var(--body-size);
+            color: var(--ink);
+            min-width: clamp(4rem, 8vw, 7rem);
+        }
+
+        .layer-desc {
+            font-size: var(--small-size);
+            color: var(--gray-700);
+        }
+
+        /* ===========================================
+           ANIMATIONS
+           =========================================== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+        }
+
+        .slide.visible .reveal {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal:nth-child(1) { transition-delay: 0.05s; }
+        .reveal:nth-child(2) { transition-delay: 0.12s; }
+        .reveal:nth-child(3) { transition-delay: 0.19s; }
+        .reveal:nth-child(4) { transition-delay: 0.26s; }
+        .reveal:nth-child(5) { transition-delay: 0.33s; }
+        .reveal:nth-child(6) { transition-delay: 0.40s; }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-30px);
+            transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+        }
+
+        .slide.visible .reveal-left { opacity: 1; transform: translateX(0); }
+
+        /* ===========================================
+           PROGRESS BAR
+           =========================================== */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--vermillion);
+            z-index: 1000;
+            transition: width 0.3s ease;
+        }
+
+        /* ===========================================
+           SLIDE COUNTER
+           =========================================== */
+        .slide-counter {
+            position: fixed;
+            bottom: clamp(0.8rem, 2vw, 1.5rem);
+            right: clamp(0.8rem, 2vw, 1.5rem);
+            font-size: var(--small-size);
+            font-weight: 500;
+            color: var(--gray-500);
+            z-index: 100;
+            font-family: var(--font);
+        }
+
+        .ink-bg ~ .slide-counter { color: var(--gray-300); }
+
+        /* ===========================================
+           RESPONSIVE
+           =========================================== */
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .grid-2, .grid-3, .grid-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-height: 600px) {
+            :root {
+                --slide-padding: clamp(0.8rem, 3vw, 2rem);
+                --content-gap: clamp(0.4rem, 1vw, 0.8rem);
+                --element-gap: clamp(0.2rem, 0.5vw, 0.4rem);
+            }
+        }
+
+        @media (max-height: 500px) {
+            :root {
+                --title-size: clamp(1.2rem, 4vw, 2rem);
+                --h2-size: clamp(1rem, 2.5vw, 1.6rem);
+                --body-size: clamp(0.6rem, 1vw, 0.8rem);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal, .reveal-left {
+                transition: opacity 0.3s ease;
+                transform: none;
+            }
+            html { scroll-behavior: auto; }
+        }
+
+        /* ===========================================
+           TITLE SLIDE SPECIAL
+           =========================================== */
+        .title-slide {
+            background: var(--ink);
+        }
+
+        .title-slide h1 {
+            color: var(--white);
+        }
+
+        .title-slide .subtitle {
+            color: var(--gray-300);
+        }
+
+        .title-accent {
+            display: inline;
+            color: var(--vermillion);
+        }
+
+        /* ===========================================
+           CLOSING SLIDE
+           =========================================== */
+        .closing-slide {
+            background: var(--ink);
+            text-align: center;
+        }
+
+        .closing-slide h2 {
+            color: var(--white);
+            font-size: var(--title-size);
+        }
+
+        .closing-slide p {
+            color: var(--gray-300);
+            font-size: clamp(0.8rem, 1.5vw, 1.1rem);
+        }
+    </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress"></div>
+<div class="slide-counter" id="counter"></div>
+
+<!-- ============================================
+     SLIDE 1: TITLE
+     ============================================ -->
+<section class="slide title-slide">
+    <div class="slide-content">
+        <div class="accent-line reveal" style="background: var(--vermillion); margin-bottom: 1.5rem;"></div>
+        <h1 class="reveal">Unified AI Governance<br><span class="title-accent">on Databricks</span></h1>
+        <p class="subtitle reveal" style="margin-top: var(--content-gap);">Identity, Runtime, and Observability<br>One Platform</p>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 2: THE CHALLENGE
+     ============================================ -->
+<section class="slide">
+    <div class="slide-content">
+        <span class="label reveal">The Challenge</span>
+        <h2 class="reveal">AI adoption is accelerating.<br>Governance must keep pace.</h2>
+        <ul class="bullet-list reveal" style="margin-top: var(--content-gap); max-width: 700px;">
+            <li>Models deployed across workspaces, teams, and clouds</li>
+            <li>CISOs need answers: who deployed what, who used it, was it safe, can I prove it</li>
+            <li>Traditional approach: bolt-on tools, fragmented visibility, manual enforcement</li>
+            <li>What's needed: governance built into the platform, not bolted on</li>
+        </ul>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 3: THREE PILLARS
+     ============================================ -->
+<section class="slide">
+    <div class="slide-content">
+        <span class="label reveal">Architecture</span>
+        <h2 class="reveal">Three Pillars of AI Governance</h2>
+        <div class="grid-3 reveal">
+            <div class="pillar-card">
+                <h3>Identity</h3>
+                <p style="font-size: var(--small-size); color: var(--vermillion); margin-bottom: 0.4em;">Unity Catalog</p>
+                <p>Who can access which models, data, tools, and connections</p>
+            </div>
+            <div class="pillar-card">
+                <h3>Runtime</h3>
+                <p style="font-size: var(--small-size); color: var(--vermillion); margin-bottom: 0.4em;">AI Gateway</p>
+                <p>Guardrails, rate limits, routing, and payload logging in real time</p>
+            </div>
+            <div class="pillar-card">
+                <h3>Observability</h3>
+                <p style="font-size: var(--small-size); color: var(--vermillion); margin-bottom: 0.4em;">System Tables + MLflow</p>
+                <p>What happened, who did it, was it compliant, can I prove it</p>
+            </div>
+        </div>
+        <p class="reveal" style="margin-top: var(--content-gap); font-weight: 600; font-size: var(--body-size); color: var(--ink); text-align: center;">Prevent &rarr; Detect &rarr; Enforce &rarr; Audit &rarr; Attest</p>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 4: PILLAR 1 — IDENTITY
+     ============================================ -->
+<section class="slide ink-bg">
+    <div class="slide-content">
+        <span class="label reveal">Pillar 1</span>
+        <h2 class="reveal">Identity: Unity Catalog as the Foundation</h2>
+        <ul class="bullet-list reveal" style="max-width: 750px;">
+            <li>UC governs models, agents, functions, connections, and data</li>
+            <li><strong>EXECUTE</strong> grants control who can deploy custom models and agents</li>
+            <li><strong>Foundation Model Permissions</strong> (Preview): <code style="color: var(--vermillion);">system.ai</code> makes every FMAPI model a UC securable</li>
+            <li><strong>REVOKE EXECUTE</strong> = model disabled org-wide across PPT, PT, and Batch</li>
+            <li>Secret scope ACLs govern API keys for external model providers</li>
+            <li>One identity model across all workspaces in the account</li>
+        </ul>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 5: PILLAR 2 — RUNTIME
+     ============================================ -->
+<section class="slide">
+    <div class="slide-content">
+        <span class="label reveal">Pillar 2</span>
+        <h2 class="reveal">Runtime: AI Gateway v2</h2>
+        <div class="grid-2 reveal">
+            <div>
+                <h3 style="margin-bottom: 0.5em;">Guardrails</h3>
+                <ul class="bullet-list" style="gap: 0.3rem;">
+                    <li>Safety filtering (Llama Guard)</li>
+                    <li>PII detection (Presidio)</li>
+                    <li>Content moderation</li>
+                    <li>Dry-run mode for testing</li>
+                </ul>
+            </div>
+            <div>
+                <h3 style="margin-bottom: 0.5em;">Controls</h3>
+                <ul class="bullet-list" style="gap: 0.3rem;">
+                    <li>Rate limits: endpoint, user, SP, group</li>
+                    <li>Fallback routing across providers</li>
+                    <li>Traffic splitting for A/B testing</li>
+                    <li>MCP server governance</li>
+                </ul>
+            </div>
+        </div>
+        <div class="grid-2 reveal" style="margin-top: var(--element-gap);">
+            <div>
+                <h3 style="margin-bottom: 0.5em;">Logging</h3>
+                <ul class="bullet-list" style="gap: 0.3rem;">
+                    <li>Inference tables: full payload to UC Delta</li>
+                    <li>Usage tracking with cost attribution</li>
+                </ul>
+            </div>
+            <div>
+                <h3 style="margin-bottom: 0.5em;">API Coverage</h3>
+                <ul class="bullet-list" style="gap: 0.3rem;">
+                    <li>Native: OpenAI, Anthropic, Gemini</li>
+                    <li>Custom API for any external service</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 6: PILLAR 3 — OBSERVABILITY
+     ============================================ -->
+<section class="slide ink-bg">
+    <div class="slide-content">
+        <span class="label reveal">Pillar 3</span>
+        <h2 class="reveal">Observability: See Everything</h2>
+        <ul class="bullet-list reveal" style="max-width: 750px;">
+            <li><strong>System tables</strong> (account-level): all endpoints, all workspaces, one query</li>
+            <li><strong>MLflow 3</strong> production monitoring: scorers run on live traces continuously</li>
+            <li><strong>14 built-in LLM judges</strong> + multi-turn conversation judges</li>
+            <li><strong>Third-party scorers</strong>: DeepEval, RAGAS, Guardrails AI in one evaluate() call</li>
+            <li><strong>UC OTel tracing</strong>: span-level traces stored directly in UC Delta</li>
+            <li><strong>Genie space</strong>: CISO asks questions in natural language</li>
+        </ul>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 7: POLICY AS DATA
+     ============================================ -->
+<section class="slide">
+    <div class="slide-content">
+        <span class="label reveal">Pattern</span>
+        <h2 class="reveal">Policy as Data</h2>
+        <div class="grid-2 reveal">
+            <div>
+                <ul class="bullet-list">
+                    <li>Guardrail policy stored in <strong>UC Delta table</strong></li>
+                    <li>Governed by UC ACLs (only admins can modify)</li>
+                    <li>Versioned, auditable, queryable via SQL</li>
+                    <li>Same policy enforced across all workspaces</li>
+                </ul>
+            </div>
+            <div style="background: var(--ink); color: var(--gray-300); border-radius: 8px; padding: clamp(0.5rem, 1.2vw, 0.9rem); font-family: monospace; font-size: clamp(0.5rem, 0.78vw, 0.68rem); line-height: 1.45; overflow: hidden;">
+                <span style="color: var(--vermillion); font-weight: 600;">demo_governance.ai_gateway.guardrail_policy</span><br><br>
+                <table style="border-collapse: collapse; width: 100%; font-size: inherit; font-family: inherit;">
+                    <tr style="border-bottom: 1px solid var(--gray-700);">
+                        <td style="padding: 2px 6px; color: var(--gray-500);">scope</td>
+                        <td style="padding: 2px 6px; color: var(--gray-500);">safety</td>
+                        <td style="padding: 2px 6px; color: var(--gray-500);">pii</td>
+                        <td style="padding: 2px 6px; color: var(--gray-500);">keywords</td>
+                        <td style="padding: 2px 6px; color: var(--gray-500);">qpm_ep</td>
+                        <td style="padding: 2px 6px; color: var(--gray-500);">qpm_user</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <td style="padding: 3px 6px; color: var(--white);">global</td>
+                        <td style="padding: 3px 6px; color: #4ade80;">true</td>
+                        <td style="padding: 3px 6px; color: var(--vermillion); font-weight: 600;">BLOCK</td>
+                        <td style="padding: 3px 6px; color: var(--white);">[SuperSecret..,<br>CONFIDENTIAL,<br>internal-only]</td>
+                        <td style="padding: 3px 6px; color: var(--white);">100</td>
+                        <td style="padding: 3px 6px; color: var(--white);">10</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); opacity: 0.5;">
+                        <td style="padding: 3px 6px;">team:ml-eng</td>
+                        <td style="padding: 3px 6px; color: #4ade80;">true</td>
+                        <td style="padding: 3px 6px;">MASK</td>
+                        <td style="padding: 3px 6px;">[]</td>
+                        <td style="padding: 3px 6px;">200</td>
+                        <td style="padding: 3px 6px;">25</td>
+                    </tr>
+                    <tr style="opacity: 0.5;">
+                        <td style="padding: 3px 6px;">team:analytics</td>
+                        <td style="padding: 3px 6px; color: #4ade80;">true</td>
+                        <td style="padding: 3px 6px;">BLOCK</td>
+                        <td style="padding: 3px 6px;">[revenue-data]</td>
+                        <td style="padding: 3px 6px;">50</td>
+                        <td style="padding: 3px 6px;">5</td>
+                    </tr>
+                </table>
+                <br>
+                <span style="color: var(--gray-500);">-- One function, every endpoint</span><br>
+                <span style="color: var(--vermillion);">apply_guardrails</span>(<span style="color: var(--white);">endpoint</span>, policy)<br>
+                <span style="color: var(--gray-500);">-- Drift? Fixed in 5 min</span><br>
+                <span style="color: var(--vermillion);">enforce_guardrails</span>(<span style="color: var(--white);">all_workspaces</span>)
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 8: 4 GOVERNANCE LEVERS
+     ============================================ -->
+<section class="slide">
+    <div class="slide-content">
+        <span class="label reveal">Controls</span>
+        <h2 class="reveal">The 4 Governance Levers</h2>
+        <div class="reveal" style="overflow-x: auto;">
+            <table class="gov-table">
+                <thead>
+                    <tr>
+                        <th>Lever</th>
+                        <th>Foundation Models</th>
+                        <th>External Models</th>
+                        <th>Custom Models</th>
+                        <th>Agents</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>UC Permissions</td>
+                        <td>system.ai (Preview)</td>
+                        <td>Secret scope ACLs</td>
+                        <td>EXECUTE grant</td>
+                        <td>EXECUTE grant</td>
+                    </tr>
+                    <tr>
+                        <td>Rate Limits</td>
+                        <td>QPM=0 disables</td>
+                        <td>Per user/SP/group</td>
+                        <td>Per user/SP/group</td>
+                        <td>Per user/SP/group</td>
+                    </tr>
+                    <tr>
+                        <td>Egress Controls</td>
+                        <td>N/A (system)</td>
+                        <td>Key management</td>
+                        <td>N/A</td>
+                        <td>N/A</td>
+                    </tr>
+                    <tr>
+                        <td>Runtime Guardrails</td>
+                        <td>AI Gateway</td>
+                        <td>AI Gateway</td>
+                        <td>AI Gateway</td>
+                        <td>AI Gateway + Scorers</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="reveal" style="margin-top: var(--element-gap); font-size: var(--small-size); color: var(--gray-500);">No single lever covers everything. The combination provides full coverage across all endpoint types.</p>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 9: 5-LAYER DEFENSE
+     ============================================ -->
+<section class="slide ink-bg">
+    <div class="slide-content">
+        <span class="label reveal">Defense in Depth</span>
+        <h2 class="reveal">5 Layers of Enforcement</h2>
+        <div class="layer-stack reveal">
+            <div class="layer">
+                <span class="layer-num">1</span>
+                <span class="layer-title" style="color: var(--white);">Prevent</span>
+                <span class="layer-desc" style="color: var(--gray-300);">UC permissions restrict who can create and use models</span>
+            </div>
+            <div class="layer">
+                <span class="layer-num">2</span>
+                <span class="layer-title" style="color: var(--white);">Detect</span>
+                <span class="layer-desc" style="color: var(--gray-300);">System tables find all endpoints across all workspaces</span>
+            </div>
+            <div class="layer">
+                <span class="layer-num">3</span>
+                <span class="layer-title" style="color: var(--white);">Enforce</span>
+                <span class="layer-desc" style="color: var(--gray-300);">Auto-apply guardrails from UC policy table via API</span>
+            </div>
+            <div class="layer">
+                <span class="layer-num">4</span>
+                <span class="layer-title" style="color: var(--white);">Audit</span>
+                <span class="layer-desc" style="color: var(--gray-300);">Every action logged with chain of custody</span>
+            </div>
+            <div class="layer">
+                <span class="layer-num">5</span>
+                <span class="layer-title" style="color: var(--white);">Attest</span>
+                <span class="layer-desc" style="color: var(--gray-300);">Dashboards + Genie: "What is the safety block rate this week?"</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 10: CISO VIEW
+     ============================================ -->
+<section class="slide">
+    <div class="slide-content">
+        <span class="label reveal">For the CISO</span>
+        <h2 class="reveal">What the CISO Sees</h2>
+        <div class="grid-3 reveal">
+            <div class="pillar-card">
+                <h3>Account Estate</h3>
+                <p>Every endpoint by type, by workspace. Models, agents, providers at a glance.</p>
+            </div>
+            <div class="pillar-card">
+                <h3>Safety Block Rate</h3>
+                <p>The key metric: blocked requests / total requests. Per endpoint, per workspace, over time.</p>
+            </div>
+            <div class="pillar-card">
+                <h3>Threat Insights</h3>
+                <p>What triggered blocks: PII in prompts, jailbreak attempts, unsafe instructions, secrets.</p>
+            </div>
+        </div>
+        <div class="grid-3 reveal" style="margin-top: var(--element-gap);">
+            <div class="pillar-card">
+                <h3>Requester Analysis</h3>
+                <p>Who is calling what, token consumption, error rates per user.</p>
+            </div>
+            <div class="pillar-card">
+                <h3>Compliance Status</h3>
+                <p>Which endpoints are governed, which aren't. Tamper attempts and auto-remediation log.</p>
+            </div>
+            <div class="pillar-card">
+                <h3>Genie Space</h3>
+                <p>Natural language queries: "Show me all endpoints without guardrails."</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 11: MLFLOW SCORERS
+     ============================================ -->
+<section class="slide ink-bg">
+    <div class="slide-content">
+        <span class="label reveal">Continuous Quality</span>
+        <h2 class="reveal">MLflow Scorers: Dev to Prod</h2>
+        <div class="grid-2 reveal">
+            <div>
+                <h3 style="color: var(--white); margin-bottom: 0.5em;">Zero-cost (every trace)</h3>
+                <ul class="bullet-list" style="gap: 0.3rem;">
+                    <li>PII detection (regex-based)</li>
+                    <li>Secret detection (API keys, AWS keys)</li>
+                    <li>Jailbreak detection (pattern matching)</li>
+                    <li>BLEU/ROUGE scores (RAGAS)</li>
+                </ul>
+            </div>
+            <div>
+                <h3 style="color: var(--white); margin-bottom: 0.5em;">LLM-based (sampled)</h3>
+                <ul class="bullet-list" style="gap: 0.3rem;">
+                    <li>Safety, Groundedness, Guidelines</li>
+                    <li>DeepEval: Relevancy, Faithfulness, Toxicity</li>
+                    <li>Multi-turn conversation judges</li>
+                    <li>Custom judges via make_judge()</li>
+                </ul>
+            </div>
+        </div>
+        <p class="reveal" style="margin-top: var(--content-gap); font-weight: 500; color: var(--gray-300); font-size: var(--body-size);">Same scorers in dev (<code style="color: var(--vermillion);">mlflow.genai.evaluate()</code>) and prod (production monitoring). Assessments archived to UC Delta.</p>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 12: DEMO ARCHITECTURE (SVG VISUAL)
+     ============================================ -->
+<section class="slide">
+    <div class="slide-content" style="align-items: center;">
+        <span class="label reveal">Architecture</span>
+        <h2 class="reveal" style="text-align: center;">How It All Connects</h2>
+        <div class="reveal" style="width: 100%; max-width: 900px; margin: 0 auto;">
+            <svg viewBox="0 0 880 440" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: auto; max-height: 68vh;">
+                <defs>
+                    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#cc3311"/></marker>
+                    <marker id="arrow-gray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#888"/></marker>
+                </defs>
+
+                <!-- Step 1: Policy Table -->
+                <rect x="10" y="10" width="180" height="60" rx="6" fill="#1a1a1a" stroke="#cc3311" stroke-width="2"/>
+                <text x="100" y="34" text-anchor="middle" fill="#cc3311" font-family="Space Grotesk" font-size="11" font-weight="700">1  DEFINE</text>
+                <text x="100" y="52" text-anchor="middle" fill="#fff" font-family="Space Grotesk" font-size="12" font-weight="600">UC Policy Table</text>
+
+                <!-- Arrow 1→2 -->
+                <line x1="190" y1="40" x2="228" y2="40" stroke="#cc3311" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <!-- Step 2: Apply Guardrails -->
+                <rect x="236" y="2" width="180" height="76" rx="6" fill="#1a1a1a" stroke="#cc3311" stroke-width="2"/>
+                <text x="326" y="22" text-anchor="middle" fill="#cc3311" font-family="Space Grotesk" font-size="11" font-weight="700">2  APPLY</text>
+                <text x="326" y="40" text-anchor="middle" fill="#fff" font-family="Space Grotesk" font-size="11" font-weight="600">apply_guardrails()</text>
+                <text x="326" y="56" text-anchor="middle" fill="#888" font-family="Space Grotesk" font-size="8.5">reads policy table, calls</text>
+                <text x="326" y="68" text-anchor="middle" fill="#888" font-family="Space Grotesk" font-size="8.5">PUT /serving-endpoints/*/ai-gateway</text>
+
+                <!-- Arrow 2→3 -->
+                <line x1="416" y1="40" x2="454" y2="40" stroke="#cc3311" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <!-- Step 3: Endpoints -->
+                <rect x="462" y="2" width="200" height="76" rx="6" fill="#f7f7f7" stroke="#1a1a1a" stroke-width="1.5"/>
+                <text x="562" y="22" text-anchor="middle" fill="#cc3311" font-family="Space Grotesk" font-size="11" font-weight="700">3  SERVE</text>
+                <rect x="474" y="30" width="84" height="36" rx="4" fill="#1a1a1a"/>
+                <text x="516" y="53" text-anchor="middle" fill="#fff" font-family="Space Grotesk" font-size="10">Llama 3.3</text>
+                <rect x="566" y="30" width="84" height="36" rx="4" fill="#1a1a1a"/>
+                <text x="608" y="53" text-anchor="middle" fill="#fff" font-family="Space Grotesk" font-size="10">Claude S4</text>
+
+                <!-- Arrow 3→4a (down to inference) -->
+                <line x1="520" y1="78" x2="520" y2="118" stroke="#888" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+                <!-- Arrow 3→4b (down to system tables) -->
+                <line x1="600" y1="78" x2="600" y2="118" stroke="#888" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+
+                <!-- Step 4: Data Capture (3 boxes in a row) -->
+                <text x="440" y="110" fill="#cc3311" font-family="Space Grotesk" font-size="11" font-weight="700">4  CAPTURE</text>
+
+                <!-- Inference Tables -->
+                <rect x="330" y="126" width="148" height="50" rx="5" fill="#fff" stroke="#1a1a1a" stroke-width="1"/>
+                <text x="404" y="146" text-anchor="middle" fill="#1a1a1a" font-family="Space Grotesk" font-size="11" font-weight="600">Inference Tables</text>
+                <text x="404" y="163" text-anchor="middle" fill="#888" font-family="Space Grotesk" font-size="9">request + response payload</text>
+
+                <!-- System Tables -->
+                <rect x="488" y="126" width="148" height="50" rx="5" fill="#fff" stroke="#1a1a1a" stroke-width="1"/>
+                <text x="562" y="146" text-anchor="middle" fill="#1a1a1a" font-family="Space Grotesk" font-size="11" font-weight="600">System Tables</text>
+                <text x="562" y="163" text-anchor="middle" fill="#888" font-family="Space Grotesk" font-size="9">tokens, cost, requester</text>
+
+                <!-- MLflow Tracing -->
+                <rect x="646" y="126" width="148" height="50" rx="5" fill="#fff" stroke="#1a1a1a" stroke-width="1"/>
+                <text x="720" y="146" text-anchor="middle" fill="#1a1a1a" font-family="Space Grotesk" font-size="11" font-weight="600">MLflow Traces</text>
+                <text x="720" y="163" text-anchor="middle" fill="#888" font-family="Space Grotesk" font-size="9">spans, tool calls</text>
+
+                <!-- Arrow from endpoints to inference -->
+                <line x1="500" y1="78" x2="420" y2="124" stroke="#888" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <!-- Arrow 4→5 (traces to scorers) -->
+                <line x1="720" y1="176" x2="720" y2="208" stroke="#cc3311" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <!-- Step 5: Scorers -->
+                <rect x="622" y="216" width="220" height="60" rx="6" fill="#1a1a1a" stroke="#cc3311" stroke-width="2"/>
+                <text x="732" y="236" text-anchor="middle" fill="#cc3311" font-family="Space Grotesk" font-size="11" font-weight="700">5  SCORE</text>
+                <text x="732" y="254" text-anchor="middle" fill="#fff" font-family="Space Grotesk" font-size="11">PII | Jailbreak | Safety</text>
+                <text x="732" y="268" text-anchor="middle" fill="#888" font-family="Space Grotesk" font-size="9">code-based (every trace) + LLM judges (sampled)</text>
+
+                <!-- Step 6: Enforcement Job (left side, loops back) -->
+                <rect x="10" y="126" width="180" height="60" rx="6" fill="#cc3311" stroke="#cc3311" stroke-width="2"/>
+                <text x="100" y="148" text-anchor="middle" fill="#fff" font-family="Space Grotesk" font-size="11" font-weight="700">6  ENFORCE</text>
+                <text x="100" y="166" text-anchor="middle" fill="#fff" font-family="Space Grotesk" font-size="11">Scan every 5 min</text>
+                <text x="100" y="180" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-family="Space Grotesk" font-size="9">detect drift, re-apply, log</text>
+
+                <!-- Enforcement loop arrow (back up to AI Gateway) -->
+                <path d="M100,126 L100,90 L236,90 L236,60" fill="none" stroke="#cc3311" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
+                <text x="168" y="86" text-anchor="middle" fill="#cc3311" font-family="Space Grotesk" font-size="8" font-style="italic">re-apply if tampered</text>
+
+                <!-- Step 7: Audit (all data flows down) -->
+                <rect x="10" y="216" width="180" height="50" rx="6" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="1.5"/>
+                <text x="100" y="236" text-anchor="middle" fill="#cc3311" font-family="Space Grotesk" font-size="11" font-weight="700">7  AUDIT</text>
+                <text x="100" y="254" text-anchor="middle" fill="#fff" font-family="Space Grotesk" font-size="11">enforcement_audit</text>
+
+                <!-- Arrow from enforcement to audit -->
+                <line x1="100" y1="186" x2="100" y2="214" stroke="#888" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+
+                <!-- All data into UC -->
+                <rect x="60" y="300" width="760" height="52" rx="6" fill="#f7f7f7" stroke="#cc3311" stroke-width="2"/>
+                <text x="440" y="322" text-anchor="middle" fill="#cc3311" font-family="Space Grotesk" font-size="12" font-weight="700">UNITY CATALOG</text>
+                <text x="440" y="340" text-anchor="middle" fill="#1a1a1a" font-family="Space Grotesk" font-size="10">Policy | Audit | Inference Tables | System Tables | Traces | Scorer Assessments</text>
+
+                <!-- Arrows into UC -->
+                <line x1="100" y1="266" x2="100" y2="298" stroke="#888" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrow-gray)"/>
+                <line x1="404" y1="176" x2="404" y2="298" stroke="#888" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrow-gray)"/>
+                <line x1="562" y1="176" x2="562" y2="298" stroke="#888" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrow-gray)"/>
+                <line x1="720" y1="276" x2="720" y2="298" stroke="#888" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrow-gray)"/>
+
+                <!-- Step 8: Dashboard + Genie -->
+                <rect x="240" y="376" width="200" height="52" rx="6" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="1.5"/>
+                <text x="340" y="396" text-anchor="middle" fill="#cc3311" font-family="Space Grotesk" font-size="11" font-weight="700">8  DASHBOARD</text>
+                <text x="340" y="416" text-anchor="middle" fill="#fff" font-family="Space Grotesk" font-size="11">AI/BI + Genie Space</text>
+
+                <rect x="460" y="376" width="200" height="52" rx="6" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="1.5"/>
+                <text x="560" y="396" text-anchor="middle" fill="#cc3311" font-family="Space Grotesk" font-size="11" font-weight="700">8  ATTEST</text>
+                <text x="560" y="416" text-anchor="middle" fill="#fff" font-family="Space Grotesk" font-size="11">CISO queries in English</text>
+
+                <!-- Arrows from UC to dashboards -->
+                <line x1="340" y1="352" x2="340" y2="374" stroke="#cc3311" stroke-width="2" marker-end="url(#arrow)"/>
+                <line x1="560" y1="352" x2="560" y2="374" stroke="#cc3311" stroke-width="2" marker-end="url(#arrow)"/>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 13: UNIFIED MESSAGE
+     ============================================ -->
+<section class="slide">
+    <div class="slide-content" style="text-align: center; align-items: center;">
+        <span class="label reveal">Why Databricks</span>
+        <h2 class="reveal" style="max-width: 800px;">The only platform where identity, runtime, and observability governance are <span class="vermillion">built in</span></h2>
+        <ul class="bullet-list reveal" style="text-align: left; max-width: 600px; margin-top: var(--content-gap);">
+            <li>No bolt-on tools. No fragmented visibility. No manual enforcement.</li>
+            <li>Policy defined once, enforced everywhere, audited completely.</li>
+            <li>From model registration to production monitoring, one governance story.</li>
+        </ul>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 14: CLOSING
+     ============================================ -->
+<section class="slide closing-slide">
+    <div class="slide-content" style="align-items: center; text-align: center;">
+        <div class="accent-line reveal" style="margin: 0 auto var(--content-gap);"></div>
+        <h2 class="reveal">Govern AI at the<br>speed of <span class="vermillion">innovation</span></h2>
+        <p class="reveal" style="margin-top: var(--content-gap); max-width: 500px;">UC for identity. AI Gateway for runtime.<br>System tables for observability.<br><br><strong style="color: var(--white);">One platform. One governance model. Every workspace.</strong></p>
+    </div>
+</section>
+
+<script>
+    /* ===========================================
+       SLIDE PRESENTATION CONTROLLER
+       Handles scroll-based navigation, animations,
+       progress bar, and keyboard support
+       =========================================== */
+    class SlidePresentation {
+        constructor() {
+            this.slides = document.querySelectorAll('.slide');
+            this.progress = document.getElementById('progress');
+            this.counter = document.getElementById('counter');
+            this.total = this.slides.length;
+            this.init();
+        }
+
+        init() {
+            this.setupObserver();
+            this.setupKeyboard();
+            this.updateProgress();
+            window.addEventListener('scroll', () => this.updateProgress());
+        }
+
+        setupObserver() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, { threshold: 0.3 });
+
+            this.slides.forEach(slide => observer.observe(slide));
+        }
+
+        setupKeyboard() {
+            document.addEventListener('keydown', (e) => {
+                const current = this.getCurrentSlide();
+                if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+                    e.preventDefault();
+                    if (current < this.total - 1) {
+                        this.slides[current + 1].scrollIntoView({ behavior: 'smooth' });
+                    }
+                }
+                if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    if (current > 0) {
+                        this.slides[current - 1].scrollIntoView({ behavior: 'smooth' });
+                    }
+                }
+            });
+        }
+
+        getCurrentSlide() {
+            let closest = 0;
+            let minDist = Infinity;
+            this.slides.forEach((slide, i) => {
+                const rect = slide.getBoundingClientRect();
+                const dist = Math.abs(rect.top);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = i;
+                }
+            });
+            return closest;
+        }
+
+        updateProgress() {
+            const current = this.getCurrentSlide();
+            const pct = ((current + 1) / this.total) * 100;
+            this.progress.style.width = pct + '%';
+            this.counter.textContent = `${current + 1} / ${this.total}`;
+        }
+    }
+
+    new SlidePresentation();
+</script>
+
+</body>
+</html>

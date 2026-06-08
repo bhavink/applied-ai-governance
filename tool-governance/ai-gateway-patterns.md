@@ -1,3 +1,12 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: ai/ai-gateway.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/ai-gateway/
+    - https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/overview-beta
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # AI Gateway Patterns
 ## Databricks AI Gateway · External API Gateways · Platform-Native Controls
 
@@ -61,7 +70,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    A["External Clients<br/>enterprise apps · partners<br/>customer portals"] --> B["External API Gateway<br/>auth translation · rate limits<br/>API versioning · dev portal"]
+    A["External Clients<br/>enterprise apps · partners<br/>end-user portals"] --> B["External API Gateway<br/>auth translation · rate limits<br/>API versioning · dev portal"]
     B -->|"Databricks token"| C["Databricks<br/>Serving Endpoint"]
     style A fill:#2d1a1a,stroke:#ef4444,color:#e2e8f0
     style B fill:#2d1a1a,stroke:#ef4444,color:#fecaca
@@ -335,7 +344,7 @@ flowchart LR
 | **Fallback routing** | Across Databricks model versions and endpoints | Across arbitrary backend services or LLM providers |
 | **Auth** | Validates Databricks OAuth tokens | Translates external identities to Databricks tokens |
 | **Developer portal** | Not provided | Available — API catalog, subscription management |
-| **Operational ownership** | Databricks platform | Customer infrastructure team |
+| **Operational ownership** | Databricks platform | Your infrastructure team |
 | **Use when** | Governing LLM consumption within Databricks | Managing access from external enterprise clients |
 
 **They are additive**: an external gateway handles the boundary crossing (external identity → Databricks token), Databricks AI Gateway handles LLM governance at the endpoint, and Unity Catalog handles data access — each at the layer it owns, without interfering with the others.

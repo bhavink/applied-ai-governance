@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/oauth-scopes.md, auth/obo-passthrough.md, auth/m2m-service-principal.md, apps/proxy-architecture.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/
+    - https://learn.microsoft.com/en-us/azure/databricks/
+  This file is auto-prepared and human-reviewed before publish.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -338,7 +346,7 @@ ul li::before{content:'\2022';position:absolute;left:0;color:var(--red);font-wei
     <div class="card card-red">
       <h4>App A &rarr; App B (Two-Proxy)</h4>
       <p style="font-size:var(--sz-small)"><strong>User token is lost.</strong> App B's proxy strips App A's forwarded user token and replaces it with App A's SP identity.</p>
-      <p class="mt-1" style="font-size:var(--sz-small)"><strong>Workaround:</strong> <code>X-Forwarded-Email</code> survives proxy hops (set by proxy from validated token, cannot be forged). Use email + M2M SQL.</p>
+      <p class="mt-1" style="font-size:var(--sz-small)"><strong>Pattern:</strong> <code>X-Forwarded-Email</code> survives proxy hops (set by proxy from validated token, cannot be forged). Use email + M2M SQL.</p>
     </div>
   </div>
 </div>

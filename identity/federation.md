@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/token-federation.md, auth/_azure/token-federation.md, auth/_okta/token-federation.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # Federation Exchange
 
 > Bridging external identity providers to Databricks for users who don't have workspace accounts.
@@ -37,8 +45,8 @@ Instead of one SP per external user (doesn't scale), map roles to SPs:
 
 | External Role | Databricks SP | UC Group | Data Access |
 |---------------|---------------|----------|-------------|
-| Sales (West region) | `sp-role-west-sales` | `west_sales` | West region rows only |
-| Sales (East region) | `sp-role-east-sales` | `east_sales` | East region rows only |
+| Sales (West region) | `sp-role-west-sales` | `sales_west` | West region rows only |
+| Sales (East region) | `sp-role-east-sales` | `sales_east` | East region rows only |
 | Executive | `sp-role-executive` | `executives` | All regions, full columns |
 | Finance | `sp-role-finance` | `finance` | All regions, financial columns |
 

@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/overview.md, auth/obo-passthrough.md, auth/m2m-service-principal.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/dev-tools/auth/
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # Auth Playbook: Common Patterns and Solutions
 
 > Practical reference for configuring Databricks App authentication. Covers scope setup, token lifecycle, deployment patterns, and UC connection governance. Frame this as configuration — all items here describe steps that must be completed, not defects.
@@ -209,7 +217,7 @@ GRANT USE CONNECTION ON CONNECTION <connection_name>
 
 -- Grant access to a group (preferred)
 GRANT USE CONNECTION ON CONNECTION <connection_name>
-  TO `west_sales`;
+  TO `sales_west`;
 
 -- Revoke access from a user
 REVOKE USE CONNECTION ON CONNECTION <connection_name>
@@ -227,7 +235,7 @@ REVOKE USE CONNECTION ON CONNECTION <connection_name>
 ```sql
 -- Grant: user can query Salesforce through the app
 GRANT USE CONNECTION ON CONNECTION salesforce_u2m_conn
-  TO `west_sales`;
+  TO `sales_west`;
 
 -- Revoke: user's Salesforce access via app is cut immediately
 REVOKE USE CONNECTION ON CONNECTION salesforce_u2m_conn

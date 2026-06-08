@@ -1,3 +1,12 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/oauth-scopes.md
+  Public docs grounding:
+    - https://docs.databricks.com/api/workspace/api/scopes
+    - https://docs.databricks.com/api/account/api/scopes
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # OAuth Scopes — Governance Reference
 
 > **TL;DR**: Scopes are the **capability ceiling** — they gate which API endpoints a token can call. UC grants are the **actual authorization** — they determine what data within those endpoints the token can access. Both layers are required for true least-privilege access. There are 36 workspace-level and 9 account-level granular scopes.
@@ -70,7 +79,7 @@ These determine identity in row filters, column masks, and RLS policies:
 |---|---|
 | `sql` scope: CLI vs UI | CLI `custom-app-integration update` does NOT produce real OBO JWTs. UI User Authorization does. |
 | `genie` scope hidden on Azure | Account console UI doesn't show it. Add via CLI — without it, Genie API returns 403. |
-| `unity-catalog` scope undocumented | Required by External MCP proxy to verify `USE CONNECTION`. Missing = 403. |
+| `unity-catalog` scope for External MCP | Required by the External MCP proxy to verify `USE CONNECTION`. Add it when wiring External MCP — missing scope returns 403. |
 | Scope changes require re-auth | Adding scopes doesn't propagate to existing refresh tokens. Users must re-authorize. |
 | `all-apis` is not a superset | Some features also check their specific scope. Include both when in doubt. |
 | `postgres` = Lakebase management only | Database access uses separate `generate-database-credential` tokens — two distinct auth layers. |

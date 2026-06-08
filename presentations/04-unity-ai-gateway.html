@@ -1,0 +1,785 @@
+<!--
+  Standalone Unity AI Gateway deck
+  Sources: fieldkit/databricks/ai/ai-gateway.md
+  Public docs grounding:
+    - https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/
+    - https://docs.databricks.com/aws/en/ai-gateway/
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Unity AI Gateway &mdash; One Surface for AI Traffic Governance</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#ffffff;--ink:#1a1a1a;--red:#cc3311;
+  --surface:#f7f7f7;--border:#e0e0e0;--muted:#666;
+  --green:#1e7e34;--green-bg:#e6f4ea;--amber:#b45309;--amber-bg:#fef3c7;
+  --blue:#1d4ed8;--blue-bg:#eff6ff;
+  --font:'Space Grotesk',sans-serif;--mono:'DM Mono',monospace;
+  --pad:clamp(2rem,5vw,4.5rem);
+  --sz-h1:clamp(2rem,4.5vw,3.2rem);
+  --sz-h2:clamp(1.4rem,3vw,2.2rem);
+  --sz-h3:clamp(1rem,2vw,1.4rem);
+  --sz-body:clamp(0.85rem,1.4vw,1.05rem);
+  --sz-small:clamp(0.72rem,1.1vw,0.88rem);
+  --sz-label:clamp(0.62rem,0.85vw,0.72rem);
+  --sz-code:clamp(0.68rem,1vw,0.82rem);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:var(--font);background:var(--bg);color:var(--ink)}
+
+.topbar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--ink);color:#fff;z-index:100;font-size:var(--sz-small)}
+.topbar .title{font-weight:600;letter-spacing:-0.02em}
+.topbar .title span{color:var(--red)}
+.topbar .counter{font-variant-numeric:tabular-nums;opacity:0.7}
+.progress-track{position:fixed;top:48px;left:0;right:0;height:3px;background:var(--border);z-index:100}
+.progress-bar{height:100%;background:var(--red);transition:width 0.4s ease;width:0}
+
+.slide{position:absolute;top:48px;left:0;right:0;bottom:0;opacity:0;pointer-events:none;transform:translateX(60px);transition:opacity 0.4s ease,transform 0.4s ease;overflow-y:auto;display:flex;flex-direction:column;padding:var(--pad)}
+.slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+.slide.exit-left{opacity:0;transform:translateX(-60px)}
+.slide-title{justify-content:center;align-items:center;text-align:center}
+.slide-title h1{font-size:clamp(2.4rem,5vw,4rem);font-weight:700;letter-spacing:-0.03em;line-height:1.1;max-width:900px}
+.slide-title .subtitle{font-size:var(--sz-h3);color:var(--muted);margin-top:12px;font-weight:400}
+.slide-title .red-line{width:80px;height:4px;background:var(--red);margin:20px auto 0}
+
+.slide h2{font-size:var(--sz-h1);font-weight:700;letter-spacing:-0.03em;margin-bottom:8px}
+.slide h3{font-size:var(--sz-h2);font-weight:600;letter-spacing:-0.02em;margin-bottom:6px}
+.slide p,.slide li{font-size:var(--sz-body);line-height:1.65}
+.label{font-size:var(--sz-label);text-transform:uppercase;letter-spacing:0.1em;color:var(--red);font-weight:600;margin-bottom:6px}
+
+.reveal{opacity:0;transform:translateY(18px);transition:opacity 0.5s ease,transform 0.5s ease}
+.slide.active .reveal{opacity:1;transform:translateY(0)}
+.slide.active .reveal:nth-child(2){transition-delay:0.1s}
+.slide.active .reveal:nth-child(3){transition-delay:0.2s}
+.slide.active .reveal:nth-child(4){transition-delay:0.3s}
+.slide.active .reveal:nth-child(5){transition-delay:0.4s}
+.slide.active .reveal:nth-child(6){transition-delay:0.5s}
+.slide.active .reveal:nth-child(7){transition-delay:0.6s}
+.slide.active .reveal:nth-child(8){transition-delay:0.7s}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.5rem,3vw,2.5rem);flex:1;min-height:0}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(1rem,2vw,1.5rem);flex:1;min-height:0}
+.four-col{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:clamp(0.8rem,1.5vw,1.2rem);flex:1;min-height:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(1rem,2vw,1.5rem);overflow:auto}
+.card h4{font-size:var(--sz-h3);font-weight:600;margin-bottom:8px}
+.card-red{border-left:4px solid var(--red)}
+.card-green{border-left:4px solid var(--green);background:var(--green-bg)}
+.card-amber{border-left:4px solid var(--amber);background:var(--amber-bg)}
+.card-blue{border-left:4px solid var(--blue);background:var(--blue-bg)}
+.card-ink{border-left:4px solid var(--ink)}
+
+pre,code{font-family:var(--mono);font-size:var(--sz-code)}
+pre{background:#fff;color:var(--ink);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:4px;padding:clamp(0.6rem,1.2vw,1rem);overflow-x:auto;line-height:1.55}
+pre code{background:transparent;padding:0;border-radius:0;color:inherit}
+code{background:var(--surface);padding:0.1em 0.4em;border-radius:3px;font-size:var(--sz-code);color:var(--ink)}
+
+table{width:100%;border-collapse:collapse;font-size:var(--sz-small)}
+th{text-align:left;font-weight:600;font-size:var(--sz-label);letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:2px solid var(--border)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface)}
+
+.badge{display:inline-block;font-size:var(--sz-label);font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 8px;border-radius:3px}
+.badge-red{background:rgba(204,51,17,0.1);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-ink{background:var(--ink);color:#fff}
+.badge-muted{background:var(--surface);color:var(--muted)}
+
+.flow-h{display:flex;align-items:center;gap:0;flex-wrap:wrap;justify-content:center}
+.flow-box{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 14px;text-align:center;font-size:var(--sz-small);font-weight:500;min-width:100px}
+.flow-box.customer{border-color:var(--blue);background:var(--blue-bg)}
+.flow-box.platform{border-color:var(--ink);background:var(--ink);color:#fff}
+.flow-box.app{border-color:var(--green);background:var(--green-bg)}
+.flow-box.gateway{border-color:var(--red);background:rgba(204,51,17,0.06);color:var(--red);font-weight:700}
+.flow-box small{display:block;font-size:var(--sz-label);color:var(--muted);font-weight:400;margin-top:2px}
+.flow-arrow{font-size:var(--sz-body);color:var(--red);font-weight:700;padding:0 6px}
+
+.flow-v{display:flex;flex-direction:column;align-items:center;gap:0}
+.flow-v-arrow{font-size:var(--sz-body);color:var(--red);font-weight:700;padding:4px 0;line-height:1}
+
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check-item{display:flex;align-items:flex-start;gap:8px;font-size:var(--sz-small);padding:6px 0}
+.check-icon{color:var(--green);font-weight:700;flex-shrink:0;font-size:var(--sz-body)}
+
+.story-line{font-size:clamp(1.1rem,2.2vw,1.6rem);line-height:1.55;font-weight:400;color:var(--ink);max-width:900px}
+.story-emphasis{color:var(--red);font-weight:600}
+.story-quiet{color:var(--muted);font-style:italic}
+
+.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}.mt-4{margin-top:32px}
+.mb-1{margin-bottom:8px}.mb-2{margin-bottom:16px}
+.flex-1{flex:1 1 0;min-height:0;overflow-y:auto}
+
+.nav-controls{position:fixed;bottom:20px;right:24px;display:flex;align-items:center;gap:8px;z-index:200}
+.nav-btn{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);color:var(--ink);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;padding:0;line-height:1}
+.nav-btn:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+.nav-btn.active{background:var(--ink);color:#fff}
+.nav-btn:disabled{opacity:0.25;cursor:default;pointer-events:none}
+.nav-help-btn{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;margin-left:8px;transition:all 0.2s;font-family:var(--font)}
+.nav-help-btn:hover{border-color:var(--ink);color:var(--ink)}
+.nav-overlay{position:fixed;inset:0;background:rgba(26,26,26,0.85);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.nav-overlay.visible{opacity:1;pointer-events:auto}
+.nav-overlay-card{background:#fff;border-radius:8px;padding:32px 40px;max-width:380px;width:90%;text-align:center;font-family:var(--font)}
+.nav-overlay-card h3{font-size:1.1rem;font-weight:700;margin-bottom:16px;letter-spacing:-0.02em}
+.nav-overlay-card table{width:100%;text-align:left;font-size:0.82rem;border-collapse:collapse}
+.nav-overlay-card td{padding:6px 8px;border-bottom:1px solid #eee}
+.nav-overlay-card td:first-child{font-family:var(--mono,monospace);font-weight:600;white-space:nowrap;color:var(--red,#cc3311)}
+.nav-overlay-card .dismiss{margin-top:16px;font-size:0.72rem;color:var(--muted,#666)}
+
+@media(max-width:900px){.two-col,.three-col,.four-col{grid-template-columns:1fr}.check-grid{grid-template-columns:1fr}}
+@media print{.slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always}.topbar,.progress-track,.nav-controls,.nav-overlay{display:none}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">Unity AI <span>Gateway</span></div>
+  <div class="counter" id="counter">01 / 20</div>
+</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+<div class="nav-controls">
+  <button class="nav-btn" id="homeBtn" title="First slide (Home)" onclick="goTo(0)">&#8962;</button>
+  <button class="nav-btn" id="prevBtn" title="Previous slide" onclick="goTo(current-1)">&larr;</button>
+  <button class="nav-btn" id="nextBtn" title="Next slide" onclick="goTo(current+1)">&rarr;</button>
+  <button class="nav-help-btn" id="helpBtn" title="Keyboard shortcuts">?</button>
+</div>
+<div class="nav-overlay" id="navOverlay">
+  <div class="nav-overlay-card">
+    <h3>Navigation</h3>
+    <table>
+      <tr><td>&rarr; / Space</td><td>Next slide</td></tr>
+      <tr><td>&larr;</td><td>Previous slide</td></tr>
+      <tr><td>Home</td><td>First slide</td></tr>
+      <tr><td>End</td><td>Last slide</td></tr>
+      <tr><td>Swipe</td><td>Touch navigation</td></tr>
+    </table>
+    <div class="dismiss">Click anywhere or press Esc to close</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 1: TITLE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide slide-title active" data-slide="1">
+  <h1 class="reveal">Unity <span style="color:var(--red)">AI Gateway</span></h1>
+  <div class="subtitle reveal">One surface for governing every AI call your org makes.</div>
+  <div class="red-line reveal"></div>
+  <p class="reveal" style="margin-top:24px;color:var(--muted);font-size:var(--sz-small);max-width:600px">LLMs &middot; MCPs &middot; coding agents &middot; Databricks Apps agents &middot; custom external APIs &mdash; under one control point.</p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 2: THE STORY (CISO MONDAY MORNING) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+  <div class="label reveal">A short story</div>
+  <h2 class="reveal">Monday morning.</h2>
+  <div class="reveal mt-3" style="max-width:900px">
+    <p class="story-line">Your CISO walks in. One question:</p>
+    <div class="quote-block reveal mt-2" style="border-left:4px solid var(--red);padding:18px 24px;background:var(--surface);font-size:clamp(1.1rem,2.2vw,1.5rem);line-height:1.5;font-style:italic;margin-top:16px">
+      &ldquo;Show me <strong>every AI call</strong> this org made last week. Not the calls we know about. <span class="story-emphasis">Every</span> call.&rdquo;
+    </div>
+    <p class="story-line mt-3" style="color:var(--muted)">You sit down to answer.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3: THE FRAGMENTED ANSWER -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="label reveal">The story, continued</div>
+  <h2 class="reveal">Where do you even start?</h2>
+  <p class="reveal" style="color:var(--muted);max-width:80ch">Across the org, AI calls happen in many places. Each one logs somewhere different, if at all.</p>
+  <div class="reveal mt-2" style="max-width:900px;flex:1">
+    <table style="margin-top:8px">
+      <thead>
+        <tr><th style="width:34%">AI surface</th><th>Where its calls are recorded</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Cursor</strong> for every developer</td><td>Ask the dev team. Maybe vendor portal.</td></tr>
+        <tr><td>Production agent on Apps</td><td>Agent logs + MLflow traces (if instrumented)</td></tr>
+        <tr><td>Genie space for sales</td><td>Genie dashboard A</td></tr>
+        <tr><td>Custom MCP server (built last quarter)</td><td>Server stdout, S3 bucket somewhere</td></tr>
+        <tr><td>External MCP via vendor</td><td>Vendor admin console</td></tr>
+        <tr><td>That contractor&rsquo;s Bedrock endpoint</td><td>&hellip;</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card card-red mt-2 reveal" style="text-align:center">
+    <p><strong>Five systems. Three vendors. Four days to answer.</strong> And you still won&rsquo;t catch the agent that went out to a custom endpoint at 2am.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 4: THE ANSWER — UNITY AI GATEWAY -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+  <div class="label reveal">The answer</div>
+  <h2 class="reveal">Unity AI Gateway: one gateway, three pillars.</h2>
+  <p class="reveal" style="color:var(--muted);max-width:80ch">Every AI call &mdash; from a developer&rsquo;s coding tool, from a production agent, to an LLM, to a tool server, to an external API &mdash; routes through the same control point. Same permissions, same audit, same cost surface.</p>
+  <div class="three-col mt-3">
+    <div class="card card-red reveal">
+      <span class="badge badge-red">Pillar 1</span>
+      <h4 style="margin-top:8px">LLMs</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Agents, LLM endpoints, coding agents (Cursor, Codex CLI, Gemini CLI, Claude Code), and Databricks Apps agents &mdash; all governed under one surface, with native multi-provider APIs.</p>
+    </div>
+    <div class="card card-blue reveal">
+      <span class="badge badge-blue">Pillar 2</span>
+      <h4 style="margin-top:8px">MCPs</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">External, custom (Databricks Apps), and Databricks-managed MCP servers under the same permissions, audit, and access controls as LLMs.</p>
+    </div>
+    <div class="card card-green reveal">
+      <span class="badge badge-green">Pillar 3</span>
+      <h4 style="margin-top:8px">Model Serving Endpoints</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Gateway features layered onto existing model serving endpoints &mdash; safety, PII, keyword guardrails, and the established system table observability.</p>
+    </div>
+  </div>
+  <div class="card card-ink mt-2 reveal" style="text-align:center">
+    <p><strong>One control point.</strong> Permissions &middot; rate limits &middot; guardrails &middot; usage tracking &middot; inference logging &middot; cost attribution &middot; fallback routing &middot; traffic splitting.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 5: SHAPE LLM TRAFFIC -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label reveal">Pillar 1 &middot; LLMs</div>
+  <h2 class="reveal">Shape LLM Traffic</h2>
+  <p class="reveal" style="color:var(--muted)">Four controls the gateway applies to every LLM call &mdash; before the request reaches a model and before the response reaches a caller.</p>
+  <div class="two-col mt-2">
+    <div class="card card-red reveal">
+      <h4>Rate Limits</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Per endpoint, per user, per group, per service principal. Both call rate (QPM) and token rate (TPM). Cap a runaway agent. Fair-share a model across teams.</p>
+    </div>
+    <div class="card card-red reveal">
+      <h4>Guardrails</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Six LLM-based templates evaluate every request and response. Block, sanitize, or alert &mdash; configurable per phase.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Traffic Splitting</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Distribute requests across model backends. A/B test a new model on 20% of traffic. Stage a gradual rollout from one provider to another with built-in metrics for comparison.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Fallback Routing</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Primary provider fails &rarr; gateway routes to a secondary served entity. Multi-provider failover (OpenAI &rarr; Anthropic &rarr; FMAPI) without client code changes.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 6: GUARDRAILS DEEP DIVE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label reveal">Pillar 1 &middot; LLMs &middot; Guardrails</div>
+  <h2 class="reveal">Six Guardrail Templates</h2>
+  <p class="reveal" style="color:var(--muted)">An LLM evaluator (recommended: <code>databricks-gpt-5-nano</code>) scores every request and response against one of six templates. Configure per phase (input/output), per action (block/sanitize/alert), per mode (sync/async).</p>
+  <div class="reveal mt-2 flex-1">
+    <table>
+      <thead>
+        <tr><th style="width:22%">Template</th><th style="width:14%">Action</th><th>What it catches</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>PII Redaction</strong></td><td>Sanitize</td><td>Replace PII with placeholders (e.g., <code>[EMAIL]</code>, <code>[SSN]</code>) before the model sees the request or the user sees the response.</td></tr>
+        <tr><td><strong>PII Block</strong></td><td>Block</td><td>Refuse the request entirely if the payload contains PII. Stricter alternative to redaction for regulated workloads.</td></tr>
+        <tr><td><strong>Unsafe Content</strong></td><td>Block</td><td>Hate speech, harassment, violence, self-harm, sexual content, weapons, extremism. Both input and output phases.</td></tr>
+        <tr><td><strong>Jailbreak</strong></td><td>Block</td><td>Instruction overrides, obfuscated payloads, role-play exploits, prompt extraction attempts. Input phase.</td></tr>
+        <tr><td><strong>Hallucination</strong></td><td>Block / Alert</td><td>Output unsupported by retrieved context. Useful for RAG systems where grounding matters.</td></tr>
+        <tr><td><strong>Custom</strong></td><td>You choose</td><td>Your own evaluator prompt &mdash; codify domain-specific policies (no internal codenames, no competitor mentions, etc.).</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card card-ink mt-2 reveal" style="text-align:center">
+    <p><strong>Fail-closed by default.</strong> A blocked request returns HTTP 400 with <code>Request blocked by input guardrail '&lt;name&gt;'.</code> Audit trail logs every evaluation, every action.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 7: NATIVE MULTI-PROVIDER APIs -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label reveal">Pillar 1 &middot; LLMs &middot; Multi-Provider</div>
+  <h2 class="reveal">Native APIs for Every Major Provider</h2>
+  <p class="reveal" style="color:var(--muted)">Speak each provider&rsquo;s native protocol &mdash; not a lowest-common-denominator translation. Client SDKs work unchanged.</p>
+  <div class="three-col mt-2">
+    <div class="card reveal">
+      <h4>OpenAI Responses</h4>
+      <pre style="font-size:var(--sz-label)"><code>from openai import OpenAI
+client = OpenAI(
+  base_url=
+    "https://&lt;uag&gt;/v1",
+  api_key=DATABRICKS_TOKEN,
+)
+client.responses.create(...)</code></pre>
+    </div>
+    <div class="card reveal">
+      <h4>Anthropic Messages</h4>
+      <pre style="font-size:var(--sz-label)"><code>from anthropic import Anthropic
+client = Anthropic(
+  base_url=
+    "https://&lt;uag&gt;/anthropic",
+  api_key=DATABRICKS_TOKEN,
+)
+client.messages.create(...)</code></pre>
+    </div>
+    <div class="card reveal">
+      <h4>Gemini</h4>
+      <pre style="font-size:var(--sz-label)"><code>from google import genai
+client = genai.Client(
+  http_options={"base_url":
+    "https://&lt;uag&gt;/gemini/v1"},
+)
+client.models.generate_content(...)</code></pre>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="border-left:4px solid var(--ink)">
+    <p style="font-size:var(--sz-small)"><strong>Why this matters:</strong> if an SDK calls a provider-specific feature (streaming events, system prompts in the right shape, structured tool use), it works. No translation layer means no feature drift &mdash; and the gateway still applies all the controls.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 8: CODING AGENTS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label reveal">Pillar 1 &middot; LLMs &middot; Coding Agents</div>
+  <h2 class="reveal">Govern Coding Agents</h2>
+  <p class="reveal" style="color:var(--muted)">Every developer&rsquo;s coding tool routes through the gateway. OpenAI-compatible base URLs per agent. Each developer authenticates with their own Databricks identity &mdash; usage shows up against them.</p>
+  <div class="four-col mt-2">
+    <div class="card reveal">
+      <h4>Cursor</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px"><strong>Override OpenAI Base URL:</strong><br><code style="word-break:break-all">/cursor/v1</code></p>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)">Paste a Databricks PAT into Cursor&rsquo;s API Keys panel. Add the gateway endpoint as a custom model.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Codex CLI</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px"><strong>Base URL:</strong><br><code>/codex/v1</code></p>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)"><code>~/.codex/config.toml</code> uses <code>databricks auth token</code> as the auth command. Auto-refreshes every 30 min.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Gemini CLI</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px"><strong>Base URL:</strong><br><code>/gemini</code></p>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)"><code>~/.gemini/.env</code> sets <code>GOOGLE_GEMINI_BASE_URL</code> + bearer auth with a Databricks PAT.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Claude Code</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px"><strong>Base URL:</strong><br>Anthropic native</p>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)">Use the gateway&rsquo;s Anthropic native API surface. Confirm the path in the AI Gateway UI for the registered integration.</p>
+    </div>
+  </div>
+  <div class="card card-red mt-2 reveal" style="text-align:center">
+    <p><strong>Same rate limits. Same guardrails. Same audit table.</strong> A developer&rsquo;s 3am Cursor call lands in the same place as a production agent&rsquo;s autonomous one.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 9: APPS AGENTS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label reveal">Pillar 1 &middot; LLMs &middot; Apps Agents</div>
+  <h2 class="reveal">Govern Databricks Apps Agents</h2>
+  <p class="reveal" style="color:var(--muted)">Agents authored with Agent Framework and deployed to Databricks Apps route their LLM calls through the gateway. One code change &mdash; the agent inherits the gateway&rsquo;s entire control surface.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Wiring</h4>
+      <pre style="margin-top:8px"><code>from openai import OpenAI
+
+# Point at a UAG endpoint
+# instead of a serving endpoint
+client = OpenAI(
+  base_url=(
+    "https://&lt;workspace&gt;"
+    "/serving-endpoints/&lt;uag&gt;"
+  ),
+  api_key=os.environ["DATABRICKS_TOKEN"],
+)
+
+# All agent LLM calls now flow
+# through the gateway
+response = client.chat.completions.create(
+  model="databricks-meta-llama-3-3-70b",
+  messages=[...],
+)</code></pre>
+    </div>
+    <div class="card card-green reveal">
+      <h4>The agent inherits</h4>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small);line-height:1.7">
+        <li><strong>Permissions</strong> &mdash; only principals with access to the UAG endpoint can invoke</li>
+        <li><strong>Rate limits</strong> &mdash; per-user / per-group QPM and TPM enforcement</li>
+        <li><strong>Guardrails</strong> &mdash; input/output filtering applies before the call reaches the model</li>
+        <li><strong>Usage tracking</strong> &mdash; agent identity flows into <code>system.ai_gateway.usage</code></li>
+        <li><strong>Inference logging</strong> &mdash; request/response pairs land in UC Delta tables</li>
+        <li><strong>Cost attribution</strong> &mdash; <code>usage_context</code> tags carry through</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 10: MCPs UNDER UAG -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label reveal">Pillar 2 &middot; MCPs</div>
+  <h2 class="reveal">Govern MCPs Through the Same Gateway</h2>
+  <p class="reveal" style="color:var(--muted)">Model Context Protocol servers &mdash; the tool layer your agents call &mdash; sit behind the same control surface as your LLM endpoints. Three modes, one set of primitives.</p>
+  <div class="three-col mt-2">
+    <div class="card reveal">
+      <h4>External MCP</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px"><strong>Hosted by:</strong> vendor or external infra.</p>
+      <p style="font-size:var(--sz-small);margin-top:8px">Governed via managed connections &mdash; network egress controls, audit logging, access control under the same UAG permissions.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Custom MCP</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px"><strong>Hosted by:</strong> you, as a Databricks App.</p>
+      <p style="font-size:var(--sz-small);margin-top:8px">App identity, OBO/M2M auth, UC access controls, payload logging &mdash; all flow through the gateway.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Databricks-Managed MCPs</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px"><strong>Hosted by:</strong> Databricks. Native.</p>
+      <p style="font-size:var(--sz-small);margin-top:8px">Genie, Vector Search, UC Functions. Built-in UC permissions and audit &mdash; no infra to manage, governed by default.</p>
+    </div>
+  </div>
+  <div class="card card-ink mt-2 reveal">
+    <p style="font-size:var(--sz-small)"><strong>Same primitives across all three:</strong> permissions on the server, rate limits per user/group, audit logging per call, optional payload capture. The agent doesn&rsquo;t know &mdash; or care &mdash; which mode it&rsquo;s talking to.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 11: ONE AUDIT TRAIL FOR LLM + MCP (STORY CALLBACK) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label reveal">The story, returning</div>
+  <h2 class="reveal">Remember the CISO&rsquo;s question?</h2>
+  <p class="reveal" style="color:var(--muted);max-width:80ch">An agent that hits an LLM, then calls an MCP tool, then hits another LLM &mdash; that&rsquo;s three governance domains in the old world. In the new world it&rsquo;s one audit trail.</p>
+  <div class="reveal mt-2" style="flex:1;display:flex;align-items:center;justify-content:center">
+    <div style="max-width:900px;width:100%">
+      <div class="flow-h" style="margin-bottom:20px">
+        <div class="flow-box customer" style="min-width:130px">Agent on Apps</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box gateway" style="min-width:160px"><strong>Unity AI Gateway</strong></div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box platform" style="min-width:130px">LLM endpoint</div>
+      </div>
+      <div class="flow-h" style="margin-bottom:20px">
+        <div class="flow-box customer" style="min-width:130px">Agent on Apps</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box gateway" style="min-width:160px"><strong>Unity AI Gateway</strong></div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box app" style="min-width:130px">MCP tool call</div>
+      </div>
+      <div class="flow-h">
+        <div class="flow-box customer" style="min-width:130px">Cursor (developer)</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box gateway" style="min-width:160px"><strong>Unity AI Gateway</strong></div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box platform" style="min-width:130px">LLM endpoint</div>
+      </div>
+    </div>
+  </div>
+  <div class="card card-red mt-2 reveal" style="text-align:center">
+    <p>Three different callers. Three different destinations. <strong>One row schema, one query, one answer.</strong></p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 12: CUSTOM APIs -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label reveal">Pillar 1 &middot; LLMs &middot; Custom APIs</div>
+  <h2 class="reveal">Govern Any External API</h2>
+  <p class="reveal" style="color:var(--muted)">The gateway isn&rsquo;t limited to LLM calls. Register an arbitrary external HTTP API and it inherits the same governance &mdash; permissions, rate limits, audit logging, payload capture.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>Use cases</h4>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small);line-height:1.7">
+        <li>An agent calls a SaaS analytics API</li>
+        <li>A Cursor user hits a private code search service</li>
+        <li>An app talks to a third-party billing endpoint</li>
+        <li>A custom embedding service on a partner cloud</li>
+      </ul>
+      <p style="font-size:var(--sz-small);color:var(--muted);margin-top:10px">In every case, the external service inherits the gateway&rsquo;s access controls, rate limits, and audit story &mdash; without modifying client code beyond a base URL change.</p>
+    </div>
+    <div class="card card-ink reveal">
+      <h4>Why this closes the gap</h4>
+      <p style="font-size:var(--sz-small);margin-top:8px">In the old world, &ldquo;AI governance&rdquo; meant governing the model endpoint &mdash; and stopping there. The agent could call anything else (a vector DB, a private search index, a customer&rsquo;s CRM) under whatever credentials, with no audit.</p>
+      <p style="font-size:var(--sz-small);margin-top:8px">Custom APIs through UAG mean <strong>the entire tool surface</strong> an agent touches &mdash; LLM, MCP, plain HTTP &mdash; sits behind one gate.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 13: SERVING ENDPOINTS PATH -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="13">
+  <div class="label reveal">Pillar 3 &middot; Serving Endpoints</div>
+  <h2 class="reveal">The Layered Path</h2>
+  <p class="reveal" style="color:var(--muted)">If your workload is already on a model serving endpoint &mdash; an external model, FMAPI pay-per-token, FMAPI provisioned, or a custom model &mdash; gateway features layer on with one API call. No re-architecture.</p>
+  <div class="two-col mt-2">
+    <div class="card reveal">
+      <h4>One PUT, full governance</h4>
+      <pre style="margin-top:8px;font-size:var(--sz-label)"><code>PUT /api/2.0/serving-endpoints/&lt;name&gt;/ai-gateway
+
+{
+  "rate_limits": [{"calls": 100, "renewal_period": "minute"}],
+  "guardrails": {
+    "input": {"safety": true, "pii": {"behavior": "BLOCK"}},
+    "output": {"safety": true, "pii": {"behavior": "BLOCK"}}
+  },
+  "usage_tracking_config": {"enabled": true},
+  "inference_table_config": {
+    "enabled": true,
+    "catalog_name": "main",
+    "schema_name": "ai_governance"
+  }
+}</code></pre>
+    </div>
+    <div class="card card-amber reveal">
+      <h4>When to use the layered path</h4>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small);line-height:1.7">
+        <li>You have <strong>existing</strong> serving endpoints in production &mdash; flip on the gateway features without re-pointing clients</li>
+        <li>Your guardrail needs are covered by <strong>safety / PII / keyword filters</strong> rather than the six LLM-based templates</li>
+        <li>You want classic <strong>inference table audit</strong> on a custom model endpoint</li>
+        <li>Workload is <strong>not on the sidebar path yet</strong> &mdash; both paths coexist</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 14: OBSERVABILITY — CALLS + PAYLOADS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="14">
+  <div class="label reveal">Observability &middot; Calls &amp; Payloads</div>
+  <h2 class="reveal">See Every Call. See Every Payload.</h2>
+  <p class="reveal" style="color:var(--muted)">Two surfaces, both in Unity Catalog. Joinable to each other and to billing.</p>
+  <div class="two-col mt-2">
+    <div class="card card-red reveal">
+      <h4><code>system.ai_gateway.usage</code></h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Every call. Every principal. Every tag.</p>
+      <table style="margin-top:8px;font-size:var(--sz-label)">
+        <tr><td><code>endpoint_name</code></td><td>Which gateway endpoint</td></tr>
+        <tr><td><code>principal_id</code></td><td>User, SP, or group</td></tr>
+        <tr><td><code>request_date</code> + time</td><td>When</td></tr>
+        <tr><td><code>input_tokens</code> / <code>output_tokens</code></td><td>Volume</td></tr>
+        <tr><td><code>usage_context</code></td><td>Your tags (team, app, &hellip;)</td></tr>
+        <tr><td><code>request_id</code></td><td>Joins to inference tables</td></tr>
+      </table>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)">Add <code>usage_context={"team":"&hellip;"}</code> at call time to drive cost attribution from your own code.</p>
+    </div>
+    <div class="card card-green reveal">
+      <h4>Inference Tables</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Request and response payloads logged to UC Delta tables for audit and offline evaluation.</p>
+      <ul style="padding-left:18px;margin-top:8px;font-size:var(--sz-small);line-height:1.7">
+        <li><strong>10 MiB</strong> payload limit per call</li>
+        <li>Delivery in <strong>minutes</strong> (not hours)</li>
+        <li>Query with SQL like any UC table</li>
+        <li>Integrates with <strong>MLflow</strong> for evaluation runs and offline judge scoring</li>
+        <li>Same UC permissions as any Delta table &mdash; share with the security team without copying data</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 15: OBSERVABILITY — COST -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="15">
+  <div class="label reveal">Observability &middot; Cost</div>
+  <h2 class="reveal">See Spend Without a Spreadsheet</h2>
+  <p class="reveal" style="color:var(--muted)">A pre-built AI/BI dashboard plus joinable billing tables. No new monitoring stack to operate.</p>
+  <div class="two-col mt-2">
+    <div class="card card-red reveal">
+      <h4>Pre-built Usage Dashboard</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">One click from the AI Gateway page provisions a dashboard with four tabs:</p>
+      <table style="margin-top:8px;font-size:var(--sz-label)">
+        <tr><td><strong>Overview</strong></td><td>Spend, top endpoints, top principals, trend lines</td></tr>
+        <tr><td><strong>Performance</strong></td><td>p50/p95/p99 latency, error rate, provider availability</td></tr>
+        <tr><td><strong>Usage</strong></td><td>Volume by endpoint, model, principal, tag</td></tr>
+        <tr><td><strong>Coding Agents</strong></td><td>Per-tool, per-user spend across Cursor / Codex / Gemini / Claude Code</td></tr>
+      </table>
+    </div>
+    <div class="card card-blue reveal">
+      <h4>SQL for finance</h4>
+      <pre style="font-size:var(--sz-label);margin-top:8px"><code>SELECT
+  g.endpoint_name,
+  g.usage_context['team'] AS team,
+  SUM(b.usage_quantity * b.list_price)
+    AS dollars
+FROM system.billing.usage b
+JOIN system.ai_gateway.usage g
+  ON b.usage_metadata.endpoint_name
+   = g.endpoint_name
+ AND b.usage_date = g.request_date
+WHERE b.sku_name LIKE '%AI_GATEWAY%'
+GROUP BY 1, 2
+ORDER BY dollars DESC;</code></pre>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)">Same UC query model the finance team already uses. No new export pipeline.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 16: END-TO-END REQUEST FLOW -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="16">
+  <div class="label reveal">Putting it together</div>
+  <h2 class="reveal">A Single Request, End-to-End</h2>
+  <p class="reveal" style="color:var(--muted)">What happens when an Apps-deployed agent makes one LLM call. Six governance touchpoints, all on one trace.</p>
+  <div class="reveal mt-2" style="flex:1;display:flex;align-items:center;justify-content:center">
+    <div class="flow-v" style="max-width:560px;width:100%">
+      <div class="flow-box customer" style="min-width:280px">Apps Agent (Agent Framework)<small>Calling client.chat.completions.create()</small></div>
+      <div class="flow-v-arrow">&darr;</div>
+      <div class="flow-box gateway" style="min-width:280px"><strong>Unity AI Gateway</strong><small style="color:#666">1. Authn &middot; 2. Authz &middot; 3. Rate limit &middot; 4. Input guardrails</small></div>
+      <div class="flow-v-arrow">&darr;</div>
+      <div class="flow-box platform" style="min-width:280px">LLM Provider (FMAPI / OpenAI / Anthropic / &hellip;)</div>
+      <div class="flow-v-arrow">&darr;</div>
+      <div class="flow-box gateway" style="min-width:280px"><strong>Unity AI Gateway</strong><small style="color:#666">5. Output guardrails &middot; 6. Usage + inference logging</small></div>
+      <div class="flow-v-arrow">&darr;</div>
+      <div class="flow-box app" style="min-width:280px">Response returned to agent</div>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="border-left:4px solid var(--ink);text-align:center">
+    <p style="font-size:var(--sz-small)">All six touchpoints land in <code>system.ai_gateway.usage</code> + inference tables &mdash; <strong>one <code>request_id</code> ties the whole trace together</strong>.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 17: DECISION MATRIX -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="17">
+  <div class="label reveal">Choosing your path</div>
+  <h2 class="reveal">Which Pillar for Which Workload</h2>
+  <p class="reveal" style="color:var(--muted)">All three pillars coexist. Most production orgs use at least two.</p>
+  <div class="reveal mt-2 flex-1">
+    <table>
+      <thead>
+        <tr><th style="width:32%">Workload</th><th>Recommended path</th><th style="width:30%">Why</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Developers using Cursor / Codex CLI / Gemini CLI / Claude Code</td><td><span class="badge badge-red">Pillar 1 &mdash; Sidebar (LLMs)</span></td><td>Coding agent integration is sidebar-only. Per-user identity flows through.</td></tr>
+        <tr><td>Agent on Databricks Apps calling LLMs</td><td><span class="badge badge-red">Pillar 1 &mdash; Sidebar (LLMs)</span></td><td>OpenAI-compatible base URL, native multi-provider, full guardrail catalog.</td></tr>
+        <tr><td>Agent calling MCP tool servers</td><td><span class="badge badge-blue">Pillar 2 &mdash; MCPs</span></td><td>Same audit trail as the LLM calls. One <code>request_id</code> ties them together.</td></tr>
+        <tr><td>Existing production model serving endpoint</td><td><span class="badge badge-green">Pillar 3 &mdash; Serving Endpoints</span></td><td>Flip on rate limits + safety/PII guardrails without re-pointing clients.</td></tr>
+        <tr><td>Custom model on a serving endpoint needing payload audit</td><td><span class="badge badge-green">Pillar 3 &mdash; Serving Endpoints</span></td><td>Inference tables on the serving endpoints path; well-trodden.</td></tr>
+        <tr><td>Agent calling an external SaaS API</td><td><span class="badge badge-red">Pillar 1 &mdash; Sidebar (Custom APIs)</span></td><td>Govern arbitrary HTTP endpoints under the same primitives.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card card-ink mt-2 reveal">
+    <p style="font-size:var(--sz-small)">All three pillars feed the <strong>same observability surface</strong>. Use whichever path fits each workload &mdash; the audit trail unifies them.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 18: CONFIGURATION IN 4 STEPS -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="18">
+  <div class="label reveal">Getting it running</div>
+  <h2 class="reveal">From Zero to Governed in 4 Steps</h2>
+  <p class="reveal" style="color:var(--muted)">A new gateway endpoint, governing real traffic, with audit and cost visible &mdash; in a single sitting.</p>
+  <div class="four-col mt-2">
+    <div class="card card-red reveal">
+      <h4>1. Enable</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Account admin enables Unity AI Gateway from the account console <strong>Previews</strong> page. Workspace-wide flip.</p>
+    </div>
+    <div class="card card-red reveal">
+      <h4>2. Create endpoint</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">From the <strong>AI Gateway</strong> sidebar entry, create a new gateway endpoint. Pick a target served entity (FMAPI, external model, custom). Set rate limits and guardrails inline.</p>
+    </div>
+    <div class="card card-red reveal">
+      <h4>3. Grant access</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Add users, groups, and service principals to the endpoint&rsquo;s permission list. Use the same identity model as Unity Catalog.</p>
+    </div>
+    <div class="card card-red reveal">
+      <h4>4. Point clients</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Update agents, Cursor, Codex CLI, and external apps to use the gateway base URL. Existing OpenAI/Anthropic/Gemini SDKs work unchanged.</p>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="border-left:4px solid var(--ink);text-align:center">
+    <p style="font-size:var(--sz-small)">Inference tables and usage tracking are <strong>on by default</strong> when you create a gateway endpoint &mdash; no additional configuration needed to start seeing data.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 19: PRODUCTION CHECKLIST -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="19">
+  <div class="label reveal">Production Ready</div>
+  <h2 class="reveal">Pre-Launch Checklist</h2>
+  <div class="check-grid mt-2 flex-1">
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Endpoint permissions: least privilege</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Specific groups, not workspace-wide. Coding agents accessible only to developer groups.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Rate limits per principal</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">QPM and TPM caps. Tighter for service principals than for human users.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Guardrails enabled on input AND output</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">PII block + unsafe + jailbreak on input. PII redact + unsafe on output. Custom guardrail for org-specific policy.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Fallback configured for critical endpoints</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Multi-entity setup (e.g., 100/0 traffic split) with fallback enabled so provider outages route automatically.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Inference tables in a catalog with retention</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Audit-grade UC catalog. Lifecycle policy for payload data. ACLs scoped to security and engineering.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong><code>usage_context</code> tagging in client code</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Every agent and app passes <code>{"team":"&hellip;","app":"&hellip;"}</code> so cost attribution lands automatically.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Usage dashboard shared with finance + security</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Pre-built AI/BI dashboard published. Standing review cadence.</span></div></div>
+    <div class="check-item reveal"><span class="check-icon">&#10003;</span><div><strong>Alerting on anomalies</strong><br><span style="font-size:var(--sz-small);color:var(--muted)">Threshold alerts on spend, error rate, guardrail blocks. Routed to oncall.</span></div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 20: CLOSING — MONDAY MORNING, REDUX -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide slide-title" data-slide="20">
+  <h1 class="reveal">Monday morning.</h1>
+  <div style="max-width:780px;text-align:center;margin:24px auto 0" class="reveal">
+    <p style="font-size:var(--sz-h3);line-height:1.65;color:var(--ink);font-weight:400">Your CISO walks in. Same question.</p>
+    <p style="font-size:var(--sz-h3);line-height:1.65;color:var(--muted);font-style:italic;margin-top:14px">&ldquo;Show me every AI call this org made last week.&rdquo;</p>
+    <p style="font-size:var(--sz-h3);line-height:1.65;color:var(--ink);margin-top:22px">You open one dashboard.<br>You point at one query.<br>You answer in three minutes.</p>
+  </div>
+  <div class="red-line reveal" style="margin-top:32px"></div>
+  <p class="reveal" style="margin-top:18px;color:var(--muted);font-size:var(--sz-small);max-width:600px;text-align:center">One control point. One audit trail. Every AI call.</p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- JS: Navigation -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+
+function goTo(n) {
+  if (n < 0 || n >= total) return;
+  slides[current].classList.remove('active');
+  slides[current].classList.add('exit-left');
+  const prev = current;
+  current = n;
+  slides[current].classList.add('active');
+  setTimeout(() => slides[prev].classList.remove('exit-left'), 400);
+  document.getElementById('counter').textContent = `${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+  document.getElementById('progressBar').style.width = `${((current + 1) / total) * 100}%`;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current - 1); }
+  if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+  if (e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+});
+
+goTo(0);
+
+function updateNavBtns() {
+  document.getElementById('homeBtn').disabled = current === 0;
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === total - 1;
+}
+const origGoTo = goTo;
+goTo = function(n) { origGoTo(n); updateNavBtns(); };
+updateNavBtns();
+
+document.getElementById('helpBtn').addEventListener('click', () => document.getElementById('navOverlay').classList.add('visible'));
+document.getElementById('navOverlay').addEventListener('click', () => document.getElementById('navOverlay').classList.remove('visible'));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('navOverlay').classList.remove('visible'); });
+</script>
+</body>
+</html>

@@ -1,3 +1,12 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: ai/agent-framework.md, ai/agent-bricks.md, ai/agent-tool.md, ai/uc-functions.md, ai/genie.md, ai/vector-search.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/generative-ai/agent-framework/
+    - https://docs.databricks.com/aws/en/generative-ai/agent-bricks/
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # Agent Governance Framework
 
 > **TL;DR**: A governed AI system requires controls at six distinct layers. Agents must have explicit SP identities — never inherited user shells. OBO propagates the user token end-to-end; M2M runs as the SP. Audit requires joining MLflow traces (application plane) + system.access.audit (data plane).

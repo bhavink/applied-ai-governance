@@ -1,3 +1,12 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: governance/http-connections.md, governance/service-credentials.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/query-federation/http
+    - https://docs.databricks.com/aws/en/connect/unity-catalog/cloud-services/service-credentials
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # UC HTTP Connections
 
 > **Pillar 4**: Governing external service access

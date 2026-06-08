@@ -1,3 +1,12 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/oauth-scopes.md, governance/unity-catalog.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/
+    - https://docs.databricks.com/api/workspace/api/scopes
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # Authorization (AuthZ)
 
 > AuthZ is where Databricks plays. Unity Catalog is the authorization engine for all AI services.
@@ -110,14 +119,14 @@ Every SP has:
 
 This is the single most common silent failure in row filters and column masks: the SP is in the right account-level group, but `is_member()` returns false because it only checks workspace groups.
 
-**Second failure mode (Genie OBO)**: Even when groups are at the workspace level, `is_member()` under Genie OBO evaluates the session user's group membership, which resolves to the Genie service context — not the human's workspace groups. This means `is_member('executives')` in a row filter returns false under Genie OBO even if the human is in the `executives` group. **Workaround**: Use `current_user()` with an allowlist table lookup instead of `is_member()`:
+**Second consideration (Genie OBO)**: Even when groups live at the workspace level, `is_member()` under Genie OBO evaluates the session user's group membership, which resolves to the Genie service context — not the human's workspace groups. This means `is_member('executives')` in a row filter returns false under Genie OBO even if the human is in the `executives` group. **Recommended pattern**: use `current_user()` with an allowlist table lookup instead of `is_member()` for any row filter or column mask that will be hit under Genie OBO:
 
 ```sql
--- Broken under Genie OBO:
+-- Pattern that does not work under Genie OBO:
 CREATE FUNCTION mask_quota(val DECIMAL) RETURNS DECIMAL
   RETURN IF(is_member('executives'), val, NULL);
 
--- Correct:
+-- Recommended pattern under Genie OBO:
 CREATE FUNCTION mask_quota(val DECIMAL) RETURNS DECIMAL
   RETURN IF(current_user() IN (SELECT email FROM quota_viewers), val, NULL);
 ```

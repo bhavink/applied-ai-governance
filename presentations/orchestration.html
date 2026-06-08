@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: ai/agent-framework.md, ai/agent-bricks.md, mcp/overview.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/
+    - https://learn.microsoft.com/en-us/azure/databricks/
+  This file is auto-prepared and human-reviewed before publish.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -389,7 +397,7 @@ tr:hover td{background:var(--surface)}
       <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:6px">Your servers on Databricks Apps</p>
       <table>
         <tr><td style="font-weight:600">Hosting</td><td>Databricks Apps</td></tr>
-        <tr><td style="font-weight:600">Auth</td><td>OAuth only (PAT not supported)</td></tr>
+        <tr><td style="font-weight:600">Auth</td><td>OAuth only (PAT not used)</td></tr>
         <tr><td style="font-weight:600">Use case</td><td>Org-specific tools, custom logic</td></tr>
       </table>
       <div class="mt-1" style="font-size:var(--sz-label);padding:6px;border:1px solid var(--border);border-radius:4px">
@@ -599,7 +607,7 @@ tr:hover td{background:var(--surface)}
   <h2 class="reveal">Internal traffic: why a gateway breaks governance</h2>
   <div class="two-col mt-2">
     <div class="card card-red reveal">
-      <h4>With gateway (broken)</h4>
+      <h4>With gateway (incorrect routing)</h4>
       <p style="font-size:var(--sz-small)">User &rarr; App &rarr; <strong style="color:var(--red)">Gateway</strong> &rarr; Genie &rarr; UC</p>
       <p class="mt-1" style="font-size:var(--sz-small)">Gateway has two bad options:</p>
       <ul style="padding-left:1.2em;font-size:var(--sz-small)">

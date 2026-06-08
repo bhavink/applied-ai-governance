@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: governance/unity-catalog.md, governance/abac.md, governance/row-filters.md, governance/column-masks.md, governance/governed-tags.md, governance/data-classification.md, governance/best-practices.md, governance/metastore-management.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/data-governance/unity-catalog/
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # Unity Catalog Governance
 
 > UC enforces access at the SQL engine level. No application can bypass it. No new AI service needs to integrate with it.
@@ -53,7 +61,7 @@ ALTER TABLE schema.deals SET ROW FILTER schema.region_filter ON (region);
 |---|---|---|---|
 | SQL Warehouse (OBO + `sql` scope via UI) | Human email | Human's workspace groups | Individual user |
 | SQL Warehouse (M2M) | SP UUID | SP's groups | Service principal |
-| Genie Space (OBO) | Human email | **Genie service context** (not human) | User for `current_user()`, broken for `is_member()` |
+| Genie Space (OBO) | Human email | **Genie service context** (not human) | User-level for `current_user()`; use lookup-table pattern instead of `is_member()` |
 | Agent Bricks KA (OBO) | Human email | Human's workspace groups | Individual user |
 | Agent Bricks MAS (OBO) | Human email | Human's workspace groups | Individual user |
 | Databricks App (OBO via proxy) | Human email (if X-Forwarded-Access-Token used) | Human's workspace groups | Individual user |
@@ -90,7 +98,7 @@ SELECT COUNT(*) FROM my_catalog.sales.opportunities WITH (NO ROW FILTER);
 | Issue | Impact | Fix |
 |---|---|---|
 | `is_member()` only checks workspace-level groups | Account-level groups return false | Use `is_account_group_member()` or lookup table |
-| `is_member()` under Genie OBO evaluates service context | Row filter appears broken for group-based access | Use `current_user()` + allowlist table lookup |
+| `is_member()` under Genie OBO evaluates service context | Group-based row filters do not match human's workspace groups | Use `current_user()` + allowlist table lookup as the recommended pattern under Genie OBO |
 | Row filter on a view is not inherited from base table | View needs its own filter | Apply filters to both table and view |
 | Filter function references deleted group | `is_member('gone')` returns false for everyone | Monitor for 0-row results |
 | SP-executed queries bypass per-user filters | M2M sees all rows matching SP identity | Design SP-level filters or use OBO |

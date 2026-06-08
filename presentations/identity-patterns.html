@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/overview.md, auth/obo-passthrough.md, auth/m2m-service-principal.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/
+    - https://learn.microsoft.com/en-us/azure/databricks/
+  This file is auto-prepared and human-reviewed before publish.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -491,7 +499,7 @@ scope=sql genie serving</pre>
       <p style="font-size:var(--sz-small)">Created at the Databricks account level. Can be assigned to multiple workspaces. Has a globally unique <strong>application_id</strong> (UUID).</p>
       <table class="mt-1">
         <tr><td style="font-weight:600;width:100px">application_id</td><td>UUID, globally unique, used in <code>current_user()</code></td></tr>
-        <tr><td style="font-weight:600">display_name</td><td>Human-readable (e.g., <code>fed-exchange-sp-west-sales</code>)</td></tr>
+        <tr><td style="font-weight:600">display_name</td><td>Human-readable (e.g., <code>fed-exchange-sp-sales-west</code>)</td></tr>
         <tr><td style="font-weight:600">Scope</td><td>Account-wide. Assigned to workspaces.</td></tr>
       </table>
     </div>
@@ -509,7 +517,7 @@ scope=sql genie serving</pre>
     <p style="font-size:var(--sz-small)"><strong>Common confusion:</strong> <code>application_id</code> (UUID) is what <code>current_user()</code> returns and what you use in UC GRANTs. <code>principal_id</code> (integer) is for workspace-level permissions like CAN USE on SQL warehouses. They are not interchangeable.</p>
   </div>
   <div class="card card-red mt-2">
-    <p style="font-size:var(--sz-small)"><strong>Federation pattern:</strong> Each role maps to a dedicated SP. <code>west_sales</code> role &rarr; <code>fed-exchange-sp-west-sales</code> SP &rarr; <code>west_sales</code> UC group. The JWT <code>role</code> claim drives which SP receives the exchanged token.</p>
+    <p style="font-size:var(--sz-small)"><strong>Federation pattern:</strong> Each role maps to a dedicated SP. <code>sales_west</code> role &rarr; <code>fed-exchange-sp-sales-west</code> SP &rarr; <code>sales_west</code> UC group. The JWT <code>role</code> claim drives which SP receives the exchanged token.</p>
   </div>
 </div>
 

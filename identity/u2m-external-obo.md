@@ -1,8 +1,19 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/obo-passthrough.md, apps/proxy-architecture.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-u2m
+    - https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # U2M OAuth from External Apps
 
 > Your app runs outside Databricks, but your users are Databricks users. You want `current_user()` = the human's email end-to-end, with UC governance firing per individual identity, not a shared service principal.
 
-## When to Use
+---
+
+## When to Use This Pattern
 
 - The user calling the external app is already a Databricks user (registered in the workspace via the workspace-configured IdP)
 - You want `current_user()` = human email end-to-end (not an SP)
@@ -19,9 +30,11 @@
 
 See [Federation Exchange](federation.md) for the role-based SP pattern.
 
+---
+
 ## How It Differs from Federation
 
-| | U2M OBO (this pattern) | Federation (token exchange) |
+| Aspect | U2M OBO (this pattern) | Federation (token exchange) |
 |---|---|---|
 | Who the user is | Databricks user (has workspace account) | External user (no Databricks account) |
 | `current_user()` returns | Human email | SP application UUID |
@@ -31,19 +44,23 @@ See [Federation Exchange](federation.md) for the role-based SP pattern.
 | IdP involvement | Transparent (Databricks delegates to workspace IdP) | Explicit (app exchanges IdP JWT for SP token) |
 | Audit trail | Human email in platform audit | SP in platform audit, human in app audit |
 
+---
+
 ## Architecture
 
 ```
-External SPA ──→ CF Worker (CORS proxy) ──→ Databricks MCP App ──→ SQL / Genie / Serving
-     |                                            |
-     v                                            v
-Databricks OAuth (PKCE)                 X-Databricks-Token header
-     |                                  (user's original OAuth token)
-     v
-IdP (Entra/Okta) via SSO
+External SPA ──→ CORS Proxy (CF Worker / Lambda) ──→ Databricks MCP App ──→ SQL / Genie / Serving
+     │                                                       │
+     ▼                                                       ▼
+Databricks OAuth (PKCE)                            X-Databricks-Token header
+     │                                             (user's OAuth token, server-side use)
+     ▼
+IdP (Entra / Okta) via SSO
 ```
 
 The app runs entirely outside Databricks. No PAT. No service principal token shared with the browser.
+
+---
 
 ## The Flow (5 Steps)
 
@@ -67,7 +84,7 @@ Databricks delegates to the workspace's configured IdP (Entra, Okta, etc.). If t
 
 ### Step 3: Redirect back, exchange code for token
 
-Databricks redirects back to the SPA with an authorization code. The CF Worker (CORS proxy) exchanges the code + PKCE verifier for an access token at the Databricks token endpoint.
+Databricks redirects back to the SPA with an authorization code. The CORS proxy exchanges the code + PKCE verifier for an access token at the Databricks token endpoint.
 
 ```
 POST {DATABRICKS_HOST}/oidc/v1/token
@@ -80,15 +97,15 @@ grant_type=authorization_code
 &code_verifier={PKCE_VERIFIER}
 ```
 
-The CF Worker returns only the `access_token` to the browser. The refresh token is not exposed.
+The CORS proxy returns only the `access_token` to the browser. The refresh token is held server-side or discarded.
 
 ### Step 4: SPA stores token
 
-The SPA stores the access token in `sessionStorage`. Every subsequent MCP tool call includes this token via a custom header (`X-DB-Token` to the CF Worker).
+The SPA stores the access token in `sessionStorage`. Every subsequent MCP tool call includes this token in the request header sent to the CORS proxy.
 
-### Step 5: CF Worker calls MCP app
+### Step 5: CORS proxy calls MCP app
 
-The CF Worker proxies the MCP call to the Databricks App, sending the user's token in two headers:
+The CORS proxy forwards the MCP call to the Databricks App, sending the user's token in two headers:
 
 ```
 POST {MCP_APP_URL}/mcp
@@ -104,30 +121,45 @@ X-Databricks-Token: {USER_TOKEN}
 
 UC governance fires at the SQL engine level. `current_user()` = the human's email. Row filters, column masks, and connection privileges all evaluate against the individual.
 
-## The Two-Proxy Problem
+---
 
-Two MCP app deployments exist with identical code but different proxy behavior:
+## The Two-Deployment Pattern
 
-| | `mcp-ai-gov-obo` | `mcp-ai-gov-ext` |
-|---|---|---|
-| `authorization:` | `disabled` | `enabled` |
-| Caller | Internal Databricks Apps (Streamlit, etc.) | External clients (CF Workers, SPAs) |
-| How user token arrives | `x-forwarded-access-token` injected by the calling app's proxy | `Authorization` header validated by this app's proxy |
+App-to-app calls (one Databricks App calling another) and external calls (a non-Databricks client calling a Databricks App) need different proxy configurations on the receiving app. The standard approach is **two deployments of the same code**, each with a different `authorization` setting in `app.yaml`.
 
-**Why two deployments?**
+| Deployment role | `authorization:` setting | Caller type | How the user token arrives |
+|---|---|---|---|
+| App-to-app receiver | `disabled` | Internal Databricks Apps (Streamlit, FastAPI) | `x-forwarded-access-token` injected by the *calling* app's proxy |
+| External-client receiver | `enabled` | External clients (CORS proxy, partner SPA, mobile) | `Authorization` header validated by *this* app's proxy |
 
-- `authorization: disabled` is required for app-to-app calls. When App A calls App B, both have proxies. If App B's proxy is enabled, it strips App A's forwarded token and replaces it with a proxy-to-proxy credential. The human identity is lost. Disabling the proxy on the receiving app lets the token pass through.
-- `authorization: enabled` is required for external callers. Without a proxy, anyone with the app URL could call the MCP server. The proxy validates the caller's Databricks OAuth token and mints a properly scoped OBO token.
+Why two deployments?
 
-Same code, two deployments, different proxy behavior. This is a known platform constraint (GAP 7 in the implementation notes).
+- `authorization: disabled` is required for app-to-app calls. When App A calls App B and both have proxies enabled, the receiving proxy may replace the inbound token with a proxy-to-proxy credential. Disabling the proxy on the receiving app preserves the human identity end-to-end.
+- `authorization: enabled` is required for external callers. Without proxy enforcement, anyone with the app URL could reach the MCP endpoint. The proxy validates the caller's Databricks OAuth token and mints a properly scoped OBO token.
 
-## The X-Databricks-Token Workaround
+Same code, two deployments, different proxy behavior.
 
-The Databricks Apps proxy mints an OBO token (available as `x-forwarded-access-token`) that should carry the scopes configured in `user_api_scopes`. In practice, the proxy's OBO token does not receive `sql` scope for programmatic API callers, even when `user_api_scopes` includes `sql`. This works correctly for browser-based interactive sessions but fails for server-to-server calls.
+---
 
-**The fix**: send the user's original OAuth token via the `X-Databricks-Token` header. The MCP server reads this header instead of `x-forwarded-access-token` for downstream SQL and Genie calls. The original token carries the full scope set from the app integration configuration.
+## The X-Databricks-Token Header Pattern
 
-This is why the CF Worker sends the same token in both `Authorization` (for the proxy) and `X-Databricks-Token` (for the MCP server code).
+The Databricks Apps proxy mints an OBO token on each request, available to the app code as `x-forwarded-access-token`. For browser-driven interactive sessions, this token carries the scopes configured in `user_api_scopes` and is the right token to use.
+
+For programmatic callers (server-to-server flows like a CORS proxy invoking the MCP app), an additional pattern is useful: send the user's original Databricks OAuth token (the one issued in Step 3 above) in a custom header, and have the MCP server use that token directly for downstream SQL or Genie calls. The header name `X-Databricks-Token` is a common convention.
+
+```python
+# In the MCP server code
+def downstream_token(headers: dict) -> str:
+    # Prefer caller-provided token for server-to-server flows
+    if t := headers.get("X-Databricks-Token"):
+        return t
+    # Fall back to proxy-minted token for browser flows
+    return headers.get("x-forwarded-access-token", "")
+```
+
+This keeps `current_user()` = the human's email for both interactive and programmatic callers.
+
+---
 
 ## Prerequisites
 
@@ -135,7 +167,7 @@ This is why the CF Worker sends the same token in both `Authorization` (for the 
 
 | # | What | Why |
 |---|---|---|
-| 1 | **App Integration** (public client) | Registered in Account Console > App Connections. PKCE enabled, no client secret. Redirect URL set to the SPA origin + `/callback`. |
+| 1 | **App Integration** (public client) | Registered in Account Console → App Connections. PKCE enabled, no client secret. Redirect URL set to the SPA origin + `/callback`. |
 | 2 | **Token TTL** | Configurable from 5 to 1440 minutes in the app integration settings. Default is 60 minutes. |
 
 ### Databricks MCP App
@@ -146,13 +178,13 @@ This is why the CF Worker sends the same token in both `Authorization` (for the 
 | 4 | **`user_api_scopes`** configured | Must include `sql`, `dashboards.genie`, `files.files` (whatever the MCP tools need) |
 | 5 | **SQL Warehouse resource** | App needs `CAN_USE` on the warehouse |
 
-### External App (CF Pages / SPA)
+### External App (SPA)
 
 | # | What | Why |
 |---|---|---|
 | 6 | **CORS proxy** (CF Worker, Lambda, etc.) | Browsers cannot call Databricks token endpoint or MCP app directly due to CORS |
 | 7 | **Client ID** in SPA config | The app integration's public client ID (safe to embed in browser code) |
-| 8 | **MCP URL** in Worker config | The Databricks App URL for the `authorization: enabled` deployment |
+| 8 | **MCP URL** in proxy config | The Databricks App URL for the `authorization: enabled` deployment |
 
 ### User Grants
 
@@ -161,24 +193,43 @@ This is why the CF Worker sends the same token in both `Authorization` (for the 
 | 9 | **UC grants** on the target data | Users need `SELECT` on tables, `EXECUTE` on functions, `USE CONNECTION` on connections |
 | 10 | **Warehouse access** | Users need `CAN_USE` on the SQL warehouse |
 
-## Key Discoveries (Gotchas)
+---
 
-1. **Proxy OBO token lacks `sql` scope for programmatic callers.** The `x-forwarded-access-token` minted by the proxy does not carry `sql` scope when the caller is a server (CF Worker) rather than a browser. Workaround: `X-Databricks-Token` header with the user's original token.
+## Patterns to Apply
 
-2. **`authorization: disabled` cannot serve both app-to-app and external clients.** Internal callers need the proxy disabled (two-proxy token stripping). External callers need the proxy enabled (token validation). This is documented as GAP 7. Solution: two deployments of the same code.
+| When building... | Configure... |
+|---|---|
+| External SPA calling Databricks MCP | OAuth PKCE with public client ID; CORS proxy for token exchange and MCP forwarding |
+| App-to-app + external client on the same code base | Two deployments — `authorization: disabled` for internal, `authorization: enabled` for external |
+| Programmatic callers needing user-level SQL | `X-Databricks-Token` header read by MCP server for downstream calls |
+| Long-lived browser sessions | App integration TTL up to 1440 minutes; combine with refresh tokens server-side |
+| Audit trail to human email | UC grants + row filters per individual; `current_user()` resolves to the human |
 
-3. **Two deployments, same code.** `mcp-ai-gov-obo` (disabled) for internal app-to-app calls. `mcp-ai-gov-ext` (enabled) for external callers. The only difference is the `authorization:` flag in `app.yaml`.
+---
 
-4. **`X-Databricks-Token` bypasses the proxy's OBO token.** The MCP server reads this header directly, using the user's original OAuth token for SQL execution. This preserves `current_user()` = human email.
+## Patterns to Avoid
 
-5. **Token TTL is configurable.** The app integration in Account Console allows 5 to 1440 minutes. For external apps with session-based usage, longer TTLs reduce re-authentication friction.
+| Pattern | Better approach |
+|---|---|
+| Browser holding a refresh token | Refresh tokens stay server-side in the CORS proxy; SPA gets only the access token |
+| Single deployment serving both internal and external callers | Two deployments with different `authorization` settings |
+| Service principal shared with the browser | Per-user OBO; never expose SP credentials in client code |
+| Direct browser → Databricks token endpoint | CORS proxy required — browsers cannot reach the token endpoint directly |
 
-6. **CORS proxy is mandatory.** Browsers cannot POST to `{host}/oidc/v1/token` or to the Databricks App URL directly. The CF Worker handles both the code exchange and MCP proxying.
-
-7. **Refresh tokens should not reach the browser.** The CF Worker returns only the `access_token` from the code exchange. The refresh token stays server-side (or is discarded in this pattern).
+---
 
 ## Related
 
-- [Authorization](authorization.md): OBO, M2M, and Federation token patterns
-- [Federation Exchange](federation.md): For external users who are NOT Databricks users
-- [Federation Implementation Blueprint](federation-implementation-blueprint.md): Step-by-step recipe for the token exchange pattern
+- [`authorization.md`](authorization.md) — OBO, M2M, and Federation token patterns
+- [`federation.md`](federation.md) — For external users who are NOT Databricks users
+- [`federation-implementation-blueprint.md`](federation-implementation-blueprint.md) — Step-by-step recipe for the token exchange pattern
+- [`byoidp-peruser-federation.md`](byoidp-peruser-federation.md) — Per-user identity from an external app with a customer-owned IdP (this U2M pattern is its no-JWKS fallback)
+- [`proxy-architecture.md`](proxy-architecture.md) — How the Databricks Apps proxy mints OBO tokens
+
+---
+
+## Public References
+
+- [Databricks OAuth U2M](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-u2m)
+- [Databricks Apps authentication](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth)
+- [App integrations and PKCE](https://docs.databricks.com/aws/en/admin/account-settings-e2/idp-federation)

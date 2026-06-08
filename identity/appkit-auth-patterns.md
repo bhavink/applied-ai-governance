@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: apps/appkit.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/dev-tools/databricks-apps/
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # AppKit Auth Patterns: OBO, U2M, and UC Connections
 
 > Reference architecture for building Databricks Apps that combine multiple auth patterns in a single application. Covers OBO SQL + Genie, OAuth U2M per-user external services, Bearer Token shared credentials, and UC connection governance.
@@ -256,10 +264,10 @@ UC provides multiple enforcement points that work together regardless of which a
 
 ```sql
 -- Grant SELECT on a table to a group
-GRANT SELECT ON TABLE applied_ai_gov.sales.opportunities TO `west_sales`;
+GRANT SELECT ON TABLE demo_governance.sales.opportunities TO `sales_west`;
 
 -- Revoke access entirely
-REVOKE SELECT ON TABLE applied_ai_gov.sales.opportunities FROM `east_sales`;
+REVOKE SELECT ON TABLE demo_governance.sales.opportunities FROM `sales_east`;
 ```
 
 ### Layer 2: Row Filters (OBO-enforced)
@@ -268,12 +276,12 @@ When a query runs OBO, `current_user()` returns the human's email. Row filters c
 
 ```sql
 -- Row filter: users only see their region's data
-CREATE FUNCTION applied_ai_gov.sales.region_filter(region STRING)
+CREATE FUNCTION demo_governance.sales.region_filter(region STRING)
 RETURNS BOOLEAN
-RETURN is_account_group_member('west_sales') OR current_user() = 'admin@example.com';
+RETURN is_account_group_member('sales_west') OR current_user() = 'admin@example.com';
 
-ALTER TABLE applied_ai_gov.sales.opportunities
-SET ROW FILTER applied_ai_gov.sales.region_filter ON (region);
+ALTER TABLE demo_governance.sales.opportunities
+SET ROW FILTER demo_governance.sales.region_filter ON (region);
 ```
 
 **Critical**: Row filters only enforce per individual identity when the query runs OBO. SP-executed queries (`sales_summary.sql`, not `.obo.sql`) run as the app's service principal, bypassing individual row filters. This is intentional for aggregate queries that should show totals across all regions.
@@ -282,12 +290,12 @@ SET ROW FILTER applied_ai_gov.sales.region_filter ON (region);
 
 ```sql
 -- Mask sensitive columns for non-privileged users
-CREATE FUNCTION applied_ai_gov.sales.mask_margin(margin DOUBLE)
+CREATE FUNCTION demo_governance.sales.mask_margin(margin DOUBLE)
 RETURNS DOUBLE
 RETURN IF(is_account_group_member('sales_managers'), margin, NULL);
 
-ALTER TABLE applied_ai_gov.sales.opportunities
-SET MASK applied_ai_gov.sales.mask_margin ON COLUMN (margin_pct);
+ALTER TABLE demo_governance.sales.opportunities
+SET MASK demo_governance.sales.mask_margin ON COLUMN (margin_pct);
 ```
 
 ### Layer 4: USE CONNECTION Privilege
@@ -296,7 +304,7 @@ Every UC connection requires `USE CONNECTION` privilege. This is the governance 
 
 ```sql
 -- Grant access to a Salesforce connection
-GRANT USE CONNECTION ON CONNECTION salesforce_u2m_conn TO `west_sales`;
+GRANT USE CONNECTION ON CONNECTION salesforce_u2m_conn TO `sales_west`;
 
 -- Revoke instantly — no code changes, no redeploy
 REVOKE USE CONNECTION ON CONNECTION salesforce_u2m_conn FROM `contractor_group`;
@@ -507,7 +515,7 @@ UC connections are governed via GRANT/REVOKE, not declared in `app.yaml`.
 SHOW GRANTS ON CONNECTION salesforce_u2m_conn;
 
 -- Verify row filter is applied
-DESCRIBE EXTENDED applied_ai_gov.sales.opportunities;
+DESCRIBE EXTENDED demo_governance.sales.opportunities;
 
 -- Verify current_user() propagation (run as test user)
 SELECT current_user();
@@ -537,7 +545,7 @@ SELECT current_user();
 ```sql
 GRANT USE CONNECTION ON CONNECTION salesforce_u2m_conn TO `user@example.com`;
 -- or for a group:
-GRANT USE CONNECTION ON CONNECTION salesforce_u2m_conn TO `west_sales`;
+GRANT USE CONNECTION ON CONNECTION salesforce_u2m_conn TO `sales_west`;
 ```
 
 ### DATABRICKS_HOST missing scheme

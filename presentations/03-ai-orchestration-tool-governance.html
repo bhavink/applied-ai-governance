@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: ai/agent-framework.md, ai/agent-bricks.md, ai/agent-tool.md, mcp/overview.md, mcp/managed-mcp.md, mcp/external-mcp.md, ai/uc-functions.md, ai/vector-search.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/
+    - https://learn.microsoft.com/en-us/azure/databricks/
+  This file is auto-prepared and human-reviewed before publish.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -65,8 +73,9 @@ html,body{overflow:hidden;height:100%;font-family:var(--font);background:var(--b
 .card-blue{border-left:4px solid var(--blue);background:var(--blue-bg)}
 
 pre,code{font-family:var(--mono);font-size:var(--sz-code)}
-pre{background:var(--ink);color:#e0e0e0;border-radius:4px;padding:clamp(0.6rem,1.2vw,1rem);overflow-x:auto;line-height:1.55}
-code{background:var(--surface);padding:0.1em 0.4em;border-radius:3px;font-size:var(--sz-code)}
+pre{background:#fff;color:var(--ink);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:4px;padding:clamp(0.6rem,1.2vw,1rem);overflow-x:auto;line-height:1.55}
+pre code{background:transparent;padding:0;border-radius:0;color:inherit}
+code{background:var(--surface);padding:0.1em 0.4em;border-radius:3px;font-size:var(--sz-code);color:var(--ink)}
 
 table{width:100%;border-collapse:collapse;font-size:var(--sz-small)}
 th{text-align:left;font-weight:600;font-size:var(--sz-label);letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:2px solid var(--border)}
@@ -690,126 +699,164 @@ REVOKE USE CONNECTION ON CONNECTION jira_mcp FROM `agent-sp-uuid`;</pre>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 17: AI GATEWAY V2 -->
+<!-- SLIDE 17: UNITY AI GATEWAY — ONE GATEWAY, THREE PILLARS -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="17">
-  <div class="label reveal">AI Gateway</div>
-  <h2 class="reveal">AI Gateway v2</h2>
-  <p class="reveal" style="color:var(--muted)">Centralized model traffic management: rate limiting, cost tracking, guardrails, fallback routing.</p>
+  <div class="label reveal">Unity AI Gateway</div>
+  <h2 class="reveal">One Gateway, Three Pillars</h2>
+  <p class="reveal" style="color:var(--muted);max-width:80ch">LLMs, MCPs, and coding agents under a single governance surface. The same permissions, rate limits, guardrails, audit, and cost story apply across all three — so you don&rsquo;t reinvent governance for each traffic class.</p>
   <div class="three-col mt-2">
-    <div class="card reveal">
-      <h4>Rate Limiting</h4>
-      <p style="font-size:var(--sz-small);margin-top:6px">Per endpoint, per user, per model. Sliding window with configurable QPM/TPM.</p>
+    <div class="card card-red reveal">
+      <span class="badge badge-red">Pillar 1</span>
+      <h4 style="margin-top:8px">LLMs</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Agents, LLM endpoints, and coding agents (Cursor, Codex CLI, Gemini CLI, Claude Code) route through gateway endpoints with native multi-provider APIs.</p>
     </div>
-    <div class="card reveal">
-      <h4>Usage Tracking</h4>
-      <p style="font-size:var(--sz-small);margin-top:6px">Token counts, latency, cost allocation per team/project/endpoint.</p>
+    <div class="card card-blue reveal">
+      <span class="badge badge-blue">Pillar 2</span>
+      <h4 style="margin-top:8px">MCPs</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">External, custom (Databricks Apps), and Databricks-managed MCP servers governed under the same permissions, audit, and access controls.</p>
     </div>
-    <div class="card reveal">
-      <h4>Guardrails</h4>
-      <p style="font-size:var(--sz-small);margin-top:6px">Content filtering, PII detection, topic blocking on input and output.</p>
+    <div class="card card-green reveal">
+      <span class="badge badge-green">Pillar 3</span>
+      <h4 style="margin-top:8px">Model Serving Endpoints</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Gateway features layered onto existing serving endpoints — safety, PII, keyword guardrails, and the established system table observability surface.</p>
     </div>
   </div>
-  <div class="two-col mt-2">
-    <div class="card reveal">
-      <h4>Fallback Routing</h4>
-      <p style="font-size:var(--sz-small);margin-top:6px">Primary model fails &rarr; automatically route to secondary. No client code change.</p>
-    </div>
-    <div class="card reveal">
-      <h4>A/B Testing</h4>
-      <p style="font-size:var(--sz-small);margin-top:6px">Traffic splitting across model versions with built-in metrics comparison.</p>
-    </div>
+  <div class="card mt-2 reveal" style="text-align:center;border-left:4px solid var(--ink)">
+    <p><strong>One control point.</strong> Permissions &middot; rate limits &middot; guardrails &middot; usage tracking &middot; inference logging &middot; cost attribution &middot; fallback routing &middot; traffic splitting &mdash; applied consistently across every pillar.</p>
   </div>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 18: AI GATEWAY — WHEN TO USE -->
+<!-- SLIDE 18: SHAPE LLM TRAFFIC -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="18">
-  <div class="label reveal">AI Gateway</div>
-  <h2 class="reveal">When to Use What</h2>
-  <div class="reveal mt-2 flex-1">
-    <table>
-      <thead>
-        <tr><th>Scenario</th><th>AI Gateway</th><th>UC + Scopes</th><th>Both</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Rate limit model access</td><td style="color:var(--green);font-weight:700;text-align:center">&#10003;</td><td></td><td></td></tr>
-        <tr><td>Track token usage / cost</td><td style="color:var(--green);font-weight:700;text-align:center">&#10003;</td><td></td><td></td></tr>
-        <tr><td>Content guardrails</td><td style="color:var(--green);font-weight:700;text-align:center">&#10003;</td><td></td><td></td></tr>
-        <tr><td>Data access control</td><td></td><td style="color:var(--green);font-weight:700;text-align:center">&#10003;</td><td></td></tr>
-        <tr><td>External tool governance</td><td></td><td style="color:var(--green);font-weight:700;text-align:center">&#10003;</td><td></td></tr>
-        <tr><td>Production agent deployment</td><td></td><td></td><td style="color:var(--red);font-weight:700;text-align:center">&#10003;</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="card card-red mt-2 reveal" style="text-align:center">
-    <p><strong>AI Gateway manages MODEL traffic.</strong> UC manages DATA and TOOL access. <strong>Both needed for production.</strong></p>
+  <div class="label reveal">Unity AI Gateway &middot; Pillar 1: LLMs</div>
+  <h2 class="reveal">Shape LLM Traffic</h2>
+  <p class="reveal" style="color:var(--muted)">Four controls applied at the gateway, before requests reach a model and before responses reach a caller.</p>
+  <div class="two-col mt-2">
+    <div class="card card-red reveal">
+      <h4>Rate Limits</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Per endpoint, per user, per group, per service principal. Both call rate (QPM) and token rate (TPM). Use to cap a runaway agent or to fair-share a model across teams.</p>
+    </div>
+    <div class="card card-red reveal">
+      <h4>Guardrails</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Six LLM-based templates evaluate every request and response:</p>
+      <ul style="padding-left:18px;margin-top:6px;font-size:var(--sz-small);line-height:1.6">
+        <li><strong>PII Redaction</strong> &middot; <strong>PII Block</strong></li>
+        <li><strong>Unsafe Content</strong> &middot; <strong>Jailbreak</strong></li>
+        <li><strong>Hallucination</strong> &middot; <strong>Custom</strong> (your prompt)</li>
+      </ul>
+    </div>
+    <div class="card reveal">
+      <h4>Traffic Splitting</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Distribute requests across model backends &mdash; A/B test a new model on 20% of traffic, or stage a gradual rollout from one provider to another, with built-in metrics for comparison.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Fallback Routing</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Primary provider fails &rarr; gateway routes to a secondary served entity. Multi-provider failover (OpenAI &rarr; Anthropic &rarr; FMAPI) without client code changes.</p>
+    </div>
   </div>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 19: AI GATEWAY PATTERNS -->
+<!-- SLIDE 19: GOVERN WHO CALLS THE LLM -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="19">
-  <div class="label reveal">AI Gateway</div>
-  <h2 class="reveal">Gateway Patterns</h2>
-  <div class="three-col mt-2" style="flex:1">
-    <div class="card reveal">
-      <h4>1. Single Model + Guardrails</h4>
-      <div class="flow-v mt-2" style="gap:0">
-        <div class="flow-box" style="min-width:160px">Client Request</div>
-        <div class="flow-v-arrow">&darr;</div>
-        <div class="flow-box" style="min-width:160px;border-color:var(--red);background:rgba(204,51,17,0.05)"><strong>AI Gateway</strong><small>Input filter</small></div>
-        <div class="flow-v-arrow">&darr;</div>
-        <div class="flow-box platform" style="min-width:160px">Model Endpoint</div>
-        <div class="flow-v-arrow">&darr;</div>
-        <div class="flow-box" style="min-width:160px;border-color:var(--red);background:rgba(204,51,17,0.05)"><strong>AI Gateway</strong><small>Output filter</small></div>
-        <div class="flow-v-arrow">&darr;</div>
-        <div class="flow-box app" style="min-width:160px">Safe Response</div>
-      </div>
+  <div class="label reveal">Unity AI Gateway &middot; Pillar 1: LLMs</div>
+  <h2 class="reveal">Govern Who Calls the LLM</h2>
+  <p class="reveal" style="color:var(--muted)">Two very different callers, one control surface. Whether a developer types in Cursor or a deployed agent invokes a tool, every call carries the same governance.</p>
+  <div class="two-col mt-2">
+    <div class="card card-blue reveal">
+      <h4>Coding Agents</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">OpenAI-compatible base URLs per agent, exposed by the gateway:</p>
+      <table style="margin-top:8px;font-size:var(--sz-small)">
+        <tr><td><strong>Cursor</strong></td><td><code>/cursor/v1</code></td></tr>
+        <tr><td><strong>Codex CLI</strong></td><td><code>/codex/v1</code></td></tr>
+        <tr><td><strong>Gemini CLI</strong></td><td><code>/gemini</code></td></tr>
+        <tr><td><strong>Claude Code</strong></td><td>Anthropic native</td></tr>
+      </table>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)">Each developer authenticates with their own Databricks identity &mdash; their usage shows up against them in audit and cost.</p>
     </div>
-    <div class="card reveal">
-      <h4>2. Fallback Routing</h4>
-      <div class="flow-v mt-2" style="gap:0">
-        <div class="flow-box" style="min-width:160px">Client Request</div>
-        <div class="flow-v-arrow">&darr;</div>
-        <div class="flow-box" style="min-width:160px;border-color:var(--red);background:rgba(204,51,17,0.05)"><strong>AI Gateway</strong></div>
-        <div class="flow-v-arrow">&darr;</div>
-        <div class="flow-box platform" style="min-width:160px">Primary Model</div>
-        <div class="flow-v-arrow" style="color:var(--amber)">&darr; on failure</div>
-        <div class="flow-box" style="min-width:160px;border-color:var(--amber);background:var(--amber-bg)">Secondary Model</div>
-        <div class="flow-v-arrow">&darr;</div>
-        <div class="flow-box app" style="min-width:160px">Response</div>
-      </div>
+    <div class="card card-green reveal">
+      <h4>Databricks Apps Agents</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Agents authored with Agent Framework and deployed to Databricks Apps route their LLM calls through the gateway:</p>
+      <pre style="margin-top:8px;font-size:var(--sz-label);background:var(--surface);padding:10px;border-radius:4px;overflow:auto"><code>client = OpenAI(
+  base_url="https://&lt;workspace&gt;/serving-endpoints/&lt;uag&gt;",
+  api_key=os.environ["DATABRICKS_TOKEN"],
+)</code></pre>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)">App identity flows into usage tables &mdash; the same audit pane that shows the developer&rsquo;s Cursor call shows the agent&rsquo;s autonomous call.</p>
     </div>
-    <div class="card reveal">
-      <h4>3. A/B Testing</h4>
-      <div class="flow-v mt-2" style="gap:0">
-        <div class="flow-box" style="min-width:160px">Client Request</div>
-        <div class="flow-v-arrow">&darr;</div>
-        <div class="flow-box" style="min-width:160px;border-color:var(--red);background:rgba(204,51,17,0.05)"><strong>AI Gateway</strong><small>Traffic split</small></div>
-        <div style="display:flex;gap:12px;margin-top:6px">
-          <div style="text-align:center">
-            <div style="font-size:var(--sz-label);color:var(--muted);margin-bottom:4px">80%</div>
-            <div class="flow-box platform" style="min-width:70px;padding:6px 10px">Model A</div>
-          </div>
-          <div style="text-align:center">
-            <div style="font-size:var(--sz-label);color:var(--muted);margin-bottom:4px">20%</div>
-            <div class="flow-box" style="min-width:70px;padding:6px 10px;border-color:var(--amber);background:var(--amber-bg)">Model B</div>
-          </div>
-        </div>
-        <div class="flow-v-arrow" style="margin-top:6px">&darr;</div>
-        <div class="flow-box app" style="min-width:160px">Metrics Comparison</div>
-      </div>
-    </div>
+  </div>
+  <div class="card card-red mt-2 reveal" style="text-align:center">
+    <p><strong>One audit trail.</strong> Coding agents and Apps agents land in the same <code>system.ai_gateway.usage</code> table, governed by the same permissions, rate limits, and guardrails.</p>
   </div>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 20: OBSERVABILITY STACK -->
+<!-- SLIDE 20: GOVERN MCPs THROUGH THE SAME GATEWAY -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="20">
+  <div class="label reveal">Unity AI Gateway &middot; Pillar 2: MCPs</div>
+  <h2 class="reveal">Govern MCPs Through the Same Gateway</h2>
+  <p class="reveal" style="color:var(--muted)">The three MCP types from slide 6 &mdash; external, custom, and Databricks-managed &mdash; all sit behind the same control surface as your LLM endpoints. Tool invocations are audited and rate-limited the same way LLM calls are.</p>
+  <div class="three-col mt-2">
+    <div class="card reveal">
+      <h4>External MCP</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Vendor or external infra. Governed via managed connections &mdash; network egress controls, audit logging, and access control under the same UAG permissions.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Custom MCP</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Your own MCP server hosted as a Databricks App. App identity, OBO/M2M auth, UC access controls, and payload logging all flow through the gateway.</p>
+    </div>
+    <div class="card reveal">
+      <h4>Databricks-Managed MCPs</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Genie, Vector Search, UC Functions. Native MCP servers with built-in UC permissions and audit &mdash; no infra to manage, governed by default.</p>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="border-left:4px solid var(--ink)">
+    <p style="font-size:var(--sz-small)"><strong>Why this matters:</strong> before this unification, MCP governance was ad-hoc &mdash; UC handled data access, but request-level audit, rate limiting, and observability were per-server. Now LLM calls <em>and</em> tool invocations share one audit trail, one permissions model, one configuration surface.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 21: SEE SPEND, CALLS, AND PAYLOADS IN ONE PLACE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="21">
+  <div class="label reveal">Unity AI Gateway &middot; Observability</div>
+  <h2 class="reveal">See Spend, Calls, and Payloads in One Place</h2>
+  <p class="reveal" style="color:var(--muted)">Every call from every caller &mdash; coding agent, deployed agent, MCP client &mdash; lands in the same observability surface. Three places to look, joined by request and principal.</p>
+  <div class="three-col mt-2">
+    <div class="card card-red reveal">
+      <h4>Pre-built Dashboard</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">One click from the AI Gateway page provisions an AI/BI dashboard with four tabs:</p>
+      <ul style="padding-left:18px;margin-top:6px;font-size:var(--sz-small);line-height:1.6">
+        <li><strong>Overview</strong> &mdash; spend, top endpoints, top principals</li>
+        <li><strong>Performance</strong> &mdash; p50/p95/p99 latency, error rate</li>
+        <li><strong>Usage</strong> &mdash; volume by endpoint, model, tag</li>
+        <li><strong>Coding Agents</strong> &mdash; per-tool, per-user spend</li>
+      </ul>
+    </div>
+    <div class="card card-blue reveal">
+      <h4>system.ai_gateway.usage</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Every call, every principal, every tag. Joinable with <code>system.billing.usage</code> for dollar-denominated cost analysis by endpoint, team, app, or time window.</p>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)">Add <code>usage_context={"team":"&hellip;"}</code> at call time to drive cost attribution from your own code.</p>
+    </div>
+    <div class="card card-green reveal">
+      <h4>Inference Tables</h4>
+      <p style="font-size:var(--sz-small);margin-top:6px">Request and response payloads logged to UC Delta tables for audit and offline evaluation. 10 MiB payload limit, delivery in minutes.</p>
+      <p style="font-size:var(--sz-small);margin-top:8px;color:var(--muted)">Query with SQL like any UC table; integrates with MLflow for evaluation runs.</p>
+    </div>
+  </div>
+  <div class="card card-red mt-2 reveal" style="text-align:center">
+    <p><strong>One pane for cost, performance, and content.</strong> No stitching multiple monitoring stacks &mdash; the gateway emits everything to the same governed catalog.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 22: OBSERVABILITY STACK (broader audit / security) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="22">
   <div class="label reveal">Observability</div>
   <h2 class="reveal">Observability Stack</h2>
   <p class="reveal" style="color:var(--muted)">Three pillars. Join on request_id for end-to-end agent lineage.</p>
@@ -851,9 +898,9 @@ REVOKE USE CONNECTION ON CONNECTION jira_mcp FROM `agent-sp-uuid`;</pre>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 21: SECURITY MONITORING QUERIES -->
+<!-- SLIDE 23: SECURITY MONITORING QUERIES -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="21">
+<div class="slide" data-slide="23">
   <div class="label reveal">Observability</div>
   <h2 class="reveal">Security Monitoring Queries</h2>
   <div class="three-col mt-2" style="flex:1">
@@ -896,9 +943,9 @@ AND user_identity.email =
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 22: OTEL IN DATABRICKS APPS -->
+<!-- SLIDE 24: OTEL IN DATABRICKS APPS -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="22">
+<div class="slide" data-slide="24">
   <div class="label reveal">Observability</div>
   <h2 class="reveal">OTel in Databricks Apps</h2>
   <div class="two-col mt-2">
@@ -929,9 +976,9 @@ AND user_identity.email =
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 23: PRODUCTION CHECKLIST -->
+<!-- SLIDE 25: PRODUCTION CHECKLIST -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="23">
+<div class="slide" data-slide="25">
   <div class="label reveal">Production Ready</div>
   <h2 class="reveal">Production Checklist</h2>
   <div class="check-grid mt-2 flex-1">
@@ -949,9 +996,9 @@ AND user_identity.email =
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<!-- SLIDE 24: CLOSING -->
+<!-- SLIDE 26: CLOSING -->
 <!-- ════════════════════════════════════════════════════════════════════ -->
-<div class="slide slide-title" data-slide="24">
+<div class="slide slide-title" data-slide="26">
   <h1 class="reveal" style="font-size:var(--sz-h1)">Orchestration is governance.</h1>
   <div style="max-width:700px;text-align:center;margin:24px auto 0" class="reveal">
     <p style="font-size:var(--sz-body);line-height:1.8;color:var(--muted)">

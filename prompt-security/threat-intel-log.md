@@ -1,3 +1,12 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: security/threat-intel-log.md
+  Public docs grounding:
+    - https://owasp.org/www-project-top-10-for-large-language-model-applications/
+    - https://www.rsaconference.com/library/blog
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # Prompt Security — Threat Intelligence Log
 
 > Rolling append-only log of prompt security findings relevant to Databricks AI applications.
@@ -42,7 +51,7 @@ Cross-reference the attack class taxonomy in [attack-surfaces.md](attack-surface
 | **Technique** | Indirect prompt injection using a universal adversarial trigger combined with Unicode RIGHT-TO-LEFT OVERRIDE (U+202E) to obfuscate harmful output. The trigger is inline-composable — it can be embedded in otherwise benign text without losing effect. |
 | **Reported success rate** | 76% before Apple's Mar 24, 2026 patches (per RSAC blog) |
 | **Affected Databricks surfaces** | AI Gateway guardrails (Unicode bypass), Vector Search (indexed docs with bidi chars), MCP tool descriptions (Unicode smuggling), Agent Bricks KA/MAS (retrieved content with bidi chars) |
-| **Confidence** | High — real production target, published PoC methodology, measured attack success rate, vendor patch confirmed |
+| **Confidence** | High — real production target, published proof-of-concept methodology, measured attack success rate, vendor patch confirmed |
 
 **Key takeaways for Databricks builders:**
 

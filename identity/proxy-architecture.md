@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: apps/proxy-architecture.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # Databricks Apps Proxy Architecture
 
 > **TL;DR**: Every Databricks App has an invisible reverse proxy that authenticates users, strips the original Authorization header, and injects `X-Forwarded-*` identity headers. The proxy is the single source of truth for caller identity. When one app calls another app (app-to-app), a second proxy intervenes — creating the "two-proxy problem" where the user's token is replaced by the second app's SP token.

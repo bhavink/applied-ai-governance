@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/overview.md, auth/m2m-service-principal.md, auth/obo-passthrough.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/dev-tools/auth/
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # Authentication (AuthN)
 
 > AuthN is delegated to Identity Providers. Databricks does not run its own IdP.

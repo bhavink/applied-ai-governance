@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/_azure/entra-oauth.md, auth/_okta/token-federation.md, auth/gcp-wif-databricks.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # Cloud-Specific Authentication Patterns
 
 > **TL;DR**: Three IdP patterns for token federation to Databricks, each with distinct governance implications. Entra ID uses built-in tenant OIDC endpoints (no custom auth servers). Okta requires a custom Authorization Server. Azure Managed Identity enables secretless authentication from Azure compute. All exchange IdP tokens for Databricks tokens via RFC 8693.

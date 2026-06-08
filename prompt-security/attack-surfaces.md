@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: security/prompt-attack-surfaces.md
+  Public docs grounding:
+    - https://owasp.org/www-project-top-10-for-large-language-model-applications/
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # Prompt Attack Surfaces on Databricks
 
 > Every place where text enters an AI system and influences its behavior is an attack surface. This document maps the Databricks surfaces where prompts are accepted — directly by users or indirectly through data — to the attack classes that apply.

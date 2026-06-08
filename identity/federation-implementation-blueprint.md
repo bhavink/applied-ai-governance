@@ -1,3 +1,11 @@
+<!--
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: auth/token-federation.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
+  This file is auto-prepared and human-reviewed before publish.
+-->
+
 # Federation Token Exchange: Implementation Blueprint
 
 > **What this is**: A step-by-step recipe to let external users (partners, vendors, auditors) use Databricks data and AI tools without ever being provisioned as Databricks users. Their Identity Provider (IdP) handles who they are. Databricks handles what they can see.
@@ -17,7 +25,7 @@ Every deployment has exactly five actors. No more, no less.
 | 1 | **IdP** | The external Identity Provider that owns the users | Auth0, Okta, Entra ID, Ping |
 | 2 | **SPA** | Browser app where humans log in and interact | React app, vanilla JS page |
 | 3 | **Backend Server** | Server-side component that holds secrets and talks to Databricks | CF Worker, AWS Lambda, Databricks App, any server |
-| 4 | **Databricks** | The workspace (token endpoint + APIs + Unity Catalog) | `adb-xxx.azuredatabricks.net` |
+| 4 | **Databricks** | The workspace (token endpoint + APIs + Unity Catalog) | `workspace-host.azuredatabricks.net` |
 | 5 | **MCP Server** | The tool server that executes queries/Genie using the SP token | Databricks App running FastAPI |
 
 ```
@@ -52,7 +60,7 @@ Nothing in this blueprint works without these. Set them up first, verify each on
 
 | # | What | Why | How to verify |
 |---|---|---|---|
-| P6 | **Service Principals (one per role)** | Each role (e.g., `west_sales`, `finance`) maps to a dedicated SP. The SP is the Databricks identity that executes queries. | `databricks service-principals list` shows your SPs. |
+| P6 | **Service Principals (one per role)** | Each role (e.g., `sales_west`, `finance`) maps to a dedicated SP. The SP is the Databricks identity that executes queries. | `databricks service-principals list` shows your SPs. |
 | P7 | **Federation policy on each SP** | Tells Databricks "trust JWTs from this IdP for this SP." Each policy specifies the allowed `issuer`, `audience`, and `subject` (the M2M app's client_id). | Call `/oidc/v1/token` with a valid JWT, get a Databricks token back. If federation policy is wrong, you get a 401. |
 | P8 | **SP group memberships** | Each SP belongs to a workspace group. UC row filters use `is_member()` against these groups to control data access. | `databricks groups list` shows group members. Query a filtered table with each SP token, confirm different rows returned. |
 | P9 | **SQL Warehouse** (conditional) | Only required if the MCP server executes SQL. Not needed if the MCP server only calls Genie, model serving, or other REST APIs. Serverless recommended. | `databricks warehouses list` shows an active warehouse. |
@@ -63,7 +71,7 @@ Nothing in this blueprint works without these. Set them up first, verify each on
 |---|---|---|---|
 | P10 | **M2M client_id** (public config) | Identifies the M2M app when requesting tokens from the IdP. Safe to store in config files. | Visible in your deployment config (env var, config file). |
 | P11 | **M2M client_secret** (secret store) | Authenticates the M2M app. MUST be in a secret store, never in code or git. | Stored in CF Secrets, AWS Secrets Manager, Databricks Secrets, Azure Key Vault, etc. |
-| P12 | **Role-to-SP mapping** | A simple lookup table: role name → Databricks SP application_id. Static config, changes only when you add/remove roles. | JSON object in config, e.g., `{"west_sales": "abcd...", "finance": "efgh..."}`. |
+| P12 | **Role-to-SP mapping** | A simple lookup table: role name → Databricks SP application_id. Static config, changes only when you add/remove roles. | JSON object in config, e.g., `{"sales_west": "abcd...", "finance": "efgh..."}`. |
 
 ---
 
@@ -91,14 +99,14 @@ sequenceDiagram
 
     Note over Human, MCP: PHASE 2: Tool Call (happens on every request)
     Human->>SPA: Clicks "Run Query" (or any tool)
-    SPA->>Backend: POST /api/mcp { tool, args, role: "west_sales" }
+    SPA->>Backend: POST /api/mcp { tool, args, role: "sales_west" }
 
     Note over Backend, DB: Step 5: Backend gets M2M JWT from IdP
     Backend->>IdP: POST /oauth/token (client_credentials)
     IdP-->>Backend: M2M JWT (iss=IdP, aud=workspace, sub=M2M client_id)
 
     Note over Backend, DB: Step 6: Token exchange (RFC 8693)
-    Backend->>Backend: Look up SP app_id from role ("west_sales" -> "abcd...")
+    Backend->>Backend: Look up SP app_id from role ("sales_west" -> "abcd...")
     Backend->>DB: POST /oidc/v1/token (grant_type=token-exchange, subject_token=JWT, client_id=SP app_id)
     DB->>DB: Validate JWT iss/aud/sub against SP federation policy
     DB-->>Backend: Databricks bearer token (acts as SP)
@@ -153,7 +161,7 @@ The SPA receives the ID token, reads the custom claims, and maps the IdP's role 
 **Why map?** IdP role names are owned by the IdP admin. Internal role keys are owned by you. The mapping isolates your system from IdP naming changes.
 
 ```
-IdP claim "sales-west"  -->  internal key "west_sales"
+IdP claim "sales-west"  -->  internal key "sales_west"
 IdP claim "executives"  -->  internal key "executive"
 ```
 
@@ -172,7 +180,7 @@ Content-Type: application/json
 {
   "client_id": "<M2M app client_id>",
   "client_secret": "<M2M app client_secret>",
-  "audience": "https://adb-xxx.azuredatabricks.net",
+  "audience": "https://workspace-host.azuredatabricks.net",
   "grant_type": "client_credentials"
 }
 ```
@@ -189,7 +197,7 @@ These three fields are what Databricks validates. All three must match the feder
 The backend looks up the SP application_id from the role-to-SP map, then calls the Databricks token exchange endpoint.
 
 ```
-POST https://adb-xxx.azuredatabricks.net/oidc/v1/token
+POST https://workspace-host.azuredatabricks.net/oidc/v1/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=urn:ietf:params:oauth:grant-type:token-exchange
@@ -226,7 +234,7 @@ POST https://<mcp-server-url>/mcp
 Content-Type: application/json
 Authorization: Bearer <databricks_token>
 X-Databricks-Token: <databricks_token>
-X-Caller-Role: west_sales
+X-Caller-Role: sales_west
 X-Caller-Email: user@example.com
 X-Request-Id: <uuid>
 
@@ -265,7 +273,7 @@ Every error you will encounter, why it happens, and how to fix it.
 
 ## Security Invariants
 
-These must always be true. If any is violated, the system is broken.
+These must always be true. If any is violated, security guarantees no longer hold.
 
 1. **The human's IdP token never leaves the browser.** The backend authenticates independently via M2M.
 2. **The M2M client_secret is never in code, config files, or git.** It lives only in the deployment platform's secret store.
@@ -297,7 +305,7 @@ Authorized API: "Databricks Federation" (audience = workspace URL)
 
 **API Resource Server (critical):**
 ```
-Identifier (audience): https://adb-xxx.azuredatabricks.net
+Identifier (audience): https://workspace-host.azuredatabricks.net
 Token dialect: access_token_authz    <-- DEFAULT IS WRONG, must change
 Signing: RS256
 ```
@@ -350,7 +358,7 @@ Scopes: Assign custom scope on your Authorization Server
 **Authorization Server:**
 ```
 Issuer: https://{org}.okta.com/oauth2/{auth-server-id}
-Audience: https://adb-xxx.azuredatabricks.net   (add as custom audience)
+Audience: https://workspace-host.azuredatabricks.net   (add as custom audience)
 ```
 
 **Post-Login Hook (Token Inline Hook or Custom Claims):**
@@ -387,7 +395,7 @@ Body: client_id={id}&client_secret={secret}&grant_type=client_credentials&scope=
 - The `iss` value includes the authorization server ID: `https://{org}.okta.com/oauth2/{server-id}`. Do not use just `https://{org}.okta.com/`.
 - The `sub` in `client_credentials` tokens is the M2M app's client_id (no suffix, unlike Auth0).
 - Okta emits JWTs by default for custom authorization servers. No token_dialect fix needed.
-- If using the default `org` authorization server, custom claims are not supported. You must create a custom authorization server.
+- The default `org` authorization server does not emit custom claims. Create a custom authorization server when you need custom claims.
 
 ---
 
@@ -411,7 +419,7 @@ API Permissions: Add your custom API scope
 **Custom API Registration:**
 ```
 App Registration > Expose an API:
-  Application ID URI: https://adb-xxx.azuredatabricks.net  (or api://{app-id})
+  Application ID URI: https://workspace-host.azuredatabricks.net  (or api://{app-id})
   Scope: Add a scope (e.g., "federation.exchange")
 ```
 
@@ -437,7 +445,7 @@ App Registration > Token Configuration > Add groups claim:
 
 App Registration > App Roles > Create:
   Display name: "West Sales"
-  Value: "west_sales"
+  Value: "sales_west"
   Allowed member types: Users/Groups
 
 Enterprise Application > Users and Groups > Assign:
@@ -449,7 +457,7 @@ The `roles` claim appears automatically in the access token. No hook needed.
 **M2M Token Endpoint:**
 ```
 POST https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token
-Body: client_id={id}&client_secret={secret}&scope=https://adb-xxx.azuredatabricks.net/.default&grant_type=client_credentials
+Body: client_id={id}&client_secret={secret}&scope=https://workspace-host.azuredatabricks.net/.default&grant_type=client_credentials
 ```
 
 **Entra Gotchas:**
@@ -466,7 +474,7 @@ Body: client_id={id}&client_secret={secret}&scope=https://adb-xxx.azuredatabrick
 This is the same regardless of IdP. Repeat for each SP.
 
 ```pseudo
-FOR EACH role IN ["west_sales", "east_sales", "finance", "executive", "managers", "admin"]:
+FOR EACH role IN ["sales_west", "sales_east", "finance", "executive", "managers", "admin"]:
 
     sp_app_id = role_to_sp_map[role]
 
@@ -493,7 +501,7 @@ payload = base64_decode(jwt.split(".")[1])
 
 # Step 3: Copy these exact values into the federation policy
 issuer  = payload["iss"]    # e.g., "https://dev-xxx.auth0.com/"
-audience = payload["aud"]   # e.g., "https://adb-xxx.azuredatabricks.net"
+audience = payload["aud"]   # e.g., "https://workspace-host.azuredatabricks.net"
 subject  = payload["sub"]   # e.g., "YOUR_M2M_CLIENT_ID@clients"
 ```
 
