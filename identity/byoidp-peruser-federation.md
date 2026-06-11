@@ -134,8 +134,8 @@ The most important answer is #1 — it decides token-exchange vs SSO-fallback.
 
 **B. Issuer & claims (for the federation policy)**
 4. What is the token issuer (`iss`) value?
-5. What `audience` (`aud`) values do tokens carry, and can it be set/controlled?
-6. Which claim holds the user identity (`sub`, `email`, `upn`…), and does it exactly match the email/username synced to Databricks?
+5. What `audience` (`aud`) values do tokens carry, can it be set/controlled, and does it differ per environment (dev/stage/prod)? A fixed, non-configurable `aud` that differs per environment means **one federation policy per environment**, each matching that environment's exact value.
+6. Which claim holds the user identity (`sub`, `email`, `upn`…), and does it exactly match the email/username synced to Databricks? Is that value **immutable** (a changing `email` silently breaks the mapping), and if you map on `email`, is `email_verified` set?
 7. Token lifetime, and is there a refresh mechanism? (Databricks copies the JWT `exp` verbatim.)
 
 **C. SSO capability (fallback if no JWKS)**
@@ -162,8 +162,8 @@ The most important answer is #1 — it decides token-exchange vs SSO-fallback.
 
 *B. Issuer & claims*
 4. What is the token issuer (`iss`) value?
-5. What `audience` (`aud`) do tokens carry, and can we set/control it?
-6. Which claim holds the user identity (`sub`/`email`/`upn`), and does it match the email/username synced to Databricks?
+5. What `audience` (`aud`) do tokens carry, can we set/control it, and does it differ per environment? (a fixed per-env `aud` means one policy per environment)
+6. Which claim holds the user identity (`sub`/`email`/`upn`), does it match the email/username synced to Databricks, and is it immutable? (if mapping on `email`, is `email_verified` set?)
 7. Token lifetime + refresh mechanism?
 
 *C. SSO capability (fallback if no JWKS)*
@@ -189,6 +189,8 @@ Thanks! :pray: #1 alone unblocks most of the design.
 |---|---|---|
 | Exchange returns an SP token, RLS shows all rows | `client_id` was included in the exchange | Omit `client_id` for per-user (account-wide) federation; `client_id` selects an SP |
 | `400 invalid_grant` | `aud` mismatch between JWT and federation policy | Decode a real JWT; match `aud` exactly (Q B.5) |
+| Exchange works in one environment, `400` in another | `aud` differs per environment but only one policy exists | Create **one federation policy per environment**, each matching that env's exact `aud` (Q B.5) |
+| Access silently breaks for a user over time | mapped on `email` and the user's email changed upstream | Map on an **immutable** claim, or keep the SCIM-synced username in lockstep with the claim (Q B.6) |
 | Silent `401` after exchange | `subject_claim` doesn't resolve to a SCIM-synced user | Confirm the user exists in the account and the claim matches (Q B.6, D.11) |
 | Can't register the issuer for exchange | IdP has no JWKS / signs HS256 | Use the SSO fallback above |
 | 6th IdP won't federate | Account limit is 5 federated token issuers | Consolidate issuers or use SSO login for the extra IdP |
