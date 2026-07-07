@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-06-05
+  Synced from databricks-fieldkit on 2026-07-07
   Sources: auth/peruser-byoidp-federation.md (composes auth/token-federation.md, auth/obo-passthrough.md, governance/row-filters.md)
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
@@ -191,7 +191,8 @@ Thanks! :pray: #1 alone unblocks most of the design.
 | `400 invalid_grant` | `aud` mismatch between JWT and federation policy | Decode a real JWT; match `aud` exactly (Q B.5) |
 | Exchange works in one environment, `400` in another | `aud` differs per environment but only one policy exists | Create **one federation policy per environment**, each matching that env's exact `aud` (Q B.5) |
 | Access silently breaks for a user over time | mapped on `email` and the user's email changed upstream | Map on an **immutable** claim, or keep the SCIM-synced username in lockstep with the claim (Q B.6) |
-| Silent `401` after exchange | `subject_claim` doesn't resolve to a SCIM-synced user | Confirm the user exists in the account and the claim matches (Q B.6, D.11) |
+| Silent `401` after exchange (first attempt) | SCIM provisioning hasn't completed yet — federation *maps* an identity, it does not create one. The user must exist in the account before the first exchange | Complete SCIM sync for the user before attempting the exchange (Q D.11) |
+| Silent `401` after exchange (established user) | `subject_claim` doesn't resolve to a SCIM-synced user | Confirm the user exists in the account and the claim matches (Q B.6, D.11) |
 | Can't register the issuer for exchange | IdP has no JWKS / signs HS256 | Use the SSO fallback above |
 | 6th IdP won't federate | Account limit is 5 federated token issuers | Consolidate issuers or use SSO login for the extra IdP |
 | Token expires mid-request | Databricks copies the JWT `exp` verbatim | Always exchange a **fresh** IdP token |

@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-07
   Sources: ai/prompt-registry.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/mlflow3/genai/prompt-version-mgmt/prompt-registry/
@@ -29,6 +29,45 @@ The Prompt Registry treats a prompt as a UC object so that:
 
 ---
 
+## Prompt Formats — Text and Chat
+
+The registry supports two template formats. Choose based on how the prompt will be used:
+
+| Format | Structure | Use when |
+|---|---|---|
+| **Text** | Single string template with `{{variable}}` placeholders | System prompts, document summarization, single-turn completions |
+| **Chat** | List of role-based messages (`system`, `user`, `assistant`) with `{{variable}}` placeholders | Multi-turn conversation starters, few-shot examples, chat model fine-tuning |
+
+**Text format** (single template):
+
+```python
+template = "Summarize the following in {{num_sentences}} sentences.\n\nContent: {{content}}"
+
+mlflow.genai.register_prompt(name="main.prompts.summarize", template=template)
+```
+
+**Chat format** (role-based messages):
+
+```python
+template = [
+    {"role": "system", "content": "You are a concise summarizer. Respond in {{num_sentences}} sentences."},
+    {"role": "user", "content": "Summarize this: {{content}}"},
+]
+
+mlflow.genai.register_prompt(name="main.prompts.summarize-chat", template=template)
+```
+
+### Prompt name constraints
+
+Prompt names (the final segment of `catalog.schema.prompt_name`) must contain only:
+- Letters (a-z, A-Z)
+- Numbers (0-9)
+- Hyphens (`-`)
+- Underscores (`_`)
+- Dots (`.`)
+
+No spaces, slashes, or special characters. Dots within the name segment are allowed for sub-grouping (e.g., `appeals.triage-v2`), but do not add catalog/schema hierarchy — those are separate name segments.
+
 ## Mental Model
 
 ```
@@ -46,7 +85,7 @@ Author                       Unity Catalog                 Agent / App
 
 - **Storage**: each prompt is a UC function in `catalog.schema.prompt_name`
 - **Versioning**: immutable — every edit produces a new version, prior versions remain queryable
-- **Variables**: double-brace syntax (`{{variable_name}}`)
+- **Variables**: double-brace syntax (`{{variable_name}}`) — applies to both Text and Chat formats
 - **Experiment binding**: set the experiment tag `mlflow.promptRegistryLocation` to `catalog.schema` so the experiment knows where its prompts live
 
 ---
@@ -172,7 +211,8 @@ Grant `EXECUTE` on shared schemas to the agent service principals that need to l
 | Loading `latest` in production agents | Pin to an explicit version URI; promote deliberately |
 | Inline prompt strings scattered across services | Single registered prompt + load by name |
 | Editing a prompt template in place | Register a new version; immutability is the audit guarantee |
-| Single brace variable syntax `{var}` | Double brace `{{var}}` — required by the registry's templating |
+| Single brace variable syntax `{var}` | Double brace `{{var}}` — required by the registry's templating (both Text and Chat formats) |
+| Spaces or special characters in prompt names | Only letters, numbers, hyphens, underscores, and dots are allowed |
 | Granting `MANAGE` broadly | Reserve `MANAGE` to a small review group; broad `EXECUTE` is usually fine |
 | Storing prompts in app config without versioning | Move to the registry — version, audit, and lineage come for free |
 

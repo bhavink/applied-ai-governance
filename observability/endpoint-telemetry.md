@@ -1,5 +1,6 @@
 <!--
   Synced from databricks-fieldkit on 2026-04-27
+  Refreshed: 2026-07-07
   Sources: ai/endpoint-telemetry.md
   Public docs grounding:
     - https://learn.microsoft.com/en-us/azure/databricks/machine-learning/model-serving/custom-model-serving-uc-logs
@@ -8,7 +9,7 @@
 
 # Endpoint Telemetry — OpenTelemetry to UC Delta
 
-> **TL;DR**: Custom model serving endpoints can persist **OpenTelemetry logs, traces, and metrics** to Unity Catalog Delta tables. Standard Python `logging` is captured automatically; OTel spans and metrics require SDK instrumentation in the model code. Three tables are produced (`<prefix>_otel_logs`, `<prefix>_otel_spans`, `<prefix>_otel_metrics`). This is complementary to inference tables — inference tables capture request/response payloads; telemetry captures structured signals from inside the model code.
+> **TL;DR**: Model serving endpoints — both custom model endpoints and agent serving endpoints — can persist **OpenTelemetry logs, traces, and metrics** to Unity Catalog Delta tables. Standard Python `logging` is captured automatically; OTel spans and metrics require SDK instrumentation in the model code. Three tables are produced (`<prefix>_otel_logs`, `<prefix>_otel_spans`, `<prefix>_otel_metrics`). This is complementary to inference tables — inference tables capture request/response payloads; telemetry captures structured signals from inside the model code.
 
 ---
 
@@ -21,25 +22,25 @@
 | Emit business metrics from inside the model (e.g., per-class prediction counts) | Yes — OTel `MeterProvider` |
 | Compliance: persist all inference activity in UC | Yes — UC-governed Delta tables |
 | Capture request/response payloads themselves | Use **inference tables** instead (see [`../tool-governance/model-serving-governance.md`](../tool-governance/model-serving-governance.md)) |
-| Foundation Model API endpoints | Not applicable — telemetry attaches to custom model endpoints |
+| Agent serving endpoints | Yes — agent serving endpoints support inference table telemetry alongside custom model serving endpoints |
+| Foundation Model API endpoints | Not applicable — telemetry attaches to model serving endpoints, not Foundation Model API |
 
 ---
 
 ## Architecture
 
 ```
-Custom Model Serving Endpoint
-        │
-        │ Python logging (auto)
-        │ OTel SDK (custom: TracerProvider, MeterProvider)
-        ▼
-Zerobus Ingest
-        │
-        ▼
-Unity Catalog Delta Tables
-  ├── <prefix>_otel_logs      (auto: Python logging output)
-  ├── <prefix>_otel_spans     (custom: tracer spans)
-  └── <prefix>_otel_metrics   (custom: counters, histograms, gauges)
+Custom Model Serving Endpoint  ─┐
+                                │ Python logging (auto)
+Agent Serving Endpoint         ─┤ OTel SDK (custom: TracerProvider, MeterProvider)
+                                ▼
+                        Zerobus Ingest
+                                │
+                                ▼
+                    Unity Catalog Delta Tables
+                      ├── <prefix>_otel_logs      (auto: Python logging output)
+                      ├── <prefix>_otel_spans     (custom: tracer spans)
+                      └── <prefix>_otel_metrics   (custom: counters, histograms, gauges)
 ```
 
 The telemetry path is independent of MLflow Tracing. Use **MLflow Tracing** for application-plane span structure across the agent stack; use **endpoint telemetry** for OTel-standard signals from inside the model code that downstream OTel-aware tooling can consume.
@@ -70,7 +71,9 @@ The telemetry path is independent of MLflow Tracing. Use **MLflow Tracing** for 
 }
 ```
 
-UI path: Endpoint view → **Endpoint telemetry** → **Add** → select catalog/schema/prefix → **Update** (triggers a redeployment).
+UI path for new endpoints: Endpoint creation → **Advanced options** → **AI Gateway** → **Enable inference tables and telemetry** → select catalog/schema/prefix → **Create**.
+
+UI path for existing endpoints: Endpoint view → **AI Gateway** section → **Edit AI Gateway** → enable and configure telemetry → **Update** (triggers a redeployment).
 
 > **Updates trigger redeployment.** Schedule telemetry config changes in a maintenance window.
 

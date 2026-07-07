@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Unity AI Gateway — One Surface for AI Traffic Governance</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ── */
+:root {
+  --white:      #ffffff;
+  --ink:        #1a1a1a;
+  --red:        #cc3311;
+  --surface:    #f5f5f4;
+  --border:     #e2e2e0;
+  --muted:      #6b6b6b;
+  --green:      #1a6b3a;
+  --green-bg:   #e6f3ec;
+  --amber:      #9a5d00;
+  --amber-bg:   #fdf0d6;
+  --blue:       #1a3f8a;
+  --blue-bg:    #e8effa;
+
+  --font:  'Space Grotesk', system-ui, sans-serif;
+  --mono:  'DM Mono', 'Courier New', monospace;
+
+  --pad: clamp(2rem, 5vw, 4rem);
+  --pad-sm: clamp(1rem, 2.5vw, 2rem);
+
+  --sz-hero:  clamp(2.6rem, 5.5vw, 4.4rem);
+  --sz-h1:    clamp(1.7rem, 3.5vw, 2.8rem);
+  --sz-h2:    clamp(1.2rem, 2.2vw, 1.8rem);
+  --sz-h3:    clamp(1rem,   1.7vw, 1.35rem);
+  --sz-body:  clamp(0.82rem, 1.4vw, 1rem);
+  --sz-small: clamp(0.72rem, 1.1vw, 0.875rem);
+  --sz-label: clamp(0.6rem,  0.8vw, 0.7rem);
+  --sz-code:  clamp(0.65rem, 0.9vw, 0.78rem);
+}
+
+/* ── RESET ── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  height:100%; overflow:hidden;
+  font-family:var(--font);
+  background:var(--white);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  position:fixed; top:0; left:0; right:0; height:44px;
+  background:var(--ink);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 clamp(1rem,3vw,2rem);
+  z-index:200;
+}
+.topbar-brand {
+  display:flex; align-items:center; gap:10px;
+  font-size:var(--sz-small); font-weight:600; color:#fff; letter-spacing:-0.01em;
+}
+.topbar-brand .dot { width:8px; height:8px; border-radius:50%; background:var(--red); flex-shrink:0; }
+.topbar-counter {
+  font-size:var(--sz-label); color:rgba(255,255,255,0.55);
+  font-variant-numeric:tabular-nums; letter-spacing:0.08em; font-weight:500;
+}
+
+/* ── PROGRESS ── */
+.progress-track {
+  position:fixed; top:44px; left:0; right:0; height:2px;
+  background:rgba(26,26,26,0.12); z-index:200;
+}
+.progress-bar {
+  height:100%; background:var(--red);
+  transition:width 0.35s cubic-bezier(.4,0,.2,1);
+}
+
+/* ── SLIDES ── */
+.slide {
+  position:fixed;
+  top:46px; left:0; right:0; bottom:0;
+  opacity:0; pointer-events:none;
+  transform:translateX(56px);
+  transition:opacity 0.38s cubic-bezier(.4,0,.2,1),
+              transform 0.38s cubic-bezier(.4,0,.2,1);
+  overflow:hidden;
+  display:flex; flex-direction:column;
+  padding:var(--pad);
+}
+.slide.active {
+  opacity:1; pointer-events:auto; transform:translateX(0);
+}
+.slide.exit-left {
+  opacity:0; transform:translateX(-56px);
+}
+
+/* ── NAV DOTS ── */
+.nav-dots {
+  position:fixed; right:16px; top:50%; transform:translateY(-50%);
+  display:flex; flex-direction:column; gap:6px; z-index:150;
+}
+.nav-dot {
+  width:6px; height:6px; border-radius:50%;
+  background:var(--border); cursor:pointer;
+  transition:background 0.2s, transform 0.2s;
+  border:none;
+}
+.nav-dot.active { background:var(--red); transform:scale(1.4); }
+.nav-dot:hover { background:var(--ink); }
+
+/* ── NAV CONTROLS ── */
+.nav-controls {
+  position:fixed; bottom:18px; right:clamp(1rem,3vw,2rem);
+  display:flex; align-items:center; gap:8px; z-index:200;
+}
+.nav-btn {
+  width:38px; height:38px; border-radius:50%;
+  border:1.5px solid var(--border);
+  background:var(--white); color:var(--ink);
+  font-size:0.9rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.18s; padding:0; line-height:1;
+  font-family:var(--font);
+}
+.nav-btn:hover { background:var(--ink); color:#fff; border-color:var(--ink); }
+.nav-btn:disabled { opacity:0.22; cursor:default; pointer-events:none; }
+.help-btn {
+  width:28px; height:28px; border-radius:50%;
+  border:1.5px solid var(--border); background:var(--white);
+  color:var(--muted); font-size:0.65rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; margin-left:4px;
+  transition:all 0.18s; font-family:var(--font);
+}
+.help-btn:hover { border-color:var(--ink); color:var(--ink); }
+
+/* ── HELP OVERLAY ── */
+.help-overlay {
+  position:fixed; inset:0; background:rgba(26,26,26,0.82);
+  z-index:400; display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity 0.25s;
+}
+.help-overlay.show { opacity:1; pointer-events:auto; }
+.help-card {
+  background:var(--white); border-radius:6px;
+  padding:clamp(1.5rem,3vw,2.5rem); max-width:360px; width:90%;
+}
+.help-card h3 { font-size:1rem; font-weight:700; margin-bottom:14px; }
+.help-card table { width:100%; font-size:0.8rem; border-collapse:collapse; }
+.help-card td { padding:5px 8px; border-bottom:1px solid var(--border); }
+.help-card td:first-child { font-family:var(--mono); color:var(--red); font-weight:500; white-space:nowrap; }
+.help-card .dismiss { margin-top:14px; font-size:0.68rem; color:var(--muted); text-align:center; }
+
+/* ── REVEAL ANIMATIONS ── */
+.reveal {
+  opacity:0; transform:translateY(16px);
+  transition:opacity 0.45s ease, transform 0.45s ease;
+}
+.slide.active .reveal { opacity:1; transform:translateY(0); }
+.slide.active .r1  { transition-delay:0.05s; }
+.slide.active .r2  { transition-delay:0.15s; }
+.slide.active .r3  { transition-delay:0.25s; }
+.slide.active .r4  { transition-delay:0.35s; }
+.slide.active .r5  { transition-delay:0.45s; }
+.slide.active .r6  { transition-delay:0.55s; }
+.slide.active .r7  { transition-delay:0.65s; }
+.slide.active .r8  { transition-delay:0.75s; }
+.slide.active .r9  { transition-delay:0.85s; }
+.slide.active .r10 { transition-delay:0.95s; }
+
+/* ── TYPOGRAPHY ── */
+.label {
+  font-size:var(--sz-label); text-transform:uppercase; letter-spacing:0.14em;
+  font-weight:700; color:var(--red); margin-bottom:8px;
+  display:flex; align-items:center; gap:8px;
+}
+.label::before {
+  content:''; display:inline-block; width:20px; height:1.5px; background:var(--red);
+}
+h1 { font-size:var(--sz-hero); font-weight:700; letter-spacing:-0.035em; line-height:1.08; text-wrap:balance; }
+h2 { font-size:var(--sz-h1); font-weight:700; letter-spacing:-0.03em; line-height:1.12; text-wrap:balance; }
+h3 { font-size:var(--sz-h2); font-weight:600; letter-spacing:-0.02em; line-height:1.2; text-wrap:balance; }
+h4 { font-size:var(--sz-h3); font-weight:600; letter-spacing:-0.01em; }
+p, li { font-size:var(--sz-body); line-height:1.65; }
+ul { list-style:none; }
+li { padding:3px 0; padding-left:1em; position:relative; }
+li::before { content:'—'; position:absolute; left:0; color:var(--red); font-size:0.9em; }
+
+/* ── LAYOUT HELPERS ── */
+.flex-1 { flex:1 1 0; min-height:0; }
+.mt-1 { margin-top:6px; }
+.mt-2 { margin-top:14px; }
+.mt-3 { margin-top:22px; }
+.mt-4 { margin-top:32px; }
+.mb-1 { margin-bottom:8px; }
+.mb-2 { margin-bottom:16px; }
+.two-col   { display:grid; grid-template-columns:1fr 1fr;     gap:clamp(1rem,2.5vw,2rem); flex:1; min-height:0; }
+.three-col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:clamp(0.8rem,2vw,1.5rem); flex:1; min-height:0; }
+.six-col   { display:grid; grid-template-columns:repeat(6,1fr); gap:clamp(0.5rem,1.2vw,1rem); flex:1; min-height:0; }
+
+/* ── CARDS ── */
+.card {
+  background:var(--surface); border:1px solid var(--border); border-radius:4px;
+  padding:clamp(0.8rem,1.8vw,1.4rem); overflow:auto;
+}
+.card h4 { font-size:var(--sz-h3); font-weight:600; margin-bottom:6px; }
+.card p, .card li { font-size:var(--sz-small); }
+.card-red   { border-left:3px solid var(--red); }
+.card-green { border-left:3px solid var(--green); background:var(--green-bg); }
+.card-amber { border-left:3px solid var(--amber); background:var(--amber-bg); }
+.card-blue  { border-left:3px solid var(--blue);  background:var(--blue-bg); }
+.card-ink   { border-left:3px solid var(--ink); }
+.card-dark  { background:var(--ink); color:#fff; border-color:var(--ink); }
+.card-dark h4 { color:#fff; }
+.card-dark p, .card-dark li { color:rgba(255,255,255,0.75); }
+.card-dark li::before { color:var(--red); }
+
+/* ── BADGE ── */
+.badge {
+  display:inline-block; font-size:var(--sz-label); font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase; padding:2px 7px; border-radius:2px;
+}
+.badge-red   { background:rgba(204,51,17,0.1); color:var(--red); }
+.badge-green { background:var(--green-bg); color:var(--green); }
+.badge-ink   { background:var(--ink); color:#fff; }
+.badge-muted { background:var(--surface); color:var(--muted); }
+.badge-amber { background:var(--amber-bg); color:var(--amber); }
+
+/* ── TABLE ── */
+table { width:100%; border-collapse:collapse; font-size:var(--sz-small); }
+th {
+  text-align:left; font-weight:600; font-size:var(--sz-label);
+  letter-spacing:0.09em; text-transform:uppercase; color:var(--muted);
+  padding:8px 10px; border-bottom:2px solid var(--border);
+}
+td { padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+tr:last-child td { border-bottom:none; }
+.tbl-container { overflow-x:auto; flex:1; min-height:0; }
+.check { color:var(--green); font-weight:700; }
+.dash  { color:var(--muted); }
+
+/* ── CODE ── */
+pre, code { font-family:var(--mono); font-size:var(--sz-code); }
+pre {
+  background:var(--surface); color:var(--ink); line-height:1.6;
+  border:1px solid var(--border); border-left:3px solid var(--red);
+  border-radius:3px; padding:clamp(0.6rem,1.2vw,1rem);
+  overflow-x:auto; flex-shrink:0;
+}
+code { background:var(--surface); padding:0.1em 0.35em; border-radius:2px; }
+.kw  { color:var(--red); }
+.str { color:var(--green); }
+.cm  { color:var(--muted); font-style:italic; }
+
+/* ── SLIDE: TITLE ── */
+.s-title { justify-content:center; align-items:flex-start; gap:0; }
+.s-title .hero-block { max-width:860px; }
+.s-title h1 { font-size:var(--sz-hero); margin-bottom:clamp(0.8rem,2vw,1.4rem); }
+.s-title .sub { font-size:var(--sz-h3); color:var(--muted); font-weight:400; max-width:640px; line-height:1.55; }
+.red-rule { width:64px; height:3px; background:var(--red); margin-top:clamp(1rem,2.5vw,2rem); }
+.acme-tag {
+  display:inline-flex; align-items:center; gap:8px;
+  background:var(--ink); color:#fff; padding:6px 14px; border-radius:2px;
+  font-size:var(--sz-small); font-weight:500; margin-top:clamp(1rem,2.5vw,1.8rem);
+  width:fit-content;
+}
+.acme-tag .at-label { color:rgba(255,255,255,0.5); font-size:var(--sz-label); letter-spacing:0.1em; text-transform:uppercase; }
+
+/* ── CANVAS ARCH SLIDE ── */
+.arch-canvas-wrap {
+  flex:1; min-height:0; position:relative;
+}
+#archCanvas { width:100%; height:100%; display:block; }
+
+/* ── CHAOS GRID ── */
+.chaos-grid {
+  display:grid; grid-template-columns:1fr 1fr 1fr;
+  gap:clamp(0.6rem,1.5vw,1.2rem); flex:1; min-height:0; align-content:start;
+}
+.chaos-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:4px;
+  padding:clamp(0.7rem,1.5vw,1.2rem);
+}
+.chaos-card .cc-team { font-size:var(--sz-label); text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); margin-bottom:6px; font-weight:600; }
+.chaos-card .cc-product { font-size:var(--sz-h3); font-weight:700; margin-bottom:8px; }
+.chaos-card ul li { font-size:var(--sz-small); }
+.chaos-card.problem { border-left:3px solid var(--red); }
+
+/* ── WHAT IS SECTION ── */
+.what-grid {
+  display:grid; grid-template-columns:1fr 2fr;
+  gap:clamp(1rem,3vw,2.5rem); flex:1; min-height:0; align-items:start;
+}
+.pillar-list { display:flex; flex-direction:column; gap:clamp(0.5rem,1vw,0.8rem); }
+.pillar-item {
+  display:flex; align-items:center; gap:12px;
+  padding:clamp(0.6rem,1.2vw,0.9rem);
+  background:var(--surface); border:1px solid var(--border); border-radius:4px;
+}
+.pillar-num {
+  width:28px; height:28px; border-radius:50%; background:var(--red); color:#fff;
+  font-size:var(--sz-label); font-weight:700; letter-spacing:0.05em;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.pillar-text { font-size:var(--sz-small); font-weight:500; }
+.pillar-text small { display:block; color:var(--muted); font-weight:400; font-size:var(--sz-label); margin-top:2px; }
+.distinction-box {
+  background:var(--ink); color:#fff; border-radius:4px;
+  padding:clamp(1rem,2vw,1.6rem); display:flex; flex-direction:column; gap:clamp(0.6rem,1.2vw,1rem);
+}
+.distinction-box .db-title { font-size:var(--sz-small); font-weight:600; color:rgba(255,255,255,0.55); text-transform:uppercase; letter-spacing:0.1em; }
+.distinction-box .db-point { font-size:var(--sz-h3); font-weight:500; line-height:1.4; }
+.distinction-box .db-point span { color:var(--red); }
+
+/* ── RATE LIMIT VISUAL ── */
+.rate-row {
+  display:flex; align-items:center; gap:clamp(0.5rem,1.2vw,1rem);
+  padding:clamp(0.6rem,1.2vw,0.9rem);
+  background:var(--surface); border:1px solid var(--border); border-radius:4px;
+}
+.rate-product { font-size:var(--sz-h3); font-weight:700; min-width:clamp(7rem,14vw,11rem); }
+.rate-bars { flex:1; display:flex; flex-direction:column; gap:4px; }
+.rate-bar-row { display:flex; align-items:center; gap:8px; }
+.rate-bar-label { font-size:var(--sz-label); text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); font-weight:600; min-width:5rem; }
+.rate-bar-track { flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
+.rate-bar-fill { height:100%; border-radius:3px; background:var(--red); transform:scaleX(0); transform-origin:left; transition:transform 0.8s cubic-bezier(.4,0,.2,1); }
+.slide.active .rate-bar-fill { transform:scaleX(1); }
+.rate-bar-val { font-size:var(--sz-label); font-weight:700; font-variant-numeric:tabular-nums; min-width:4rem; text-align:right; }
+
+/* ── SPEND CAP VISUAL ── */
+.spend-visual {
+  display:flex; flex-direction:column; gap:clamp(0.6rem,1.2vw,0.9rem); flex:1; min-height:0;
+}
+.spend-row {
+  display:flex; align-items:center; gap:clamp(0.6rem,1.5vw,1.2rem);
+  padding:clamp(0.6rem,1.2vw,0.9rem);
+  background:var(--surface); border:1px solid var(--border); border-radius:4px;
+}
+.spend-label { font-size:var(--sz-h3); font-weight:700; min-width:clamp(8rem,16vw,13rem); }
+.spend-cap-track { flex:1; height:10px; background:var(--border); border-radius:5px; overflow:hidden; position:relative; }
+.spend-cap-fill { height:100%; border-radius:5px; transition:width 1.1s cubic-bezier(.4,0,.2,1); }
+.spend-cap-fill.ok      { background:var(--green); width:0; }
+.spend-cap-fill.warning { background:var(--amber); width:0; }
+.spend-cap-fill.blocked { background:var(--red);   width:0; }
+.slide.active .spend-cap-fill.ok      { width:42%; }
+.slide.active .spend-cap-fill.warning { width:78%; }
+.slide.active .spend-cap-fill.blocked { width:100%; }
+.spend-amount { font-size:var(--sz-small); font-weight:700; font-variant-numeric:tabular-nums; min-width:5rem; text-align:right; color:var(--muted); }
+.spend-status { display:inline-block; padding:2px 8px; border-radius:2px; font-size:var(--sz-label); font-weight:700; letter-spacing:0.06em; text-transform:uppercase; }
+.spend-status.ok      { background:var(--green-bg); color:var(--green); }
+.spend-status.warning { background:var(--amber-bg); color:var(--amber); }
+.spend-status.blocked { background:rgba(204,51,17,0.1); color:var(--red); }
+
+/* ── MATRIX ── */
+.matrix-wrap { flex:1; min-height:0; overflow-x:auto; }
+.matrix-wrap table th { position:sticky; top:0; background:var(--white); z-index:1; }
+.cap-check { color:var(--green); font-weight:700; font-size:1.1em; }
+.cap-dash  { color:var(--border); }
+
+/* ── BEFORE/AFTER ── */
+.ba-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:clamp(1rem,3vw,2rem); flex:1; min-height:0; align-items:start;
+}
+.ba-col h3 { font-size:var(--sz-h3); font-weight:700; margin-bottom:clamp(0.6rem,1.2vw,1rem); }
+.ba-col.before h3 { color:var(--muted); }
+.ba-col.after  h3 { color:var(--green); }
+.ba-metric {
+  display:flex; align-items:baseline; gap:8px;
+  padding:clamp(0.5rem,1vw,0.8rem) 0;
+  border-bottom:1px solid var(--border);
+}
+.ba-metric:last-child { border-bottom:none; }
+.ba-num { font-size:clamp(1.4rem,3vw,2.2rem); font-weight:700; font-variant-numeric:tabular-nums; color:var(--red); line-height:1; }
+.ba-desc { font-size:var(--sz-small); color:var(--muted); }
+
+/* ── MCP GOV ── */
+.mcp-path {
+  display:flex; align-items:center; gap:0; flex-wrap:wrap;
+  margin:clamp(0.6rem,1.2vw,1rem) 0;
+}
+.mcp-node {
+  padding:7px 14px; font-size:var(--sz-small); font-weight:500; border-radius:3px;
+  background:var(--surface); border:1px solid var(--border); text-align:center;
+  white-space:nowrap;
+}
+.mcp-node.gateway { background:rgba(204,51,17,0.08); border-color:var(--red); color:var(--red); font-weight:700; }
+.mcp-node.uc      { background:var(--ink); color:#fff; }
+.mcp-arrow        { font-size:var(--sz-body); color:var(--red); padding:0 6px; flex-shrink:0; }
+
+/* ── CALLIGRAM / CLOSING ── */
+.s-close {
+  background:var(--ink);
+  align-items:center; justify-content:center;
+  text-align:center; color:#fff; gap:0;
+}
+.calligram {
+  position:relative; display:flex; flex-direction:column; align-items:center;
+  gap:0; user-select:none; padding:clamp(1rem,2.5vw,2rem);
+}
+.calli-word {
+  font-size:clamp(3rem, 9vw, 7.5rem); font-weight:700; letter-spacing:-0.05em;
+  line-height:0.88; color:#fff; position:relative;
+  opacity:0; transform:translateY(30px);
+  transition:opacity 0.6s ease, transform 0.6s ease;
+}
+.slide.active .calli-word         { opacity:1; transform:translateY(0); }
+.slide.active .calli-word:nth-child(1) { transition-delay:0.1s; }
+.slide.active .calli-word:nth-child(2) { transition-delay:0.35s; }
+.slide.active .calli-word:nth-child(3) { transition-delay:0.6s; }
+.calli-word.accent { color:var(--red); }
+.calli-sub {
+  font-size:var(--sz-small); font-weight:400; color:rgba(255,255,255,0.45);
+  letter-spacing:0.18em; text-transform:uppercase; margin-top:clamp(0.8rem,2vw,1.4rem);
+  opacity:0; transition:opacity 0.6s ease 1.1s;
+}
+.slide.active .calli-sub { opacity:1; }
+.calli-rule { width:80px; height:1px; background:var(--red); margin:clamp(0.8rem,1.5vw,1.2rem) auto; opacity:0; transition:opacity 0.5s ease 0.85s; }
+.slide.active .calli-rule { opacity:1; }
+.calli-detail {
+  font-size:clamp(0.65rem,0.9vw,0.78rem); color:rgba(255,255,255,0.28);
+  letter-spacing:0.22em; text-transform:uppercase; margin-top:clamp(1.5rem,3vw,2.5rem);
+  opacity:0; transition:opacity 0.5s ease 1.4s;
+}
+.slide.active .calli-detail { opacity:1; }
+
+/* ── RESPONSIVE ── */
+@media(max-height:700px) {
+  :root { --pad: 1.4rem; --sz-hero: clamp(2rem,5vw,3.2rem); }
+  .slide { padding:1.2rem 1.5rem; }
+  .topbar { height:38px; }
+  .slide { top:40px; }
+  .progress-track { top:40px; }
+}
+@media(max-height:600px) {
+  :root { --pad:1rem; }
+  .slide { padding:0.9rem 1.2rem; }
+}
+@media(max-height:500px) {
+  h1 { font-size:1.5rem; }
+  h2 { font-size:1.2rem; }
+  :root { --sz-body:0.78rem; }
+}
+@media(max-width:900px) {
+  .two-col, .three-col, .six-col { grid-template-columns:1fr; }
+  .chaos-grid { grid-template-columns:1fr 1fr; }
+  .what-grid  { grid-template-columns:1fr; }
+  .ba-grid    { grid-template-columns:1fr; }
+}
+@media(max-width:600px) {
+  .chaos-grid { grid-template-columns:1fr; }
+  .nav-dots   { display:none; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .reveal, .rate-bar-fill, .spend-cap-fill, .calli-word, .calli-sub, .calli-rule, .calli-detail {
+    transition:none!important; animation:none!important;
+    opacity:1!important; transform:none!important; width:auto!important;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="dot"></div>
+    Unity AI Gateway
+  </div>
+  <div class="topbar-counter" id="counter">01 / 15</div>
+</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+
+<!-- NAV DOTS -->
+<div class="nav-dots" id="navDots"></div>
+
+<!-- NAV CONTROLS -->
+<div class="nav-controls">
+  <button class="nav-btn" id="homeBtn" title="First slide" onclick="goTo(0)">&#8962;</button>
+  <button class="nav-btn" id="prevBtn" title="Previous" onclick="goTo(current-1)">&#8592;</button>
+  <button class="nav-btn" id="nextBtn" title="Next"     onclick="goTo(current+1)">&#8594;</button>
+  <button class="help-btn" id="helpBtn" title="Keyboard shortcuts">?</button>
+</div>
+
+<!-- HELP OVERLAY -->
+<div class="help-overlay" id="helpOverlay">
+  <div class="help-card">
+    <h3>Navigation</h3>
+    <table>
+      <tr><td>&#8594; / Space</td><td>Next slide</td></tr>
+      <tr><td>&#8592;</td><td>Previous slide</td></tr>
+      <tr><td>Home</td><td>First slide</td></tr>
+      <tr><td>End</td><td>Last slide</td></tr>
+      <tr><td>Swipe</td><td>Touch navigation</td></tr>
+    </table>
+    <div class="dismiss">Click anywhere or press Esc to close</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 01 — TITLE
+════════════════════════════════════════════════════════════ -->
+<div class="slide s-title active" data-slide="1">
+  <div class="hero-block">
+    <div class="label reveal r1">Unity AI Gateway</div>
+    <h1 class="reveal r2">One surface for<br><span style="color:var(--red)">AI traffic governance.</span></h1>
+    <p class="sub reveal r3">Three AI products. Three teams. Completely different governance needs.<br>One control point.</p>
+    <div class="red-rule reveal r4"></div>
+    <div class="acme-tag reveal r5">
+      <span class="at-label">Story</span>
+      Acme Financial &mdash; 3 AI products in production
+    </div>
+    <div class="mt-3 reveal r6" style="display:flex;gap:clamp(0.6rem,1.5vw,1rem);flex-wrap:wrap;">
+      <div class="badge badge-ink">Customer Genie</div>
+      <div class="badge badge-ink">Analyst Assistant</div>
+      <div class="badge badge-ink">Compliance Agent</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 02 — THE PROBLEM WITHOUT A GATEWAY
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+  <div class="label reveal r1">The problem</div>
+  <h2 class="reveal r2">Three teams. Three wiring jobs. Zero shared visibility.</h2>
+  <p class="reveal r3" style="color:var(--muted);max-width:72ch;margin-top:6px">Before Unity AI Gateway, each Acme team built their own path to their chosen model. It works — until something goes wrong.</p>
+  <div class="chaos-grid mt-3 reveal r4">
+    <div class="chaos-card problem">
+      <div class="cc-team">Retail Banking</div>
+      <div class="cc-product">Customer Genie</div>
+      <ul>
+        <li>Direct call to Databricks FMAPI</li>
+        <li>No rate limit per user</li>
+        <li>No PII redaction before model</li>
+        <li>No visibility on cost per query</li>
+      </ul>
+    </div>
+    <div class="chaos-card problem">
+      <div class="cc-team">Research</div>
+      <div class="cc-product">Analyst Assistant</div>
+      <ul>
+        <li>Calls premium model directly via API key in env var</li>
+        <li>No per-analyst spend tracking</li>
+        <li>Key rotation breaks prod silently</li>
+        <li>Tool calls ungoverned</li>
+      </ul>
+    </div>
+    <div class="chaos-card problem">
+      <div class="cc-team">Compliance</div>
+      <div class="cc-product">Compliance Agent</div>
+      <ul>
+        <li>Overnight batch — no burst controls</li>
+        <li>No spend cap: $0 to $18k in one run</li>
+        <li>Output format not enforced</li>
+        <li>No audit trail when prompt changed</li>
+      </ul>
+    </div>
+  </div>
+  <div class="reveal r5 mt-2" style="display:flex;gap:clamp(0.4rem,1vw,0.8rem);flex-wrap:wrap;flex-shrink:0;">
+    <div class="badge badge-red">No shared audit log</div>
+    <div class="badge badge-red">No unified spend view</div>
+    <div class="badge badge-red">Inconsistent guardrails</div>
+    <div class="badge badge-red">Access control varies per team</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 03 — WHAT UNITY AI GATEWAY IS
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="label reveal r1">What it is</div>
+  <h2 class="reveal r2">Unity AI Gateway</h2>
+  <div class="what-grid mt-3">
+    <div class="pillar-list reveal r3">
+      <div class="pillar-item">
+        <div class="pillar-num">1</div>
+        <div class="pillar-text">
+          AI Assets (UC)
+          <small>Models, functions, connections, MCP Services as UC securables</small>
+        </div>
+      </div>
+      <div class="pillar-item">
+        <div class="pillar-num">2</div>
+        <div class="pillar-text">
+          AI Traffic Control
+          <small>Rate limits, spend caps, usage tracking, inference logging, fallbacks</small>
+        </div>
+      </div>
+      <div class="pillar-item">
+        <div class="pillar-num">3</div>
+        <div class="pillar-text">
+          AI Service Behavior
+          <small>Service policies (ABAC) governing content, tool calls, and approvals</small>
+        </div>
+      </div>
+    </div>
+    <div class="distinction-box reveal r4">
+      <div class="db-title">Three things to understand</div>
+      <div class="db-point">
+        It is a <span>traffic layer</span>, not a model layer.<br>
+        <small style="color:rgba(255,255,255,0.5);font-size:var(--sz-small)">The model doesn't change. What changes is what happens before and after every call.</small>
+      </div>
+      <div style="height:1px;background:rgba(255,255,255,0.1);"></div>
+      <div class="db-point">
+        It is <span>UC-governed</span>.<br>
+        <small style="color:rgba(255,255,255,0.5);font-size:var(--sz-small)">Endpoints, MCP Services, prompts, and agent services are Unity Catalog securables. Same permissions model you use for tables and functions.</small>
+      </div>
+      <div style="height:1px;background:rgba(255,255,255,0.1);"></div>
+      <div class="db-point">
+        Guardrails are a <span>subset</span> of service policies.<br>
+        <small style="color:rgba(255,255,255,0.5);font-size:var(--sz-small)">Service policies can also govern tool calls and require human approval — guardrails alone cannot.</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 04 — ARCHITECTURE (ANIMATED CANVAS)
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+  <div class="label reveal r1">Architecture</div>
+  <h2 class="reveal r2">Three products. One gateway.</h2>
+  <div class="arch-canvas-wrap reveal r3">
+    <canvas id="archCanvas"></canvas>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 05 — CAPABILITY 1: ROUTING
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label reveal r1">Capability 1 of 8</div>
+  <h2 class="reveal r2">Serving Endpoint Routing</h2>
+  <p class="reveal r3" style="color:var(--muted);max-width:72ch">Route different products to different foundation models through a single gateway surface. Change models without touching application code.</p>
+  <div class="two-col mt-3">
+    <div class="reveal r4" style="display:flex;flex-direction:column;gap:clamp(0.5rem,1vw,0.8rem)">
+      <div class="card card-red">
+        <h4>Customer Genie</h4>
+        <p style="color:var(--muted)">Routes to <strong style="color:var(--ink)">databricks-meta-llama-3-3-70b-instruct</strong></p>
+        <p class="mt-1">Cost-optimized. Retail Q&amp;A workload. High query volume, low complexity.</p>
+      </div>
+      <div class="card card-ink">
+        <h4>Analyst Assistant</h4>
+        <p style="color:var(--muted)">Routes to <strong style="color:var(--ink)">databricks-claude-sonnet-4</strong></p>
+        <p class="mt-1">Premium reasoning. Equity research. Lower volume, higher value per call.</p>
+      </div>
+      <div class="card card-ink">
+        <h4>Compliance Agent</h4>
+        <p style="color:var(--muted)">Routes to <strong style="color:var(--ink)">databricks-gpt-4o</strong></p>
+        <p class="mt-1">Batch overnight. Structured output required. Fallback enabled on 429/5XX.</p>
+      </div>
+    </div>
+    <div class="reveal r5" style="display:flex;flex-direction:column;gap:clamp(0.5rem,1vw,0.8rem)">
+      <div class="card">
+        <h4 style="margin-bottom:10px">What the gateway controls</h4>
+        <ul>
+          <li>Traffic split across multiple backend entities per endpoint</li>
+          <li>Fallback to secondary provider on 429 or 5XX errors</li>
+          <li>Provider switching without application code changes</li>
+          <li>Native API support: OpenAI, Anthropic Messages, Gemini</li>
+        </ul>
+      </div>
+      <div class="card card-amber">
+        <h4>Acme impact</h4>
+        <p>Finance moved Analyst Assistant from GPT-4o to Claude Sonnet 4 by changing one gateway config. Zero code changes in the application. Zero downtime. Fallback covers model outages automatically.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 06 — CAPABILITY 2: RATE LIMITS
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label reveal r1">Capability 2 of 8</div>
+  <h2 class="reveal r2">Rate Limits</h2>
+  <p class="reveal r3" style="color:var(--muted);max-width:72ch">Per-user, per-group, and per-endpoint QPM and TPM limits. Precedence: endpoint ceiling &gt; named SP override &gt; user-specific &gt; group &gt; default.</p>
+  <div style="display:flex;flex-direction:column;gap:clamp(0.5rem,1vw,0.8rem);flex:1;min-height:0;margin-top:clamp(0.8rem,1.8vw,1.4rem)">
+    <div class="rate-row reveal r4">
+      <div class="rate-product">Customer Genie</div>
+      <div class="rate-bars">
+        <div class="rate-bar-row">
+          <div class="rate-bar-label">Per User</div>
+          <div class="rate-bar-track"><div class="rate-bar-fill" style="width:33%"></div></div>
+          <div class="rate-bar-val">20 RPM</div>
+        </div>
+        <div class="rate-bar-row">
+          <div class="rate-bar-label">Endpoint</div>
+          <div class="rate-bar-track"><div class="rate-bar-fill" style="width:100%"></div></div>
+          <div class="rate-bar-val">2,000 RPM</div>
+        </div>
+      </div>
+    </div>
+    <div class="rate-row reveal r5">
+      <div class="rate-product">Analyst Assistant</div>
+      <div class="rate-bars">
+        <div class="rate-bar-row">
+          <div class="rate-bar-label">Per Analyst</div>
+          <div class="rate-bar-track"><div class="rate-bar-fill" style="width:60%"></div></div>
+          <div class="rate-bar-val">60 RPM</div>
+        </div>
+        <div class="rate-bar-row">
+          <div class="rate-bar-label">Senior (override)</div>
+          <div class="rate-bar-track"><div class="rate-bar-fill" style="width:80%"></div></div>
+          <div class="rate-bar-val">80 RPM</div>
+        </div>
+      </div>
+    </div>
+    <div class="rate-row reveal r6">
+      <div class="rate-product">Compliance Agent</div>
+      <div class="rate-bars">
+        <div class="rate-bar-row">
+          <div class="rate-bar-label">SP (normal)</div>
+          <div class="rate-bar-track"><div class="rate-bar-fill" style="width:25%"></div></div>
+          <div class="rate-bar-val">50 RPM</div>
+        </div>
+        <div class="rate-bar-row">
+          <div class="rate-bar-label">SP (nightly burst)</div>
+          <div class="rate-bar-track"><div class="rate-bar-fill" style="width:100%;background:var(--amber)"></div></div>
+          <div class="rate-bar-val">200 RPM</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="reveal r7 mt-2" style="display:flex;gap:clamp(0.3rem,0.8vw,0.6rem);flex-wrap:wrap;flex-shrink:0;">
+    <div class="badge badge-muted">Max 20 limits per endpoint</div>
+    <div class="badge badge-muted">Max 5 group-specific limits</div>
+    <div class="badge badge-muted">Propagates within 60s</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 07 — CAPABILITY 3: GUARDRAILS
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label reveal r1">Capability 3 of 8</div>
+  <h2 class="reveal r2">Guardrails</h2>
+  <p class="reveal r3" style="color:var(--muted);max-width:72ch">LLM-based evaluation on every request and response. Six templates; custom prompts up to 5,000 chars. Each guardrail runs against a configurable evaluator endpoint.</p>
+  <div class="two-col mt-2">
+    <div class="reveal r4" style="display:flex;flex-direction:column;gap:clamp(0.4rem,0.9vw,0.7rem)">
+      <div class="label" style="font-size:var(--sz-label)">Six templates</div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span class="badge badge-red" style="min-width:4.5rem;text-align:center">Block</span><span style="font-size:var(--sz-small);font-weight:500">PII Blocking</span><span style="font-size:var(--sz-label);color:var(--muted);margin-left:auto">Input / Output</span></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span class="badge badge-amber" style="min-width:4.5rem;text-align:center">Sanitize</span><span style="font-size:var(--sz-small);font-weight:500">PII Redaction</span><span style="font-size:var(--sz-label);color:var(--muted);margin-left:auto">Input / Output</span></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span class="badge badge-red" style="min-width:4.5rem;text-align:center">Block</span><span style="font-size:var(--sz-small);font-weight:500">Unsafe Content</span><span style="font-size:var(--sz-label);color:var(--muted);margin-left:auto">Input / Output</span></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span class="badge badge-red" style="min-width:4.5rem;text-align:center">Block</span><span style="font-size:var(--sz-small);font-weight:500">Jailbreak</span><span style="font-size:var(--sz-label);color:var(--muted);margin-left:auto">Input only</span></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span class="badge badge-red" style="min-width:4.5rem;text-align:center">Block</span><span style="font-size:var(--sz-small);font-weight:500">Hallucination</span><span style="font-size:var(--sz-label);color:var(--muted);margin-left:auto">Output only</span></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0"><span class="badge badge-ink" style="min-width:4.5rem;text-align:center">Custom</span><span style="font-size:var(--sz-small);font-weight:500">User-defined (5,000 char prompt)</span><span style="font-size:var(--sz-label);color:var(--muted);margin-left:auto">Input / Output</span></div>
+      </div>
+    </div>
+    <div class="reveal r5" style="display:flex;flex-direction:column;gap:clamp(0.4rem,0.9vw,0.7rem)">
+      <div class="label" style="font-size:var(--sz-label)">Acme Financial</div>
+      <div class="card card-red">
+        <h4>Customer Genie</h4>
+        <ul>
+          <li><strong>Custom block</strong> — blocks any mention of competitor products in input</li>
+          <li><strong>PII Redaction</strong> — account numbers replaced with <code>[ACCOUNT]</code> in model output before display</li>
+          <li>Evaluator: <code>databricks-gpt-5-nano</code></li>
+        </ul>
+      </div>
+      <div class="card card-ink">
+        <h4>Compliance Agent</h4>
+        <ul>
+          <li><strong>Custom block (output)</strong> — enforces structured JSON response shape; flags free-form text</li>
+          <li><strong>Hallucination block</strong> — output guardrail catches invented regulation citations</li>
+          <li>Mode: <code>ENFORCE</code> on prod, <code>LOG</code> during rollout</li>
+        </ul>
+      </div>
+      <div class="card">
+        <p style="font-size:var(--sz-small)">Fail-closed: evaluator timeout or parse error <strong>blocks the request</strong>. Use <code>mode=LOG</code> for dry-run testing on live traffic.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 08 — CAPABILITY 4: SERVICE POLICIES (ABAC)
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label reveal r1">Capability 4 of 8</div>
+  <h2 class="reveal r2">Service Policies (ABAC)</h2>
+  <p class="reveal r3" style="color:var(--muted);max-width:72ch">A governance layer distinct from guardrails. Guardrails govern <em>content</em>. Service policies govern <em>access</em> — who can call what, under what conditions, with what approval.</p>
+  <div class="two-col mt-2">
+    <div class="reveal r4" style="display:flex;flex-direction:column;gap:clamp(0.4rem,0.9vw,0.7rem)">
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Aspect</th><th>Guardrails</th><th>Service Policies</th></tr></thead>
+          <tbody>
+            <tr><td>Scope</td><td>Content filtering</td><td>Content + tool calls + identity</td></tr>
+            <tr><td>Actions</td><td>Block or sanitize</td><td>Allow, deny, <strong>require approval</strong></td></tr>
+            <tr><td>Tool calls</td><td class="dash">—</td><td class="check">&#10003; Can block out-of-policy calls</td></tr>
+            <tr><td>Human-in-loop</td><td class="dash">—</td><td class="check">&#10003; Supported</td></tr>
+            <tr><td>Attaches to</td><td>Gateway endpoints</td><td>MCP Services &amp; Model Services</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card" style="margin-top:4px">
+        <p style="font-size:var(--sz-small)"><strong>Relationship:</strong> Guardrails are built-in service policies. Custom service policies extend beyond them — governing tool invocation and approval workflows that guardrails cannot reach.</p>
+      </div>
+    </div>
+    <div class="reveal r5" style="display:flex;flex-direction:column;gap:clamp(0.4rem,0.9vw,0.7rem)">
+      <div class="label" style="font-size:var(--sz-label)">Acme Financial</div>
+      <div class="card card-red">
+        <h4>Analyst Assistant</h4>
+        <ul>
+          <li>Only <strong>Senior Analyst</strong> group can invoke the equity valuation tool</li>
+          <li>Junior analysts: read-only tool access via service policy deny on write operations</li>
+          <li>Policy attached to the MCP Service securable, not the application</li>
+        </ul>
+      </div>
+      <div class="card card-ink">
+        <h4>Compliance Agent</h4>
+        <ul>
+          <li>Any report that changes a flag status requires <strong>supervisor approval</strong> before proceeding</li>
+          <li>Human-in-the-loop gate: agent pauses, approval record written to audit log, then continues</li>
+          <li>Approval enforced at the gateway layer — cannot be bypassed by application code</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 09 — CAPABILITY 5: HARD SPEND CAPS
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label reveal r1">Capability 5 of 8</div>
+  <h2 class="reveal r2">Hard Spend Caps</h2>
+  <p class="reveal r3" style="color:var(--muted);max-width:72ch">Spend caps <strong>block traffic</strong> when a budget threshold is reached — they do not alert and continue. Configured per serving endpoint, per user, or at account level.</p>
+  <div class="spend-visual mt-3 reveal r4">
+    <div class="spend-row">
+      <div class="spend-label">Customer Genie</div>
+      <div class="spend-cap-track"><div class="spend-cap-fill ok"></div></div>
+      <div class="spend-amount">$210 / $800</div>
+      <span class="spend-status ok">Within budget</span>
+    </div>
+    <div class="spend-row">
+      <div class="spend-label">Analyst Assistant</div>
+      <div class="spend-cap-track"><div class="spend-cap-fill warning"></div></div>
+      <div class="spend-amount">$1,560 / $2,000</div>
+      <span class="spend-status warning">78% used</span>
+    </div>
+    <div class="spend-row">
+      <div class="spend-label">Compliance Agent</div>
+      <div class="spend-cap-track"><div class="spend-cap-fill blocked"></div></div>
+      <div class="spend-amount">$500 / $500</div>
+      <span class="spend-status blocked">Blocked — cap hit</span>
+    </div>
+  </div>
+  <div class="two-col mt-3 reveal r5" style="flex:0 0 auto">
+    <div class="card card-red">
+      <h4>Compliance Agent — what happens</h4>
+      <p>Nightly run hits $500 cap. Subsequent calls return HTTP 429 until the next billing period resets. No manual intervention. No surprise invoice. The cap is hard.</p>
+    </div>
+    <pre style="margin:0"><span class="cm"># budget config shape (AI Gateway API)</span>
+<span class="kw">budgets</span>:
+  - scope: <span class="str">endpoint</span>
+    endpoint_name: <span class="str">compliance-agent</span>
+    period: <span class="str">monthly</span>
+    limit_usd: <span class="str">500</span>
+    action: <span class="str">block</span>  <span class="cm"># not alert — block</span></pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 10 — CAPABILITY 6: USAGE MONITORING
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label reveal r1">Capability 6 of 8</div>
+  <h2 class="reveal r2">Usage Monitoring</h2>
+  <p class="reveal r3" style="color:var(--muted);max-width:72ch">Every AI call lands in <code>system.ai_gateway.usage</code>. Account-level, admin-readable. 30+ columns. The authoritative source for cost attribution, anomaly detection, and compliance reporting.</p>
+  <div class="two-col mt-2">
+    <div class="reveal r4" style="display:flex;flex-direction:column;gap:clamp(0.4rem,0.9vw,0.7rem)">
+      <div class="label" style="font-size:var(--sz-label)">Key columns</div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Column</th><th>What it holds</th></tr></thead>
+          <tbody>
+            <tr><td><code>endpoint_name</code></td><td>Which product called</td></tr>
+            <tr><td><code>requester</code></td><td>User email / SP ID</td></tr>
+            <tr><td><code>destination_model</code></td><td>Which model served it</td></tr>
+            <tr><td><code>input_tokens</code> / <code>output_tokens</code></td><td>Token counts</td></tr>
+            <tr><td><code>latency_ms</code></td><td>End-to-end latency</td></tr>
+            <tr><td><code>status_code</code></td><td>200 passed, 400 blocked, 429 rate-limited</td></tr>
+            <tr><td><code>routing_information</code></td><td>Fallback attempts with latency</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="reveal r5" style="display:flex;flex-direction:column;gap:clamp(0.4rem,0.9vw,0.7rem)">
+      <div class="label" style="font-size:var(--sz-label)">Acme queries</div>
+<pre style="flex-shrink:0"><span class="cm">-- Daily spend by product</span>
+<span class="kw">SELECT</span> endpoint_name,
+  DATE(event_time) <span class="kw">AS</span> day,
+  SUM(input_tokens + output_tokens) <span class="kw">AS</span> tokens
+<span class="kw">FROM</span> system.ai_gateway.usage
+<span class="kw">GROUP BY</span> 1, 2
+<span class="kw">ORDER BY</span> day <span class="kw">DESC</span>;</pre>
+<pre style="flex-shrink:0"><span class="cm">-- Anomaly: >2x rolling avg</span>
+<span class="kw">SELECT</span> requester, COUNT(*) <span class="kw">AS</span> calls
+<span class="kw">FROM</span> system.ai_gateway.usage
+<span class="kw">WHERE</span> event_time > NOW() - INTERVAL <span class="str">1 HOUR</span>
+<span class="kw">HAVING</span> calls > 2 * (
+  <span class="kw">SELECT</span> AVG(hourly_calls) <span class="kw">FROM</span> avg_by_user
+);</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 11 — CAPABILITY 7: MCP SERVICES
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label reveal r1">Capability 7 of 8</div>
+  <h2 class="reveal r2">MCP Services</h2>
+  <p class="reveal r3" style="color:var(--muted);max-width:72ch">External tools registered as Unity Catalog securables. Access governed with <code>EXECUTE</code> grants. Tool filtering restricts which operations each principal may invoke.</p>
+  <div class="two-col mt-2">
+    <div class="reveal r4" style="display:flex;flex-direction:column;gap:clamp(0.4rem,0.9vw,0.7rem)">
+      <div class="label" style="font-size:var(--sz-label)">Governance model</div>
+      <div class="mcp-path">
+        <div class="mcp-node">Analyst Assistant</div>
+        <div class="mcp-arrow">&#8594;</div>
+        <div class="mcp-node gateway">Unity AI Gateway</div>
+        <div class="mcp-arrow">&#8594;</div>
+        <div class="mcp-node uc">UC MCP Service</div>
+        <div class="mcp-arrow">&#8594;</div>
+        <div class="mcp-node">External Tool</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Layer</th><th>Controls</th></tr></thead>
+          <tbody>
+            <tr><td>UC securable</td><td><code>EXECUTE</code> granted per analyst / group</td></tr>
+            <tr><td>Tool filtering</td><td>Restricts to read-only operations (no push, no delete)</td></tr>
+            <tr><td>Service policy</td><td>Senior Analyst override for write operations</td></tr>
+            <tr><td>Rate limits</td><td>Same QPM/TPM limits applied to tool calls</td></tr>
+            <tr><td>Audit log</td><td>Every tool invocation in <code>system.ai_gateway.usage</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="reveal r5" style="display:flex;flex-direction:column;gap:clamp(0.4rem,0.9vw,0.7rem)">
+      <div class="label" style="font-size:var(--sz-label)">Acme Financial — Analyst Assistant</div>
+      <div class="card card-ink">
+        <h4>GitHub MCP Service</h4>
+        <ul>
+          <li><code>EXECUTE</code> granted to <code>analysts</code> group</li>
+          <li>Tool filter: <code>read_file</code>, <code>list_commits</code>, <code>get_pr</code> only</li>
+          <li>Write tools (<code>create_pr</code>, <code>push</code>) denied by service policy</li>
+        </ul>
+      </div>
+      <div class="card card-red">
+        <h4>Slack MCP Service</h4>
+        <ul>
+          <li><code>EXECUTE</code> granted to <code>senior-analysts</code> group only</li>
+          <li>Tool filter: <code>read_channel</code>, <code>search_messages</code></li>
+          <li>MCP securable: <code>acme.ai.slack_readonly</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <p style="font-size:var(--sz-small)">MCP Services are UC securables at <code>catalog.schema.mcp_service</code>. One audit trail for every LLM call and every tool invocation.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 12 — CAPABILITY 8: PROMPT REGISTRY
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label reveal r1">Capability 8 of 8</div>
+  <h2 class="reveal r2">Prompt Registry</h2>
+  <p class="reveal r3" style="color:var(--muted);max-width:72ch">Versioned prompt templates stored as Unity Catalog functions (via MLflow Prompt Registry). Immutable per version. Audit trail on every change. Governed by UC permissions per schema.</p>
+  <div class="two-col mt-2">
+    <div class="reveal r4" style="display:flex;flex-direction:column;gap:clamp(0.4rem,0.9vw,0.7rem)">
+      <div class="card card-ink">
+        <h4>How it works</h4>
+        <ul>
+          <li>Each prompt stored as a UC function: <code>catalog.schema.prompt_name</code></li>
+          <li>Versions are immutable — edit creates a new version, old ones remain</li>
+          <li>Variables use <code>&#123;&#123;variable&#125;&#125;</code> syntax; resolved at call time</li>
+          <li>UC lineage tracks who changed what and when</li>
+        </ul>
+      </div>
+      <pre><span class="cm"># Load pinned version at runtime</span>
+<span class="kw">import</span> mlflow
+
+prompt = mlflow.load_prompt(
+  <span class="str">"acme.compliance.regulatory_report"</span>,
+  version=<span class="str">7</span>  <span class="cm"># pinned — never drifts</span>
+)
+response = client.chat.completions.create(
+  model=<span class="str">"compliance-agent"</span>,
+  messages=[{
+    <span class="str">"role"</span>: <span class="str">"system"</span>,
+    <span class="str">"content"</span>: prompt.format(
+      jurisdiction=<span class="str">"SEC"</span>,
+      report_date=today
+    )
+  }, ...]
+)</pre>
+    </div>
+    <div class="reveal r5" style="display:flex;flex-direction:column;gap:clamp(0.4rem,0.9vw,0.7rem)">
+      <div class="label" style="font-size:var(--sz-label)">Acme Financial — Compliance Agent</div>
+      <div class="card card-red">
+        <h4>regulatory_report prompt</h4>
+        <ul>
+          <li>Stored at <code>acme.compliance.regulatory_report</code></li>
+          <li>Production pin: <strong>v7</strong></li>
+          <li>v8 under review by compliance team before promotion</li>
+          <li>Rollback: change version pin, redeploy — 30 seconds</li>
+        </ul>
+      </div>
+      <div class="card card-green">
+        <h4>Audit trail</h4>
+        <ul>
+          <li>UC lineage records every version change: who, when, from where</li>
+          <li>Regulator request: "show me the exact prompt used on March 14" — answered from UC lineage in seconds</li>
+          <li>Schema permissions: only <code>compliance-admins</code> group can register new versions</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 13 — GOVERNANCE IN ONE VIEW (MATRIX)
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="13">
+  <div class="label reveal r1">Summary</div>
+  <h2 class="reveal r2">Governance matrix</h2>
+  <p class="reveal r3" style="color:var(--muted);max-width:72ch;flex-shrink:0">Every capability, mapped to each Acme Financial product.</p>
+  <div class="matrix-wrap flex-1 reveal r4 mt-2">
+    <table>
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Customer Genie</th>
+          <th>Analyst Assistant</th>
+          <th>Compliance Agent</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Endpoint Routing</strong></td>
+          <td><span class="cap-check">&#10003;</span> LLaMA 3.3 70B</td>
+          <td><span class="cap-check">&#10003;</span> Claude Sonnet 4</td>
+          <td><span class="cap-check">&#10003;</span> GPT-4o + fallback</td>
+        </tr>
+        <tr>
+          <td><strong>Rate Limits</strong></td>
+          <td><span class="cap-check">&#10003;</span> 20 RPM / user</td>
+          <td><span class="cap-check">&#10003;</span> 60–80 RPM / analyst</td>
+          <td><span class="cap-check">&#10003;</span> 50 / 200 RPM (burst)</td>
+        </tr>
+        <tr>
+          <td><strong>Guardrails</strong></td>
+          <td><span class="cap-check">&#10003;</span> Competitor block + PII redact</td>
+          <td><span class="cap-dash">—</span></td>
+          <td><span class="cap-check">&#10003;</span> Output format + hallucination</td>
+        </tr>
+        <tr>
+          <td><strong>Service Policies</strong></td>
+          <td><span class="cap-dash">—</span></td>
+          <td><span class="cap-check">&#10003;</span> Tool access by seniority</td>
+          <td><span class="cap-check">&#10003;</span> Supervisor approval gate</td>
+        </tr>
+        <tr>
+          <td><strong>Hard Spend Caps</strong></td>
+          <td><span class="cap-check">&#10003;</span> $800 / month</td>
+          <td><span class="cap-check">&#10003;</span> $2,000 / month</td>
+          <td><span class="cap-check">&#10003;</span> $500 / month — hard block</td>
+        </tr>
+        <tr>
+          <td><strong>Usage Monitoring</strong></td>
+          <td><span class="cap-check">&#10003;</span> Daily by user</td>
+          <td><span class="cap-check">&#10003;</span> By analyst + model</td>
+          <td><span class="cap-check">&#10003;</span> Anomaly detection query</td>
+        </tr>
+        <tr>
+          <td><strong>MCP Services</strong></td>
+          <td><span class="cap-dash">—</span></td>
+          <td><span class="cap-check">&#10003;</span> GitHub + Slack (read-only)</td>
+          <td><span class="cap-dash">—</span></td>
+        </tr>
+        <tr>
+          <td><strong>Prompt Registry</strong></td>
+          <td><span class="cap-dash">—</span></td>
+          <td><span class="cap-dash">—</span></td>
+          <td><span class="cap-check">&#10003;</span> v7 pinned, audit trail</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 14 — WHAT ACME GOT (BEFORE / AFTER)
+════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="14">
+  <div class="label reveal r1">Outcome</div>
+  <h2 class="reveal r2">What Acme Financial got</h2>
+  <div class="ba-grid mt-3">
+    <div class="ba-col before reveal r3">
+      <h3>Before</h3>
+      <div class="ba-metric"><span class="ba-num" style="color:var(--muted)">3</span><span class="ba-desc">teams, 3 separate wiring jobs to different models</span></div>
+      <div class="ba-metric"><span class="ba-num" style="color:var(--muted)">0</span><span class="ba-desc">shared audit log across products</span></div>
+      <div class="ba-metric"><span class="ba-num" style="color:var(--muted)">$18k</span><span class="ba-desc">surprise invoice from one Compliance Agent run</span></div>
+      <div class="ba-metric"><span class="ba-num" style="color:var(--muted)">4 wks</span><span class="ba-desc">to answer "show me every AI call last week"</span></div>
+      <div class="ba-metric"><span class="ba-num" style="color:var(--muted)">?</span><span class="ba-desc">guardrail coverage per product — inconsistent</span></div>
+    </div>
+    <div class="ba-col after reveal r4">
+      <h3>After</h3>
+      <div class="ba-metric"><span class="ba-num">1</span><span class="ba-desc">control surface for all three products</span></div>
+      <div class="ba-metric"><span class="ba-num">1</span><span class="ba-desc">system table, full audit trail across all teams</span></div>
+      <div class="ba-metric"><span class="ba-num">$500</span><span class="ba-desc">hard cap on Compliance Agent — exceeded = blocked</span></div>
+      <div class="ba-metric"><span class="ba-num">&lt;30s</span><span class="ba-desc">to query every AI call by product, user, model</span></div>
+      <div class="ba-metric"><span class="ba-num">0</span><span class="ba-desc">compliance incidents since gateway deployed</span></div>
+    </div>
+  </div>
+  <div class="reveal r5 mt-3" style="flex-shrink:0;display:flex;gap:clamp(0.4rem,0.9vw,0.7rem);flex-wrap:wrap;">
+    <div class="badge badge-green">Per-user rate limits enforced</div>
+    <div class="badge badge-green">Unified spend tracking</div>
+    <div class="badge badge-green">UC-governed access</div>
+    <div class="badge badge-green">Full audit trail</div>
+    <div class="badge badge-green">Zero compliance incidents</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 15 — CLOSING CALLIGRAM
+════════════════════════════════════════════════════════════ -->
+<div class="slide s-close" data-slide="15">
+  <div class="calligram">
+    <div class="calli-word">ONE</div>
+    <div class="calli-word accent">GATEWAY.</div>
+    <div class="calli-word" style="font-size:clamp(1.4rem,3.5vw,2.8rem);font-weight:300;letter-spacing:0.15em;color:rgba(255,255,255,0.35);margin-top:0.2em">EVERY AI CALL.</div>
+    <div class="calli-rule"></div>
+    <div class="calli-sub">Unity AI Gateway &nbsp;&middot;&nbsp; Databricks</div>
+    <div class="calli-detail">Rate limits &nbsp;&middot;&nbsp; Guardrails &nbsp;&middot;&nbsp; Service Policies &nbsp;&middot;&nbsp; Spend Caps &nbsp;&middot;&nbsp; MCP Services &nbsp;&middot;&nbsp; Prompt Registry</div>
+  </div>
+</div>
+
+<script>
+/* ── NAVIGATION ── */
+const slides = document.querySelectorAll('.slide');
+const total  = slides.length;
+let current  = 0;
+let touchX0  = null;
+
+function goTo(n) {
+  if (n < 0 || n >= total) return;
+  const prev = current;
+
+  // Exit the current slide
+  slides[prev].classList.remove('active');
+  if (n > prev) {
+    slides[prev].classList.add('exit-left');
+  } else {
+    slides[prev].style.transform = 'translateX(56px)';
+    slides[prev].style.opacity   = '0';
+  }
+  setTimeout(() => {
+    slides[prev].classList.remove('exit-left');
+    slides[prev].style.transform = '';
+    slides[prev].style.opacity   = '';
+  }, 400);
+
+  current = n;
+  slides[current].classList.add('active');
+  updateUI();
+
+  // animate arch canvas if needed
+  if (slides[current].querySelector('#archCanvas')) {
+    setTimeout(drawArch, 50);
+  }
+  // animate rate bars (reset + retrigger)
+  slides[current].querySelectorAll('.rate-bar-fill').forEach(el => {
+    const w = el.style.width;
+    el.style.transition = 'none';
+    el.style.transform = 'scaleX(0)';
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.style.transition = '';
+        el.style.transform = 'scaleX(1)';
+      });
+    });
+  });
+}
+
+function updateUI() {
+  document.getElementById('counter').textContent =
+    String(current + 1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+  document.getElementById('progressBar').style.width =
+    ((current + 1) / total * 100) + '%';
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === total - 1;
+  document.querySelectorAll('.nav-dot').forEach((d,i) =>
+    d.classList.toggle('active', i === current));
+}
+
+/* ── INIT NAV DOTS ── */
+const dotsContainer = document.getElementById('navDots');
+for (let i = 0; i < total; i++) {
+  const btn = document.createElement('button');
+  btn.className = 'nav-dot' + (i === 0 ? ' active' : '');
+  btn.title = 'Slide ' + (i + 1);
+  btn.onclick = () => goTo(i);
+  dotsContainer.appendChild(btn);
+}
+updateUI();
+
+/* ── KEYBOARD ── */
+document.addEventListener('keydown', e => {
+  if (document.getElementById('helpOverlay').classList.contains('show')) {
+    if (e.key === 'Escape') document.getElementById('helpOverlay').classList.remove('show');
+    return;
+  }
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); goTo(current - 1); }
+  if (e.key === 'Home')       { e.preventDefault(); goTo(0); }
+  if (e.key === 'End')        { e.preventDefault(); goTo(total - 1); }
+});
+
+/* ── TOUCH ── */
+document.addEventListener('touchstart', e => { touchX0 = e.touches[0].clientX; }, {passive:true});
+document.addEventListener('touchend', e => {
+  if (touchX0 === null) return;
+  const dx = e.changedTouches[0].clientX - touchX0;
+  if (Math.abs(dx) > 50) { goTo(dx < 0 ? current + 1 : current - 1); }
+  touchX0 = null;
+}, {passive:true});
+
+/* ── HELP OVERLAY ── */
+document.getElementById('helpBtn').onclick = () =>
+  document.getElementById('helpOverlay').classList.toggle('show');
+document.getElementById('helpOverlay').onclick = () =>
+  document.getElementById('helpOverlay').classList.remove('show');
+
+/* ══════════════════════════════════════════════════════════
+   ARCHITECTURE CANVAS — animated flow diagram
+══════════════════════════════════════════════════════════ */
+function drawArch() {
+  const canvas = document.getElementById('archCanvas');
+  if (!canvas) return;
+  const wrap   = canvas.parentElement;
+  const DPR    = window.devicePixelRatio || 1;
+  const W      = wrap.clientWidth;
+  const H      = wrap.clientHeight;
+  canvas.width  = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+
+  const INK    = '#1a1a1a';
+  const RED    = '#cc3311';
+  const WHITE  = '#ffffff';
+  const SURF   = '#f5f5f4';
+  const BORDER = '#e2e2e0';
+  const GREEN  = '#1a6b3a';
+  const GREEN_BG = '#e6f3ec';
+  const BLUE   = '#1a3f8a';
+  const BLUE_BG = '#e8effa';
+  const AMBER  = '#9a5d00';
+  const AMBER_BG = '#fdf0d6';
+
+  const FONT   = "'Space Grotesk', system-ui, sans-serif";
+
+  // Layout constants
+  const appW  = Math.min(W * 0.22, 160);
+  const appH  = Math.min(H * 0.16, 72);
+  const gwW   = Math.min(W * 0.24, 180);
+  const gwH   = Math.min(H * 0.52, 260);
+  const mdlW  = Math.min(W * 0.2, 148);
+  const mdlH  = Math.min(H * 0.13, 58);
+
+  const col1X = W * 0.06;
+  const col2X = W * 0.38 - gwW / 2;
+  const col3X = W * 0.78;
+
+  const apps = [
+    { label: 'Customer Genie',    sub:'Retail Banking', color:BLUE,  bg:BLUE_BG,  cy: H * 0.22 },
+    { label: 'Analyst Assistant', sub:'Research',       color:INK,   bg:SURF,     cy: H * 0.50 },
+    { label: 'Compliance Agent',  sub:'Compliance',     color:AMBER, bg:AMBER_BG, cy: H * 0.78 },
+  ];
+  const models = [
+    { label: 'LLaMA 3.3 70B',    sub:'Cost-optimized', cy: H * 0.22 },
+    { label: 'Claude Sonnet 4',   sub:'Premium reason', cy: H * 0.50 },
+    { label: 'GPT-4o',            sub:'+ fallback',     cy: H * 0.78 },
+  ];
+
+  const gwCX = col2X + gwW / 2;
+  const gwTY = H * 0.12;
+  const gwBY = H * 0.88;
+
+  // Animated dash offset
+  let dashOffset = 0;
+
+  function roundRect(x, y, w, h, r, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+    if (fill)   { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); }
+  }
+
+  function label(text, x, y, size, color, weight) {
+    ctx.font = (weight || '400') + ' ' + size + 'px ' + FONT;
+    ctx.fillStyle = color || INK;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
+  }
+
+  function drawArrow(x1, y1, x2, y2, dash, color, width) {
+    ctx.save();
+    ctx.strokeStyle = color || RED;
+    ctx.lineWidth   = width || 1.5;
+    ctx.setLineDash(dash ? [6, 4] : []);
+    ctx.lineDashOffset = dash ? -dashOffset : 0;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    // arrowhead
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const aLen  = 7;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - aLen * Math.cos(angle - 0.4), y2 - aLen * Math.sin(angle - 0.4));
+    ctx.lineTo(x2 - aLen * Math.cos(angle + 0.4), y2 - aLen * Math.sin(angle + 0.4));
+    ctx.closePath();
+    ctx.fillStyle = color || RED;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFrame() {
+    ctx.clearRect(0, 0, W, H);
+
+    // ── GATEWAY BLOCK ──
+    roundRect(col2X, gwTY, gwW, gwBY - gwTY, 4, 'rgba(204,51,17,0.05)', RED);
+    label('Unity AI Gateway', gwCX, gwTY + 20, Math.min(W * 0.014, 12), RED, '700');
+    label('One control point', gwCX, gwTY + 36, Math.min(W * 0.011, 9.5), 'rgba(204,51,17,0.6)', '400');
+
+    // Gate capability pills
+    const caps = ['Rate Limits', 'Guardrails', 'Service Policies', 'Spend Caps', 'Monitoring'];
+    const pillH = Math.min((gwBY - gwTY - 70) / caps.length - 6, 34);
+    const pillW = gwW - 24;
+    caps.forEach((c, i) => {
+      const py = gwTY + 56 + i * (pillH + 6);
+      roundRect(col2X + 12, py, pillW, pillH, 3, INK, 'transparent');
+      label(c, gwCX, py + pillH / 2, Math.min(W * 0.012, 10), WHITE, '500');
+    });
+
+    // ── APP BOXES ──
+    apps.forEach((a, i) => {
+      const ay = a.cy - appH / 2;
+      roundRect(col1X, ay, appW, appH, 3, a.bg, a.color);
+      label(a.label, col1X + appW / 2, a.cy - 10, Math.min(W * 0.013, 11), INK, '700');
+      label(a.sub,   col1X + appW / 2, a.cy + 8,  Math.min(W * 0.011, 9.5), '#999', '400');
+
+      // Arrow: app → gateway
+      drawArrow(col1X + appW, a.cy, col2X - 2, a.cy, true, RED, 1.5);
+    });
+
+    // ── MODEL BOXES ──
+    models.forEach((m, i) => {
+      const my = m.cy - mdlH / 2;
+      roundRect(col3X, my, mdlW, mdlH, 3, SURF, BORDER);
+      label(m.label, col3X + mdlW / 2, m.cy - 8, Math.min(W * 0.013, 11), INK, '600');
+      label(m.sub,   col3X + mdlW / 2, m.cy + 8, Math.min(W * 0.011, 9.5), '#999', '400');
+
+      // Arrow: gateway → model
+      drawArrow(col2X + gwW + 2, m.cy, col3X - 2, m.cy, false, RED, 1.5);
+    });
+
+    // connecting lines inside gateway (left edge to right edge)
+    // subtle horizontal connectors already handled by arrows
+
+    dashOffset = (dashOffset + 0.4) % 10;
+    rafId = requestAnimationFrame(drawFrame);
+  }
+
+  let rafId = null;
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(drawFrame);
+
+  // Stop animation when leaving slide
+  const slideEl = canvas.closest('.slide');
+  const observer = new MutationObserver(() => {
+    if (!slideEl.classList.contains('active') && rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    } else if (slideEl.classList.contains('active') && !rafId) {
+      rafId = requestAnimationFrame(drawFrame);
+    }
+  });
+  observer.observe(slideEl, { attributes: true, attributeFilter: ['class'] });
+}
+
+// Draw arch if already on that slide
+if (current === 3) drawArch();
+
+// Resize handler for canvas
+window.addEventListener('resize', () => {
+  if (slides[current].querySelector('#archCanvas')) drawArch();
+});
+</script>
+</body>
+</html>

@@ -145,10 +145,20 @@ A scheduled job (every 5 minutes) that:
 
 | Lever | Foundation Models | External Models | Custom Models | Agents |
 |---|---|---|---|---|
-| **UC Permissions** | `system.ai` EXECUTE (Preview) | Secret scope ACLs | EXECUTE grant on model | EXECUTE grant on model |
+| **UC Permissions** | `system.ai` EXECUTE | Secret scope ACLs | EXECUTE grant on model | EXECUTE grant on model |
 | **Rate Limits** | QPM=0 disables | Per user/SP/group | Per user/SP/group | Per user/SP/group |
 | **Egress Controls** | N/A (system endpoint) | Key management | N/A | N/A |
 | **Runtime Guardrails** | AI Gateway | AI Gateway | AI Gateway | AI Gateway + MLflow scorers |
+
+### Guardrails vs Service Policies — Not the Same Lever
+
+These two controls address different problems and operate at different layers:
+
+**Guardrails** (configured on the AI Gateway) govern content: what enters the model and what it returns. Safety filters, PII detection, topic restrictions. Applied at the serving endpoint level.
+
+**Service policies** (configured on MCP Services) govern access: which principals can call which tools, and whether human approval is required before a tool executes. Applied at the MCP Service level, before the request reaches the endpoint.
+
+Use guardrails to enforce what the model can say. Use service policies to enforce who can do what. Both can be active simultaneously — a call must pass service policy checks before content guardrails even apply.
 
 ## FM UC Permissions (Preview)
 

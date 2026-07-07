@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AI Agent Cost Control &amp; Governance</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── tokens ────────────────────────────────────────────────────────────── */
+:root {
+  --bg:     #ffffff;
+  --ink:    #1a1a1a;
+  --red:    #cc3311;
+  --surface:#f5f5f5;
+  --border: #e2e2e2;
+  --muted:  #616161;
+  --green:  #1a7a3c;
+  --green-bg:#e8f5ed;
+  --amber:  #a85e00;
+  --amber-bg:#fff4e0;
+  --blue:   #1648c0;
+  --blue-bg:#eef2ff;
+  --font:   'Space Grotesk', sans-serif;
+  --mono:   'DM Mono', monospace;
+  --pad:    clamp(2rem,4.5vw,4rem);
+  --h1:     clamp(2rem,4.5vw,3.4rem);
+  --h2:     clamp(1.35rem,2.8vw,2.1rem);
+  --h3:     clamp(0.98rem,1.8vw,1.32rem);
+  --body:   clamp(0.83rem,1.35vw,1.02rem);
+  --sm:     clamp(0.72rem,1.05vw,0.86rem);
+  --xs:     clamp(0.62rem,0.82vw,0.72rem);
+  --code:   clamp(0.66rem,0.95vw,0.80rem);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:var(--font);background:var(--bg);color:var(--ink)}
+
+/* ── chrome ─────────────────────────────────────────────────────────────── */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:46px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 22px;
+  background:var(--ink);color:#fff;z-index:100;font-size:var(--sm);
+}
+.topbar .title{font-weight:600;letter-spacing:-0.02em}
+.topbar .title span{color:var(--red)}
+.topbar .counter{font-variant-numeric:tabular-nums;opacity:.65}
+.progress-track{position:fixed;top:46px;left:0;right:0;height:3px;background:var(--border);z-index:100}
+.progress-bar{height:100%;background:var(--red);transition:width .38s ease;width:0}
+
+/* ── nav controls ────────────────────────────────────────────────────────── */
+.nav-controls{position:fixed;bottom:18px;right:22px;display:flex;align-items:center;gap:7px;z-index:200}
+.nav-btn{
+  width:38px;height:38px;border-radius:50%;border:1.5px solid var(--border);
+  background:var(--bg);color:var(--ink);font-size:.95rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .18s;padding:0;line-height:1;
+}
+.nav-btn:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+.nav-btn:disabled{opacity:.22;cursor:default;pointer-events:none}
+.help-btn{
+  width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);
+  background:var(--bg);color:var(--muted);font-size:.68rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-weight:700;
+  margin-left:6px;transition:all .18s;
+}
+.help-btn:hover{border-color:var(--ink);color:var(--ink)}
+
+/* nav dot cluster */
+.nav-dots{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:200}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer;transition:all .25s}
+.dot.active{background:var(--red);width:18px;border-radius:3px}
+.dot:hover{background:var(--muted)}
+
+/* keyboard overlay */
+.kb-overlay{position:fixed;inset:0;background:rgba(26,26,26,.82);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .28s}
+.kb-overlay.visible{opacity:1;pointer-events:auto}
+.kb-card{background:#fff;border-radius:8px;padding:30px 38px;max-width:360px;width:90%;text-align:center}
+.kb-card h3{font-size:1.05rem;font-weight:700;margin-bottom:14px;letter-spacing:-.02em}
+.kb-card table{width:100%;text-align:left;font-size:.80rem;border-collapse:collapse}
+.kb-card td{padding:5px 8px;border-bottom:1px solid #eee}
+.kb-card td:first-child{font-family:var(--mono);font-weight:600;color:var(--red);white-space:nowrap}
+.kb-card .dismiss{margin-top:14px;font-size:.70rem;color:var(--muted)}
+
+/* ── slide shell ─────────────────────────────────────────────────────────── */
+.slide{
+  position:absolute;top:46px;left:0;right:0;bottom:0;
+  opacity:0;pointer-events:none;
+  transform:translateX(56px);
+  transition:opacity .38s ease,transform .38s ease;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  padding:var(--pad);
+}
+.slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+.slide.exit-left{opacity:0;transform:translateX(-56px)}
+
+/* ── stagger reveals ─────────────────────────────────────────────────────── */
+.r{opacity:0;transform:translateY(16px);transition:opacity .45s ease,transform .45s ease}
+.slide.active .r{opacity:1;transform:translateY(0)}
+.slide.active .r:nth-child(1){transition-delay:.05s}
+.slide.active .r:nth-child(2){transition-delay:.12s}
+.slide.active .r:nth-child(3){transition-delay:.20s}
+.slide.active .r:nth-child(4){transition-delay:.28s}
+.slide.active .r:nth-child(5){transition-delay:.36s}
+.slide.active .r:nth-child(6){transition-delay:.44s}
+.slide.active .r:nth-child(7){transition-delay:.52s}
+.slide.active .r:nth-child(8){transition-delay:.60s}
+.slide.active .r:nth-child(9){transition-delay:.68s}
+.slide.active .r:nth-child(10){transition-delay:.76s}
+
+/* extra named delays for architecture arrows */
+.delay-1{transition-delay:.10s!important}
+.delay-2{transition-delay:.25s!important}
+.delay-3{transition-delay:.40s!important}
+.delay-4{transition-delay:.55s!important}
+.delay-5{transition-delay:.70s!important}
+.delay-6{transition-delay:.85s!important}
+.delay-7{transition-delay:1.0s!important}
+
+/* ── typography ──────────────────────────────────────────────────────────── */
+.label{font-size:var(--xs);text-transform:uppercase;letter-spacing:.10em;color:var(--red);font-weight:600;margin-bottom:5px}
+.slide h2{font-size:var(--h1);font-weight:700;letter-spacing:-.03em;line-height:1.08;margin-bottom:6px}
+.slide h3{font-size:var(--h2);font-weight:600;letter-spacing:-.02em;margin-bottom:5px}
+.slide p,.slide li{font-size:var(--body);line-height:1.62}
+.muted{color:var(--muted)}
+.red{color:var(--red)}
+.bold{font-weight:700}
+
+/* ── title slide ─────────────────────────────────────────────────────────── */
+.slide-title{justify-content:center;align-items:center;text-align:center}
+.slide-title h1{font-size:clamp(2.5rem,5.5vw,4.2rem);font-weight:700;letter-spacing:-.04em;line-height:1.06;max-width:820px;text-wrap:balance}
+.slide-title h1 em{font-style:normal;color:var(--red)}
+.slide-title .sub{font-size:var(--h3);color:var(--muted);margin-top:14px;font-weight:400;max-width:640px}
+.red-rule{width:72px;height:4px;background:var(--red);margin:18px auto 0}
+
+/* ── layout helpers ──────────────────────────────────────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.2rem,2.5vw,2.2rem);flex:1;min-height:0}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(.9rem,1.8vw,1.4rem);flex:1;min-height:0}
+.six-col{display:grid;grid-template-columns:repeat(6,1fr);gap:clamp(.6rem,1.2vw,1rem);flex:1;min-height:0}
+.flex1{flex:1 1 0;min-height:0;overflow:hidden}
+.mt1{margin-top:8px}.mt2{margin-top:16px}.mt3{margin-top:24px}.mt4{margin-top:32px}
+.mb1{margin-bottom:8px}.mb2{margin-bottom:16px}
+
+/* ── cards ───────────────────────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(.9rem,1.8vw,1.4rem)}
+.card h4{font-size:var(--h3);font-weight:600;margin-bottom:7px;letter-spacing:-.01em}
+.card p,.card li{font-size:var(--sm);line-height:1.58}
+.card ul{padding-left:1.1em}
+.card-red{border-left:4px solid var(--red)}
+.card-ink{border-left:4px solid var(--ink)}
+.card-green{border-left:4px solid var(--green);background:var(--green-bg)}
+.card-amber{border-left:4px solid var(--amber);background:var(--amber-bg)}
+.card-blue{border-left:4px solid var(--blue);background:var(--blue-bg)}
+
+/* ── code / pre ──────────────────────────────────────────────────────────── */
+pre,code{font-family:var(--mono);font-size:var(--code)}
+pre{
+  background:#f9f9f9;color:var(--ink);
+  border:1px solid var(--border);border-left:3px solid var(--red);
+  border-radius:4px;padding:clamp(.55rem,1.1vw,.9rem);
+  overflow-x:auto;line-height:1.52;
+}
+code{background:var(--surface);padding:.1em .38em;border-radius:3px;color:var(--ink)}
+.kw{color:var(--red);font-weight:500}
+.cm{color:var(--muted)}
+.st{color:var(--green)}
+
+/* ── table ───────────────────────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:var(--sm)}
+th{text-align:left;font-weight:600;font-size:var(--xs);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:7px 9px;border-bottom:2px solid var(--border)}
+td{padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ── badge ───────────────────────────────────────────────────────────────── */
+.badge{display:inline-block;font-size:var(--xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+.badge-red{background:rgba(204,51,17,.10);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-amber{background:var(--amber-bg);color:var(--amber)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-ink{background:var(--ink);color:#fff}
+.badge-muted{background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+
+/* ── architecture flow ───────────────────────────────────────────────────── */
+.arch-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;gap:0;min-height:0}
+.arch-row{display:flex;align-items:center;justify-content:center;gap:0}
+.arch-agents{display:flex;align-items:stretch;gap:clamp(.5rem,1vw,.9rem);justify-content:center}
+.abox{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  padding:clamp(.5rem,1vw,.85rem) clamp(.7rem,1.4vw,1.1rem);
+  text-align:center;font-size:var(--sm);font-weight:500;min-width:clamp(80px,12vw,120px);
+}
+.abox small{display:block;font-size:var(--xs);color:var(--muted);font-weight:400;margin-top:2px}
+.abox.agent-claude{border-color:#8b5cf6;background:#f5f3ff}
+.abox.agent-codex{border-color:var(--blue);background:var(--blue-bg)}
+.abox.agent-gemini{border-color:var(--green);background:var(--green-bg)}
+.abox.gateway{border-color:var(--red);background:rgba(204,51,17,.05);color:var(--red);font-weight:700;font-size:var(--h3);padding:clamp(.7rem,1.4vw,1.1rem) clamp(1.2rem,2.4vw,2rem)}
+.abox.model{border-color:var(--ink);background:var(--ink);color:#fff}
+.abox.tool{border-color:var(--amber);background:var(--amber-bg)}
+
+/* animated arrows using CSS */
+.arch-arrow{
+  display:flex;align-items:center;padding:0 clamp(.3rem,.6vw,.5rem);
+  color:var(--red);font-size:var(--h3);font-weight:700;
+  opacity:0;
+}
+.slide.active .arch-arrow{
+  opacity:1;
+  animation:arrowPulse 1.8s ease-in-out infinite;
+}
+.arch-arrow.delay-1{animation-delay:.3s}
+.arch-arrow.delay-2{animation-delay:.6s}
+.arch-arrow.delay-3{animation-delay:.9s}
+.arch-arrow.delay-4{animation-delay:1.2s}
+
+@keyframes arrowPulse{
+  0%,100%{color:var(--red);transform:translateX(0)}
+  50%{color:rgba(204,51,17,.45);transform:translateX(3px)}
+}
+
+.arch-vstack{display:flex;flex-direction:column;align-items:center;gap:clamp(.4rem,.8vw,.7rem)}
+.arch-varrow{
+  color:var(--red);font-size:var(--body);font-weight:700;line-height:1;
+  opacity:0;
+}
+.slide.active .arch-varrow{
+  opacity:1;
+  animation:varrowPulse 1.8s ease-in-out infinite;
+}
+.arch-varrow.delay-1{animation-delay:.2s}
+.arch-varrow.delay-2{animation-delay:.5s}
+.arch-varrow.delay-3{animation-delay:.8s}
+.arch-varrow.delay-4{animation-delay:1.1s}
+.arch-varrow.delay-5{animation-delay:1.4s}
+
+@keyframes varrowPulse{
+  0%,100%{color:var(--red);transform:translateY(0)}
+  50%{color:rgba(204,51,17,.40);transform:translateY(3px)}
+}
+
+/* ── story callout ───────────────────────────────────────────────────────── */
+.callout{
+  border-left:4px solid var(--red);padding:14px 20px;
+  background:var(--surface);border-radius:0 5px 5px 0;
+  font-size:clamp(.95rem,1.9vw,1.32rem);line-height:1.55;font-style:italic;
+}
+
+/* ── stat highlight ──────────────────────────────────────────────────────── */
+.stat{font-size:clamp(1.8rem,4vw,3rem);font-weight:700;letter-spacing:-.04em;color:var(--red);line-height:1}
+.stat-label{font-size:var(--sm);color:var(--muted);margin-top:4px;font-weight:400}
+
+/* ── layer strip ─────────────────────────────────────────────────────────── */
+.layer-strip{
+  display:flex;align-items:center;
+  border:1px solid var(--border);border-radius:6px;
+  overflow:hidden;background:var(--surface);
+  font-size:var(--sm);
+}
+.layer-num{
+  background:var(--red);color:#fff;font-weight:700;
+  padding:clamp(.5rem,1vw,.8rem) clamp(.7rem,1.4vw,1.1rem);
+  font-size:var(--body);min-width:2.4em;text-align:center;
+  flex-shrink:0;
+}
+.layer-body{padding:clamp(.5rem,1vw,.8rem) clamp(.8rem,1.5vw,1.2rem);flex:1}
+.layer-body strong{display:block;font-size:var(--body);font-weight:600;margin-bottom:2px}
+
+/* ── matrix grid ─────────────────────────────────────────────────────────── */
+.matrix{width:100%;border-collapse:collapse;font-size:var(--sm)}
+.matrix th{font-size:var(--xs);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 10px;border-bottom:2px solid var(--border);text-align:left;font-weight:600}
+.matrix td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.matrix tr:hover td{background:var(--surface)}
+.check{color:var(--green);font-weight:700}
+.dash{color:var(--border)}
+
+/* ── calligram / closing ─────────────────────────────────────────────────── */
+.slide-calli{background:var(--ink);color:#fff;justify-content:center;align-items:center;text-align:center}
+.calli-hero{
+  font-size:clamp(3rem,9vw,7.5rem);font-weight:700;
+  letter-spacing:-.04em;line-height:.95;
+  color:#fff;
+  position:relative;display:inline-block;
+}
+.calli-hero .line2{
+  display:block;
+  font-size:clamp(1.6rem,4.5vw,3.8rem);
+  font-weight:300;letter-spacing:.18em;
+  color:var(--red);text-transform:uppercase;
+  margin-top:.15em;
+}
+.calli-sub{
+  margin-top:clamp(1.2rem,3vh,2.2rem);
+  font-size:var(--body);color:rgba(255,255,255,.55);
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.calli-rule{width:56px;height:3px;background:var(--red);margin:clamp(.8rem,2vh,1.4rem) auto}
+
+/* ── before/after ────────────────────────────────────────────────────────── */
+.ba-col{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}
+.ba-item{display:flex;align-items:flex-start;gap:10px;font-size:var(--sm);padding:6px 0;border-bottom:1px solid var(--border)}
+.ba-icon{flex-shrink:0;font-weight:700;font-size:var(--body);width:1.4em;text-align:center}
+
+/* ── implementation sequence ─────────────────────────────────────────────── */
+.seq-step{
+  display:flex;align-items:flex-start;gap:clamp(.8rem,1.5vw,1.2rem);
+  padding:clamp(.6rem,1.2vw,1rem);
+  border:1px solid var(--border);border-radius:6px;
+  background:var(--surface);
+}
+.seq-num{
+  flex-shrink:0;width:clamp(1.6rem,3vw,2.2rem);height:clamp(1.6rem,3vw,2.2rem);
+  border-radius:50%;background:var(--red);color:#fff;
+  font-weight:700;font-size:var(--sm);
+  display:flex;align-items:center;justify-content:center;
+  margin-top:.1em;
+}
+.seq-body strong{font-size:var(--body);font-weight:600;display:block;margin-bottom:2px}
+.seq-body p{font-size:var(--sm);color:var(--muted);line-height:1.5}
+
+/* ── height breakpoints ──────────────────────────────────────────────────── */
+@media(max-height:700px){
+  :root{--pad:clamp(1.2rem,3vw,2.2rem)}
+  .slide{padding:clamp(1.2rem,3vw,2.2rem)}
+  .mt3{margin-top:14px}.mt4{margin-top:20px}
+  .seq-step{padding:.5rem .8rem}
+  .layer-strip .layer-num,.layer-strip .layer-body{padding:.4rem .7rem}
+}
+@media(max-height:600px){
+  :root{--pad:1rem}
+  .slide{padding:1rem}
+  .mt2{margin-top:8px}.mt3{margin-top:10px}.mt4{margin-top:14px}
+}
+@media(max-height:500px){
+  :root{--h1:clamp(1.6rem,3.5vw,2.4rem);--h2:clamp(1.1rem,2vw,1.6rem)}
+}
+
+/* ── width breakpoints ───────────────────────────────────────────────────── */
+@media(max-width:900px){
+  .two-col,.three-col,.six-col{grid-template-columns:1fr}
+  .arch-agents{flex-wrap:wrap}
+}
+
+/* ── print ───────────────────────────────────────────────────────────────── */
+@media print{
+  .slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always;overflow:visible}
+  .topbar,.progress-track,.nav-controls,.nav-dots,.kb-overlay{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">Acme Engineering &mdash; <span>Agent Cost &amp; Governance</span></div>
+  <div class="counter" id="counter">01 / 15</div>
+</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+
+<div class="nav-dots" id="navDots"></div>
+<div class="nav-controls">
+  <button class="nav-btn" id="homeBtn" title="First slide (Home)" onclick="goTo(0)">&#8962;</button>
+  <button class="nav-btn" id="prevBtn" title="Previous" onclick="goTo(current-1)">&larr;</button>
+  <button class="nav-btn" id="nextBtn" title="Next" onclick="goTo(current+1)">&rarr;</button>
+  <button class="help-btn" id="helpBtn" title="Keyboard shortcuts">?</button>
+</div>
+<div class="kb-overlay" id="kbOverlay">
+  <div class="kb-card">
+    <h3>Navigation</h3>
+    <table>
+      <tr><td>&rarr; / Space</td><td>Next slide</td></tr>
+      <tr><td>&larr;</td><td>Previous slide</td></tr>
+      <tr><td>Home</td><td>First slide</td></tr>
+      <tr><td>End</td><td>Last slide</td></tr>
+      <tr><td>Swipe</td><td>Touch navigation</td></tr>
+    </table>
+    <div class="dismiss">Click anywhere or press Esc to close</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 1 · TITLE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide slide-title active" data-slide="1">
+  <h1 class="r">AI Agent <em>Cost Control</em><br>&amp; Governance</h1>
+  <div class="sub r">How Acme Engineering put six governance layers between their agents and an uncapped cloud bill.</div>
+  <div class="red-rule r"></div>
+  <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:580px">80 engineers &middot; 3 agent types &middot; one control plane &middot; zero billing surprises</p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 2 · THE PROBLEM: INVISIBLE SPEND
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+  <div class="label r">The problem</div>
+  <h2 class="r">The bill arrives. Nobody expected it.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="callout r">
+        Last Tuesday, one engineer left a Claude Code agent running overnight to refactor a legacy module.
+        It looped. <strong>Three hours. $400.</strong> Nobody knew until finance flagged the invoice.
+      </div>
+      <div class="r mt1" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="card card-red" style="text-align:center;padding:14px 10px">
+          <div class="stat">$400</div>
+          <div class="stat-label">one agent, one night</div>
+        </div>
+        <div class="card card-red" style="text-align:center;padding:14px 10px">
+          <div class="stat">$0</div>
+          <div class="stat-label">visibility at the time</div>
+        </div>
+      </div>
+      <div class="card card-amber r">
+        <h4>The quarterly surprise</h4>
+        <p>Finance gets a lump-sum AI line item. Engineering has no idea which team, which agent, which sprint caused it. Chargebacks are impossible. Forecasts are fiction.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0">Where the spend hides</div>
+      <div class="card r">
+        <h4>Claude Code &mdash; senior engineers</h4>
+        <p>Autonomous, powerful, expensive. Runs multi-step agentic loops. Can stay busy for hours without a human checkpoint.</p>
+      </div>
+      <div class="card r">
+        <h4>Codex-based tools &mdash; mid-level engineers</h4>
+        <p>IDE completions at scale. 80 engineers hitting completions constantly adds up faster than anyone models.</p>
+      </div>
+      <div class="card r">
+        <h4>Gemini &mdash; data team</h4>
+        <p>Notebook generation, data profiling. Token-heavy prompts. Long context windows. One bad notebook template = 200k tokens per run.</p>
+      </div>
+      <div class="card card-ink r">
+        <p style="font-size:var(--sm)">All three route through <strong style="color:var(--red)">Unity AI Gateway</strong> &mdash; but without governance configured, it is just a pass-through. The chokepoint exists. The controls do not.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 3 · ATTACK SURFACE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="label r">Governance surface</div>
+  <h2 class="r">Agents are not just LLM calls.</h2>
+  <p class="r muted" style="max-width:72ch;margin-bottom:16px">Every hop in an agent loop is a separate cost event and a separate risk surface. The governance problem is wider than token pricing.</p>
+  <div class="three-col flex1">
+    <div class="card card-red r">
+      <div class="label">LLM calls</div>
+      <h4>The obvious part</h4>
+      <ul>
+        <li>Input tokens: context, system prompt, tool schemas, conversation history</li>
+        <li>Output tokens: reasoning, code, tool call arguments</li>
+        <li>Long context loops multiply cost non-linearly</li>
+        <li>Model tier selection per task is uncontrolled</li>
+      </ul>
+    </div>
+    <div class="card card-amber r">
+      <div class="label">Tool &amp; API calls</div>
+      <h4>The hidden part</h4>
+      <ul>
+        <li>Agents call search APIs, GitHub, Jira, internal services</li>
+        <li>Each tool result gets fed back into context &mdash; more input tokens</li>
+        <li>Unbounded tool loops: agent retries on error, amplifying spend</li>
+        <li>No visibility into which tools are called, how often, by whom</li>
+      </ul>
+    </div>
+    <div class="card card-ink r">
+      <div class="label">Execution actions</div>
+      <h4>The risky part</h4>
+      <ul>
+        <li>Shell commands, file writes, <code>git push</code>, <code>terraform apply</code></li>
+        <li>Agents act on infrastructure &mdash; not just generate text</li>
+        <li>No approval gates means an agent can deploy to prod autonomously</li>
+        <li>Audit trail: who approved this? Nothing. The agent decided.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="r mt2" style="background:rgba(204,51,17,.06);border:1px solid rgba(204,51,17,.25);border-radius:6px;padding:12px 16px;font-size:var(--sm)">
+    <strong style="color:var(--red)">Design principle:</strong> Govern the entire agent surface &mdash; not just the LLM endpoint. Cost, capability, and safety controls belong at the same layer.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 4 · ARCHITECTURE: ALL TRAFFIC THROUGH ONE GATEWAY
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+  <div class="label r">Architecture</div>
+  <h2 class="r">All agent traffic through one chokepoint.</h2>
+  <div class="arch-wrap r">
+
+    <!-- agents row -->
+    <div class="arch-row" style="gap:clamp(.5rem,1vw,.9rem)">
+      <div class="arch-agents">
+        <div class="abox agent-claude r delay-1">
+          Claude Code
+          <small>Senior engineers</small>
+        </div>
+        <div class="abox agent-codex r delay-2">
+          Codex Tools
+          <small>Mid-level engineers</small>
+        </div>
+        <div class="abox agent-gemini r delay-3">
+          Gemini
+          <small>Data team</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- arrows down -->
+    <div class="arch-row" style="gap:clamp(1.5rem,3vw,3rem);margin:clamp(.4rem,.8vw,.7rem) 0">
+      <div class="arch-varrow delay-1 r">&#8595;</div>
+      <div class="arch-varrow delay-2 r">&#8595;</div>
+      <div class="arch-varrow delay-3 r">&#8595;</div>
+    </div>
+
+    <!-- gateway -->
+    <div class="arch-row">
+      <div class="abox gateway r delay-4" style="width:clamp(260px,45vw,420px);text-align:center">
+        Unity AI Gateway
+        <small style="font-size:var(--xs);margin-top:4px;color:rgba(204,51,17,.7)">
+          Model routing &middot; Rate limits &middot; Spend caps &middot; Guardrails &middot; Service policies &middot; Audit
+        </small>
+      </div>
+    </div>
+
+    <!-- arrow down from gateway -->
+    <div class="arch-row" style="gap:clamp(1.5rem,3vw,3rem);margin:clamp(.4rem,.8vw,.7rem) 0">
+      <div class="arch-varrow delay-4 r">&#8595;</div>
+      <div class="arch-varrow delay-5 r">&#8595;</div>
+    </div>
+
+    <!-- models + tools row -->
+    <div class="arch-row" style="gap:clamp(.8rem,1.6vw,1.4rem)">
+      <div class="arch-vstack r delay-5">
+        <div style="font-size:var(--xs);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;margin-bottom:4px">Foundation Models</div>
+        <div style="display:flex;gap:8px">
+          <div class="abox model" style="min-width:auto;padding:7px 12px;font-size:var(--xs)">Claude<br><small style="color:rgba(255,255,255,.6)">Opus &middot; Sonnet</small></div>
+          <div class="abox model" style="min-width:auto;padding:7px 12px;font-size:var(--xs)">Codex<br><small style="color:rgba(255,255,255,.6)">Haiku-equiv</small></div>
+          <div class="abox model" style="min-width:auto;padding:7px 12px;font-size:var(--xs)">Gemini<br><small style="color:rgba(255,255,255,.6)">Approved family</small></div>
+        </div>
+      </div>
+      <div class="arch-arrow delay-4 r" style="align-self:flex-end;margin-bottom:12px">&#8596;</div>
+      <div class="arch-vstack r delay-6">
+        <div style="font-size:var(--xs);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;margin-bottom:4px">External Tools</div>
+        <div style="display:flex;gap:8px">
+          <div class="abox tool" style="min-width:auto;padding:7px 12px;font-size:var(--xs)">GitHub<br><small>API</small></div>
+          <div class="abox tool" style="min-width:auto;padding:7px 12px;font-size:var(--xs)">Jira<br><small>API</small></div>
+          <div class="abox tool" style="min-width:auto;padding:7px 12px;font-size:var(--xs)">Internal<br><small>Services</small></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="r" style="font-size:var(--sm);color:var(--muted);text-align:center;margin-top:10px">
+    <code>system.ai_gateway.usage</code> captures every call: model, tokens, latency, cost, user, agent identity.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 5 · LAYER 1: MODEL ROUTING & ALLOWLISTING
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label r">Layer 1 of 6</div>
+  <h2 class="r">Model routing &amp; allowlisting.</h2>
+  <p class="r muted" style="max-width:72ch">Not every agent should reach every model. The cheapest effective model for the task saves 60&ndash;80% before any other control fires.</p>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r">Acme policy</div>
+      <div class="card r" style="border-top:2px solid #8b5cf6">
+        <div class="badge" style="background:#f5f3ff;color:#8b5cf6;margin-bottom:8px">Claude Code &mdash; Senior</div>
+        <p><strong>Allowed:</strong> Claude Sonnet (default), Claude Opus (explicitly requested)</p>
+        <p style="margin-top:4px"><strong>Blocked:</strong> All other model families</p>
+      </div>
+      <div class="card card-blue r">
+        <div class="badge badge-blue" style="margin-bottom:8px">Codex Tools &mdash; Mid-level</div>
+        <p><strong>Allowed:</strong> Haiku-equivalent tier only</p>
+        <p style="margin-top:4px"><strong>Blocked:</strong> Sonnet, Opus, Gemini Pro</p>
+      </div>
+      <div class="card card-green r">
+        <div class="badge badge-green" style="margin-bottom:8px">Gemini &mdash; Data Team</div>
+        <p><strong>Allowed:</strong> Approved Gemini family (flash by default)</p>
+        <p style="margin-top:4px"><strong>Blocked:</strong> All Claude families, GPT-4</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r">How it works in the gateway</div>
+      <pre class="r"><span class="cm"># Serving endpoint config (simplified)</span>
+<span class="kw">route_config</span>:
+  routes:
+    - name: claude-code-senior
+      <span class="kw">model_allowlist</span>:
+        - claude-sonnet-4-*
+        - claude-opus-4-*
+      <span class="kw">tags_filter</span>: {team: engineering, tier: senior}
+
+    - name: codex-mid-level
+      <span class="kw">model_allowlist</span>:
+        - claude-haiku-3-*
+      <span class="kw">tags_filter</span>: {team: engineering, tier: mid}
+
+    - name: gemini-data
+      <span class="kw">model_allowlist</span>:
+        - gemini-2-flash-*
+      <span class="kw">tags_filter</span>: {team: data}</pre>
+      <div class="card card-red r">
+        <h4>Why this matters</h4>
+        <p>An engineer who grabs Opus for a simple docstring task costs 15&times; more than Haiku for the same output. Without allowlisting, model choice is always whoever pays least attention. The gateway removes the choice.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 6 · LAYER 2: RATE LIMITS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label r">Layer 2 of 6</div>
+  <h2 class="r">Rate limits &mdash; per agent, per engineer, per team.</h2>
+  <p class="r muted" style="max-width:72ch">Rate limits bound the <em>velocity</em> of spend. Caps bound the <em>total</em>. Both are needed. Rate limits catch runaway loops in real time.</p>
+
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r">Acme limit hierarchy</div>
+      <div class="card r" style="text-align:center">
+        <div style="font-size:var(--xs);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">Account level</div>
+        <div class="stat" style="font-size:clamp(1.4rem,3vw,2.2rem)">5,000 RPM</div>
+        <div class="stat-label">all teams combined, any model</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="card card-red r" style="text-align:center">
+          <div style="font-size:var(--xs);color:var(--muted);margin-bottom:4px">Team</div>
+          <div class="stat" style="font-size:clamp(1.2rem,2.5vw,1.8rem)">800 RPM</div>
+          <div class="stat-label">per team</div>
+        </div>
+        <div class="card card-red r" style="text-align:center">
+          <div style="font-size:var(--xs);color:var(--muted);margin-bottom:4px">Per engineer</div>
+          <div class="stat" style="font-size:clamp(1.2rem,2.5vw,1.8rem)">500 req/day</div>
+          <div class="stat-label">any model family</div>
+        </div>
+        <div class="card card-amber r" style="text-align:center">
+          <div style="font-size:var(--xs);color:var(--muted);margin-bottom:4px">Claude Code burst</div>
+          <div class="stat" style="font-size:clamp(1.2rem,2.5vw,1.8rem)">60 RPM</div>
+          <div class="stat-label">per engineer</div>
+        </div>
+        <div class="card card-green r" style="text-align:center">
+          <div style="font-size:var(--xs);color:var(--muted);margin-bottom:4px">Gemini data team</div>
+          <div class="stat" style="font-size:clamp(1.2rem,2.5vw,1.8rem)">2k tok/min</div>
+          <div class="stat-label">per seat</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r">What the hierarchy enforces</div>
+      <div class="card r">
+        <h4>First-match-wins enforcement</h4>
+        <p>The gateway evaluates limits from most-specific to least-specific. An engineer hitting the 60 RPM burst limit gets a 429 immediately &mdash; the team or account limit never even needs to fire.</p>
+      </div>
+      <div class="card card-ink r">
+        <h4>Loop detection in practice</h4>
+        <p>That overnight refactor loop that cost $400? With a 60 RPM per-engineer Claude Code limit, the agent would have hit the burst limit within the first minute of the loop and stopped automatically. Finance sees nothing. Engineer sees a 429 response, investigates, fixes the loop.</p>
+      </div>
+      <pre class="r" style="margin-top:4px"><span class="cm"># What the agent receives on throttle:</span>
+HTTP/1.1 <span class="kw">429</span> Too Many Requests
+<span class="kw">Retry-After</span>: 60
+{
+  <span class="st">"error"</span>: <span class="st">"rate_limit_exceeded"</span>,
+  <span class="st">"limit"</span>: <span class="st">"60 RPM per engineer"</span>,
+  <span class="st">"reset_at"</span>: <span class="st">"2026-07-07T14:32:00Z"</span>
+}</pre>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 7 · LAYER 3: HARD SPEND CAPS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label r">Layer 3 of 6</div>
+  <h2 class="r">Hard spend caps &mdash; the kill switch.</h2>
+  <p class="r muted" style="max-width:72ch">When a cap is hit, calls block. Not degrade. Not slow. Block. The agent stops. The bill does not continue.</p>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r">Acme spend caps</div>
+      <table class="r" style="background:var(--surface);border-radius:6px;overflow:hidden">
+        <thead>
+          <tr>
+            <th>Scope</th>
+            <th>Cap</th>
+            <th>Period</th>
+            <th>On breach</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-ink">Account</span></td>
+            <td class="num"><strong>$15,000</strong></td>
+            <td>monthly</td>
+            <td><span class="badge badge-red">429 &mdash; all calls block</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-muted">Team</span></td>
+            <td class="num"><strong>$2,000</strong></td>
+            <td>monthly</td>
+            <td><span class="badge badge-red">429 &mdash; team blocks</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-muted">Engineer</span></td>
+            <td class="num"><strong>$50</strong></td>
+            <td>daily</td>
+            <td><span class="badge badge-red">429 &mdash; user blocks</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="card card-red r">
+        <h4>Caps compound with rate limits</h4>
+        <p>Rate limits stop loops in real time. Caps stop cumulative overruns across the billing period. An engineer who spends $50 of Opus at 6am is done for the day &mdash; no exception, no override path.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r">The moment a cap fires</div>
+      <pre class="r"><span class="cm"># Spend cap response &mdash; same 429, different cause</span>
+HTTP/1.1 <span class="kw">429</span> Too Many Requests
+{
+  <span class="st">"error"</span>: <span class="st">"spend_cap_exceeded"</span>,
+  <span class="st">"scope"</span>: <span class="st">"user"</span>,
+  <span class="st">"cap_usd"</span>: <span class="kw">50.00</span>,
+  <span class="st">"spent_usd"</span>: <span class="kw">50.12</span>,
+  <span class="st">"resets_at"</span>: <span class="st">"2026-07-08T00:00:00Z"</span>
+}</pre>
+      <div class="card card-amber r">
+        <h4>Finance integration</h4>
+        <p>The spend data in <code>system.ai_gateway.usage</code> feeds a nightly roll-up. Finance sees a line-item per team per day. No more quarterly surprises. Chargebacks are automatic.</p>
+      </div>
+      <div class="card card-green r">
+        <h4>What Acme achieved</h4>
+        <p>Zero billing surprises in Q3 2026 after caps were configured. The $15k monthly account cap has never been reached &mdash; team caps catch overruns first. Engineers know their daily budget. Agents stop themselves.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 8 · LAYER 4: GUARDRAILS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label r">Layer 4 of 6</div>
+  <h2 class="r">Guardrails &mdash; what agents can say and do.</h2>
+  <p class="r muted" style="max-width:72ch">Guardrails run on every request and response, before the model sees the input and before the agent sees the output. First match wins.</p>
+  <div class="three-col mt2">
+    <div class="card card-red r">
+      <div class="label">Input guardrails</div>
+      <h4>Block before LLM</h4>
+      <ul>
+        <li>Prompts attempting to extract training data</li>
+        <li>System prompt override attempts (<code>Ignore all previous instructions</code>)</li>
+        <li>Direct requests for internal system paths or service credentials</li>
+        <li>Prompt injection via tool results</li>
+      </ul>
+      <div class="mt2" style="font-size:var(--xs);color:var(--muted)">Fires before token cost is incurred.</div>
+    </div>
+    <div class="card card-amber r">
+      <div class="label">Output guardrails</div>
+      <h4>Redact before agent</h4>
+      <ul>
+        <li>AWS access key patterns (<code>AKIA*</code>)</li>
+        <li>Databricks personal access tokens (<code>dapi*</code>)</li>
+        <li>Private IP ranges in generated code</li>
+        <li>Internal hostnames matching <code>*.acme-internal.io</code></li>
+        <li>Hardcoded connection strings</li>
+      </ul>
+      <div class="mt2" style="font-size:var(--xs);color:var(--muted)">Pattern matched before agent consumes output.</div>
+    </div>
+    <div class="card card-ink r">
+      <div class="label">PII detection</div>
+      <h4>Redact before model</h4>
+      <p>PII found in agent context (user emails, employee IDs, social security numbers, credit card numbers) is redacted before the LLM processes it.</p>
+      <p class="mt1">Redaction is deterministic: the same entity gets the same placeholder across a session so the agent can still reason about it.</p>
+      <div class="mt2">
+        <code style="font-size:var(--xs)">john.doe@acme.com</code>
+        <span style="font-size:var(--xs);color:var(--muted)"> &rarr; </span>
+        <code style="font-size:var(--xs)">[EMAIL_1]</code>
+      </div>
+      <div class="mt1" style="font-size:var(--xs);color:rgba(255,255,255,.6)">Required: <code style="font-size:var(--xs)">pii_detection: true</code> on all routes.</div>
+    </div>
+  </div>
+  <div class="r mt2" style="background:rgba(204,51,17,.06);border:1px solid rgba(204,51,17,.22);border-radius:6px;padding:11px 15px;font-size:var(--sm)">
+    <strong style="color:var(--red)">Acme configuration:</strong> All three guardrail types enabled on every agent route. Guardrails are account-level defaults &mdash; no team can opt out without a new policy approval.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 9 · LAYER 5: SERVICE POLICIES / APPROVAL GATES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label r">Layer 5 of 6</div>
+  <h2 class="r">Service policies &mdash; approval gates for high-risk actions.</h2>
+  <p class="r muted" style="max-width:72ch">Some tool calls are too consequential to let an agent decide autonomously. Service policies define what requires a human signal before proceeding.</p>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r">Acme approval matrix</div>
+      <table class="r">
+        <thead>
+          <tr><th>Agent action</th><th>Autonomous?</th><th>Requires</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>read_file</code></td><td><span class="check">&#10003; Yes</span></td><td>&mdash;</td></tr>
+          <tr><td><code>run_tests</code></td><td><span class="check">&#10003; Yes</span></td><td>&mdash;</td></tr>
+          <tr><td><code>create_pr</code></td><td><span class="check">&#10003; Yes</span></td><td>&mdash;</td></tr>
+          <tr><td><code>git push main</code></td><td><span class="red">&#10007; No</span></td><td>Human approval</td></tr>
+          <tr><td><code>terraform apply</code></td><td><span class="red">&#10007; No</span></td><td>Human approval</td></tr>
+          <tr><td><code>delete_resource</code></td><td><span class="red">&#10007; No</span></td><td>Human approval</td></tr>
+        </tbody>
+      </table>
+      <div class="card card-red r">
+        <h4>Enforced at the gateway, not in agent code</h4>
+        <p>Service policies live in the gateway configuration, not in each agent's prompt or tool definition. An agent cannot bypass them by being clever. The gateway intercepts the tool call and issues a hold before forwarding.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r">Policy configuration shape</div>
+      <pre class="r"><span class="cm"># Gateway service policy (simplified)</span>
+<span class="kw">service_policies</span>:
+  - name: high-risk-tool-gate
+    <span class="kw">match</span>:
+      tool_names:
+        - git_push_main
+        - terraform_apply
+        - delete_resource
+    <span class="kw">action</span>: require_approval
+    approval:
+      <span class="kw">timeout_seconds</span>: 300
+      <span class="kw">approver_groups</span>: [team-leads]
+      <span class="kw">on_timeout</span>: deny</pre>
+      <div class="card card-ink r">
+        <h4>What the agent experiences</h4>
+        <p>When the gateway intercepts a tool call requiring approval, the agent receives a <strong>hold</strong> response. Execution pauses. A Slack notification goes to the on-call team lead. Approve &rarr; agent continues. Deny or timeout &rarr; agent receives a rejection. The entire flow is logged.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 10 · LAYER 6: SANDBOX ISOLATION (OMNIGENT)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label r">Layer 6 of 6</div>
+  <h2 class="r">Sandbox isolation &mdash; agents that can't escape.</h2>
+  <p class="r muted" style="max-width:72ch">For coding agents specifically, OS-level isolation means the agent's working directory is its entire world. No filesystem escape. No network calls outside the sandbox.</p>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r">Omnigent &mdash; what it adds</div>
+      <div class="card r">
+        <h4>Databricks Sandboxes per session</h4>
+        <p>Each Claude Code session gets its own isolated Databricks Sandbox. Filesystem and network are scoped to that session. Credentials are injected at session start, not embedded in the agent prompt.</p>
+      </div>
+      <div class="card card-red r">
+        <h4>Session shareable by URL</h4>
+        <p>Any Acme team lead can review a live agent session by opening the session URL. They see exactly what the agent sees: the working directory, the tool call history, the LLM conversation. Full transparency for high-risk sessions.</p>
+      </div>
+      <div class="card card-amber r">
+        <h4>Spend cap inside the sandbox</h4>
+        <p>The Omnigent policy YAML enforces a per-session token budget. Even if the gateway-level per-engineer cap has headroom, a single session cannot exceed its own sandbox cap.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r">Policy YAML shape</div>
+      <pre class="r"><span class="cm"># Omnigent session policy</span>
+<span class="kw">sandbox_policy</span>:
+  isolation:
+    <span class="kw">filesystem</span>: workspace_only
+    <span class="kw">network</span>: allowlist
+    network_allowlist:
+      - api.github.com
+      - jira.acme.io
+  credentials:
+    <span class="kw">injection_mode</span>: env_scoped
+    <span class="kw">rotation</span>: per_session
+  spend:
+    <span class="kw">token_budget_per_session</span>: 200000
+    <span class="kw">on_budget_exceeded</span>: terminate
+  review:
+    <span class="kw">shareable_session_url</span>: true
+    <span class="kw">retain_logs_days</span>: 90</pre>
+      <div class="card card-green r">
+        <h4>Acme: what changed for engineers</h4>
+        <p>Transparent to normal use. Agents run as before. The difference: when an agent tries to write outside its workspace or call an unlisted API, the sandbox rejects it before the gateway is even involved. Defense in depth.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 11 · OBSERVABILITY: THE USAGE DASHBOARD
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label r">Observability</div>
+  <h2 class="r">The usage table that answers every question finance has.</h2>
+  <p class="r muted" style="max-width:72ch"><code>system.ai_gateway.usage</code> &mdash; every call, every model, every cost, every identity. Queryable like any Unity Catalog table.</p>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r">Queries Acme runs</div>
+      <pre class="r" style="font-size:var(--xs)"><span class="cm">-- Daily spend by engineer</span>
+<span class="kw">SELECT</span> user_id, date_trunc(<span class="st">'day'</span>, timestamp) <span class="kw">AS</span> day,
+       sum(total_cost_usd) <span class="kw">AS</span> spend_usd,
+       sum(total_tokens) <span class="kw">AS</span> tokens
+<span class="kw">FROM</span> system.ai_gateway.usage
+<span class="kw">WHERE</span> workspace_id = current_workspace_id()
+  <span class="kw">AND</span> timestamp >= current_date - <span class="kw">INTERVAL</span> 30 <span class="st">DAYS</span>
+<span class="kw">GROUP BY</span> 1, 2
+<span class="kw">ORDER BY</span> spend_usd <span class="kw">DESC</span>;</pre>
+      <pre class="r" style="font-size:var(--xs)"><span class="cm">-- Top 10 most expensive agent sessions</span>
+<span class="kw">SELECT</span> session_id, user_id, model_id,
+       sum(total_cost_usd) <span class="kw">AS</span> session_cost,
+       sum(total_tokens) <span class="kw">AS</span> tokens,
+       max(timestamp) - min(timestamp) <span class="kw">AS</span> duration
+<span class="kw">FROM</span> system.ai_gateway.usage
+<span class="kw">GROUP BY</span> 1, 2, 3
+<span class="kw">ORDER BY</span> session_cost <span class="kw">DESC</span>
+<span class="kw">LIMIT</span> 10;</pre>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <pre class="r" style="font-size:var(--xs)"><span class="cm">-- Model usage by team</span>
+<span class="kw">SELECT</span> team, model_id,
+       count(*) <span class="kw">AS</span> calls,
+       sum(total_cost_usd) <span class="kw">AS</span> spend
+<span class="kw">FROM</span> system.ai_gateway.usage u
+<span class="kw">JOIN</span> acme.hr.team_membership t <span class="kw">USING</span> (user_id)
+<span class="kw">GROUP BY</span> 1, 2
+<span class="kw">ORDER BY</span> spend <span class="kw">DESC</span>;</pre>
+      <pre class="r" style="font-size:var(--xs)"><span class="cm">-- Anomaly alert: 3x daily average breach</span>
+<span class="kw">WITH</span> daily_avg <span class="kw">AS</span> (
+  <span class="kw">SELECT</span> user_id,
+         avg(daily_spend) <span class="kw">AS</span> avg_spend
+  <span class="kw">FROM</span> (
+    <span class="kw">SELECT</span> user_id, <span class="kw">DATE</span>(timestamp) <span class="kw">AS</span> d,
+           sum(total_cost_usd) <span class="kw">AS</span> daily_spend
+    <span class="kw">FROM</span> system.ai_gateway.usage
+    <span class="kw">WHERE</span> timestamp >= current_date - 30
+    <span class="kw">GROUP BY</span> 1, 2
+  ) <span class="kw">GROUP BY</span> 1
+)
+<span class="kw">SELECT</span> u.user_id, today.spend, d.avg_spend,
+       today.spend / d.avg_spend <span class="kw">AS</span> ratio
+<span class="kw">FROM</span> daily_avg d
+<span class="kw">JOIN</span> (...today_spend...) today <span class="kw">USING</span> (user_id)
+<span class="kw">WHERE</span> today.spend > d.avg_spend * 3;</pre>
+      <div class="card card-green r">
+        <h4>Alert wire-up</h4>
+        <p>The anomaly query runs as a Databricks workflow every 4 hours. Anomalies page the on-call engineer and CC the team lead. No dashboard required &mdash; the alert IS the dashboard for urgent cases.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 12 · GOVERNANCE MATRIX
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label r">Summary</div>
+  <h2 class="r">Six layers, independently configurable.</h2>
+  <p class="r muted" style="max-width:72ch">Defense in depth. Some controls are account-wide. Some are per-team. Some are per-agent type. Each layer can change without touching the others.</p>
+  <div class="flex1 mt2" style="overflow-x:auto">
+    <table class="matrix r">
+      <thead>
+        <tr>
+          <th style="min-width:160px">Control layer</th>
+          <th>Configured by</th>
+          <th>Scope</th>
+          <th>What it stops</th>
+          <th>Acme status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1. Model allowlisting</strong></td>
+          <td>Platform team</td>
+          <td>Per route / per team</td>
+          <td>Model tier creep, unnecessary Opus usage</td>
+          <td><span class="badge badge-green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>2. Rate limits</strong></td>
+          <td>Platform team</td>
+          <td>Account &rarr; team &rarr; user &rarr; agent</td>
+          <td>Runaway loops, burst overconsumption</td>
+          <td><span class="badge badge-green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>3. Spend caps</strong></td>
+          <td>Finance + platform</td>
+          <td>Account &rarr; team &rarr; user (daily)</td>
+          <td>Billing surprises, budget overruns</td>
+          <td><span class="badge badge-green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>4. Guardrails</strong></td>
+          <td>Security team</td>
+          <td>Account-level default, all routes</td>
+          <td>Secret exfiltration, prompt injection, PII leakage</td>
+          <td><span class="badge badge-green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>5. Service policies</strong></td>
+          <td>Eng leadership</td>
+          <td>Per tool call type</td>
+          <td>Unauthorized deploys, destructive actions</td>
+          <td><span class="badge badge-green">Active</span></td>
+        </tr>
+        <tr>
+          <td><strong>6. Sandbox isolation</strong></td>
+          <td>Platform team</td>
+          <td>Per agent session</td>
+          <td>Filesystem escape, credential theft, session sprawl</td>
+          <td><span class="badge badge-green">Active</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="r mt2" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:11px 15px;font-size:var(--sm)">
+    <strong>Configuration surface:</strong> All six layers configure through Unity AI Gateway serving endpoint settings + Omnigent policy YAML. One control plane. No per-agent code changes needed.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 13 · BEFORE AND AFTER
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="13">
+  <div class="label r">Acme Engineering</div>
+  <h2 class="r">Before and after.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div class="label r" style="color:var(--amber)">Before governance</div>
+      <div class="ba-col r">
+        <div class="ba-item"><span class="ba-icon" style="color:var(--amber)">&#9656;</span><span>AI spend is a single line item in the cloud bill. No breakdown by team, engineer, or agent.</span></div>
+        <div class="ba-item"><span class="ba-icon" style="color:var(--amber)">&#9656;</span><span>Runaway agent loops run unchecked for hours. $400 incident discovered the next morning.</span></div>
+        <div class="ba-item"><span class="ba-icon" style="color:var(--amber)">&#9656;</span><span>Senior engineers routinely use Opus for tasks Haiku can handle. Nobody notices.</span></div>
+        <div class="ba-item"><span class="ba-icon" style="color:var(--amber)">&#9656;</span><span>No audit trail. Finance asks &ldquo;why is AI spend up 40% this quarter?&rdquo; Engineering has no answer.</span></div>
+        <div class="ba-item"><span class="ba-icon" style="color:var(--amber)">&#9656;</span><span>Agents can <code>git push</code> to main and trigger CI/CD without human review. One did.</span></div>
+        <div class="ba-item"><span class="ba-icon" style="color:var(--amber)">&#9656;</span><span>Finance surprised quarterly. Budget forecast accuracy: ~40%.</span></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div class="label r" style="color:var(--green)">After governance (Q3 2026)</div>
+      <div class="ba-col r">
+        <div class="ba-item"><span class="ba-icon" style="color:var(--green)">&#10003;</span><span>Per-engineer, per-team, per-day spend visible in real time via <code>system.ai_gateway.usage</code>. Chargebacks automated.</span></div>
+        <div class="ba-item"><span class="ba-icon" style="color:var(--green)">&#10003;</span><span>Rate limits stop loops within 60 seconds. $400 incident class eliminated. Zero runaway incidents in Q3.</span></div>
+        <div class="ba-item"><span class="ba-icon" style="color:var(--green)">&#10003;</span><span>Model allowlisting drives <strong style="color:var(--green)">34% cost reduction</strong> from routing alone &mdash; no feature changes.</span></div>
+        <div class="ba-item"><span class="ba-icon" style="color:var(--green)">&#10003;</span><span>Full audit trail. Finance query answer time: &lt;30 seconds. Budget forecast accuracy: &gt;90%.</span></div>
+        <div class="ba-item"><span class="ba-icon" style="color:var(--green)">&#10003;</span><span>Service policies require team lead approval before any <code>git push main</code> or <code>terraform apply</code>. Zero unauthorized deploys.</span></div>
+        <div class="ba-item"><span class="ba-icon" style="color:var(--green)">&#10003;</span><span>Finance sees real-time spend. Monthly cap has never been reached. Quarterly review is routine.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="r mt3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+    <div class="card" style="text-align:center;padding:12px 10px">
+      <div class="stat">34%</div>
+      <div class="stat-label">cost reduction, model routing alone</div>
+    </div>
+    <div class="card" style="text-align:center;padding:12px 10px">
+      <div class="stat">$0</div>
+      <div class="stat-label">runaway incidents in Q3</div>
+    </div>
+    <div class="card" style="text-align:center;padding:12px 10px">
+      <div class="stat">&gt;90%</div>
+      <div class="stat-label">budget forecast accuracy (was ~40%)</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 14 · IMPLEMENTATION SEQUENCE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="14">
+  <div class="label r">Recommended sequence</div>
+  <h2 class="r">Don't boil the ocean. Start here.</h2>
+  <p class="r muted" style="max-width:72ch">Each step is independently valuable. Stop after any step if the org isn't ready. The controls compound &mdash; later steps become easier once earlier ones are in place.</p>
+  <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-height:0;overflow:hidden;margin-top:16px">
+    <div class="seq-step r">
+      <div class="seq-num">1</div>
+      <div class="seq-body">
+        <strong>Usage monitoring first &mdash; see what's happening</strong>
+        <p>Enable <code>system.ai_gateway.usage</code> and run the spend-by-engineer query. You will be surprised. This one step changes the conversation with finance and engineering leadership. No controls yet &mdash; just light.</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">2</div>
+      <div class="seq-body">
+        <strong>Model allowlists &mdash; cheap, high-impact, immediate</strong>
+        <p>Map teams to model tiers based on actual task profiles. Restrict Opus to senior engineers explicitly requesting it. Expect 20&ndash;40% cost reduction within the first billing cycle.</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">3</div>
+      <div class="seq-body">
+        <strong>Rate limits &mdash; stop loops, protect burst capacity</strong>
+        <p>Set per-engineer RPM limits conservatively, then tune up. Runaway agent loops disappear. Engineers barely notice the limits during normal use.</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">4</div>
+      <div class="seq-body">
+        <strong>Spend caps &mdash; the kill switch finance needs</strong>
+        <p>Set account, team, and daily-user caps. Finance gets a committed ceiling. Engineering gets autonomy within that ceiling. Both win.</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">5</div>
+      <div class="seq-body">
+        <strong>Guardrails &mdash; protect what leaves the org</strong>
+        <p>Enable PII detection and output secret scanning. Security team owns this layer independently. No engineering changes needed.</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">6</div>
+      <div class="seq-body">
+        <strong>Approval gates &amp; sandbox isolation &mdash; for high-trust agents</strong>
+        <p>Service policies and Omnigent sandboxes for agents with infrastructure access. Deliberate rollout: pilot with one team, tune, then expand.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 15 · CLOSING CALLIGRAM
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide slide-calli" data-slide="15">
+  <div class="r">
+    <div class="calli-hero">
+      EVERY<br>
+      CALL.
+      <span class="line2">GOVERNED.</span>
+    </div>
+    <div class="calli-rule r"></div>
+    <p class="calli-sub r">Model routing &middot; Rate limits &middot; Spend caps &middot; Guardrails &middot; Approval gates &middot; Sandbox isolation</p>
+    <p class="r" style="margin-top:clamp(.8rem,2vh,1.4rem);font-size:var(--sm);color:rgba(255,255,255,.38)">Acme Engineering &mdash; Unity AI Gateway &mdash; Omnigent</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  let current = 0;
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  /* build nav dots */
+  const dotsEl = document.getElementById('navDots');
+  slides.forEach(function(_, i){
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.setAttribute('title', 'Slide ' + (i+1));
+    d.addEventListener('click', function(){ goTo(i); });
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n){
+    if(n < 0 || n >= total) return;
+    const prev = current;
+    slides[prev].classList.remove('active');
+    slides[prev].classList.add('exit-left');
+    setTimeout(function(){ slides[prev].classList.remove('exit-left'); }, 420);
+
+    current = n;
+    slides[current].classList.add('active');
+
+    /* update chrome */
+    document.getElementById('counter').textContent =
+      String(current+1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+    document.getElementById('progressBar').style.width =
+      ((current+1)/total*100) + '%';
+
+    /* dots */
+    const dots = dotsEl.querySelectorAll('.dot');
+    dots.forEach(function(d,i){ d.classList.toggle('active', i===current); });
+
+    /* buttons */
+    document.getElementById('prevBtn').disabled = current === 0;
+    document.getElementById('nextBtn').disabled = current === total-1;
+    document.getElementById('homeBtn').disabled = current === 0;
+  }
+
+  /* keyboard */
+  document.addEventListener('keydown', function(e){
+    const overlay = document.getElementById('kbOverlay');
+    if(overlay.classList.contains('visible')){
+      if(e.key === 'Escape'){ overlay.classList.remove('visible'); }
+      return;
+    }
+    if(e.key === 'ArrowRight' || e.key === ' '){ e.preventDefault(); goTo(current+1); }
+    else if(e.key === 'ArrowLeft'){ goTo(current-1); }
+    else if(e.key === 'Home'){ goTo(0); }
+    else if(e.key === 'End'){ goTo(total-1); }
+  });
+
+  /* help overlay */
+  document.getElementById('helpBtn').addEventListener('click', function(){
+    document.getElementById('kbOverlay').classList.add('visible');
+  });
+  document.getElementById('kbOverlay').addEventListener('click', function(){
+    this.classList.remove('visible');
+  });
+
+  /* touch swipe */
+  document.addEventListener('touchstart', function(e){
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40){
+      if(dx < 0) goTo(current+1);
+      else goTo(current-1);
+    }
+  }, {passive:true});
+
+  /* init state */
+  goTo(0);
+})();
+</script>
+</body>
+</html>

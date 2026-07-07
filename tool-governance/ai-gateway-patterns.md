@@ -1,6 +1,6 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
-  Sources: ai/ai-gateway.md
+  Synced from databricks-fieldkit on 2026-07-07
+  Sources: ai/ai-gateway.md, mcp/mcp-services.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/ai-gateway/
     - https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/overview-beta
@@ -177,6 +177,22 @@ flowchart LR
 | **Usage tracking** | Token consumption logged per identity to system tables. Enables cost attribution by team, app, or user group. |
 | **Fallback routing** | Route to a backup model if the primary is unavailable or exceeds latency thresholds. Supports traffic splitting across model versions. |
 | **UC-aware** | Rate limit policies reference Databricks users and groups — the same identity model as row filters and column masks. |
+| **Service policies** | ABAC layer governing who can call which tools, with optional approval gates. Distinct from guardrails — see below. |
+
+### Guardrails vs Service Policies — Two Distinct Governance Layers
+
+These are complementary controls that address different concerns. Do not conflate them.
+
+| Layer | Governs | Applied at | Configured via |
+|---|---|---|---|
+| **Guardrails** | Content — what the model says or receives (safety, PII, off-topic) | AI Gateway on the serving endpoint (input and output) | `PUT /api/2.0/serving-endpoints/{name}/ai-gateway` |
+| **Service policies** | Access — who can call what, and whether approval is required | MCP Service level (tool-by-tool) | MCP Service policy configuration |
+
+**Guardrails** are content filters: they inspect the payload before it reaches the model and after the model responds. A blocked request never reaches the LLM.
+
+**Service policies** are access control: they enforce which principals can invoke which tools within an MCP service, and can require a human approval step before a tool executes. They operate before content is even evaluated.
+
+In practice, both layers apply together. A principal needs `EXECUTE` on the MCP Service (UC), must not be blocked by a service policy (access control), and the content must pass guardrails (content control).
 
 ### When to use Databricks AI Gateway
 
@@ -190,9 +206,14 @@ flowchart LR
 
 ## Pattern 3 — Outbound External: UC Connections + Serverless Network Policies
 
-When agents need to call external services (third-party APIs, external MCP servers, external LLMs not on Databricks FM API), the governance model is UC HTTP Connections for credential authorization and Serverless Network Policies for network-level allowlisting.
+When agents need to call external services (third-party APIs, external MCP servers, external LLMs not on Databricks FM API), the recommended governance model depends on what is being called:
 
-### The Proxy Model
+- **Common SaaS providers** (Glean MCP, GitHub MCP, Atlassian MCP, Slack MCP): use **Managed OAuth providers** via UC MCP Services — Databricks manages the OAuth registration, no connection setup required. The `http_request()` SQL function is deprecated and should not be used for new integrations with these providers.
+- **Custom or arbitrary HTTP endpoints**: UC HTTP Connections for credential authorization + Serverless Network Policies for network-level allowlisting.
+
+> **Deprecation note**: `http_request()` as a mechanism for calling managed OAuth providers (Glean, GitHub, Atlassian, Slack) is deprecated. Use UC MCP Services (`system.ai.*` or `catalog.schema.svc`) instead. Existing uses of `http_request()` for custom HTTP endpoints are unaffected.
+
+### The Proxy Model (UC HTTP Connections)
 
 Application code never calls external services directly. It calls a Databricks-managed proxy endpoint, which checks authorization and injects credentials before forwarding to the external service.
 
@@ -471,7 +492,8 @@ Patterns 2 and 4 are additive: an external gateway can sit in front of a Databri
 
 - [Databricks AI Gateway](https://docs.databricks.com/en/ai-gateway/index.html)
 - [Databricks Serverless Network Policies](https://docs.databricks.com/en/security/network/serverless-network-security/serverless-firewall.html)
-- [Unity Catalog HTTP Connections — External MCP](https://docs.databricks.com/en/generative-ai/mcp/external-mcp.html)
+- [MCP Services — UC Securables](https://docs.databricks.com/aws/en/generative-ai/mcp/)
+- [Unity Catalog HTTP Connections — External MCP (legacy proxy)](https://docs.databricks.com/en/generative-ai/mcp/external-mcp.html)
 - [Unity Catalog Privileges and Securable Objects](https://docs.databricks.com/en/data-governance/unity-catalog/manage-privileges/privileges.html)
 - [MLflow Tracing — Agent Observability](https://mlflow.org/docs/latest/llms/tracing/index.html)
 - [Databricks Foundation Model APIs](https://docs.databricks.com/en/machine-learning/foundation-models/index.html)

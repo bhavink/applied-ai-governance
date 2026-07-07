@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-07
   Sources: auth/oauth-scopes.md
   Public docs grounding:
     - https://docs.databricks.com/api/workspace/api/scopes
@@ -77,7 +77,7 @@ These determine identity in row filters, column masks, and RLS policies:
 
 | Issue | Governance impact |
 |---|---|
-| `sql` scope: CLI vs UI | CLI `custom-app-integration update` does NOT produce real OBO JWTs. UI User Authorization does. |
+| `sql` scope: CLI vs UI | CLI `custom-app-integration update` does NOT produce real OBO JWTs — the token remains a minimal OIDC identity token regardless. UI-driven User Authorization (the consent flow in the Account Console or app login) produces a **real OBO JWT**: `X-Forwarded-Access-Token` carries `sql` scope, and `current_user()` in a SQL warehouse returns the **human user's email**. The CLI path does not unlock this. |
 | `genie` scope hidden on Azure | Account console UI doesn't show it. Add via CLI — without it, Genie API returns 403. |
 | `unity-catalog` scope for External MCP | Required by the External MCP proxy to verify `USE CONNECTION`. Add it when wiring External MCP — missing scope returns 403. |
 | Scope changes require re-auth | Adding scopes doesn't propagate to existing refresh tokens. Users must re-authorize. |

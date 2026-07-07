@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-07
   Sources: auth/obo-passthrough.md, apps/proxy-architecture.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-u2m
@@ -215,6 +215,19 @@ This keeps `current_user()` = the human's email for both interactive and program
 | Single deployment serving both internal and external callers | Two deployments with different `authorization` settings |
 | Service principal shared with the browser | Per-user OBO; never expose SP credentials in client code |
 | Direct browser → Databricks token endpoint | CORS proxy required — browsers cannot reach the token endpoint directly |
+| `ModelServingUserCredentials()` inside a Databricks App | This class only works in Model Serving — it silently falls back to M2M in Apps, returning the SP identity instead of the user. In Apps, read `X-Forwarded-Access-Token` from the proxy header instead. |
+
+---
+
+## The Two-Proxy Problem (App-to-App)
+
+When App A calls App B and both have `authorization: enabled`, App B's proxy intercepts the inbound token and **substitutes its own SP token**. The human's identity is lost at the data plane — `current_user()` in App B's SQL calls returns the SP, not the user.
+
+**The correct fix is not to pass the user token in a custom header through App B's proxy.** Instead:
+
+- Set `authorization: disabled` on App B when it is called only from other apps (never from a browser or external client).
+- If App B must serve both app-to-app and external callers, use two deployments (one with `auth: disabled`, one with `auth: enabled`) — same code, different proxy settings.
+- When you need the user identity inside App B for SQL but cannot disable auth, read `X-Forwarded-Email` from the header for identity, then use M2M (`WorkspaceClient()`) for the SQL call with user impersonation enforced at the UC layer via row filters on `current_user()`.
 
 ---
 

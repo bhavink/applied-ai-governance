@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-07
   Sources: apps/proxy-architecture.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth
@@ -29,10 +29,15 @@ Every AI app architecture decision — OBO vs M2M, Genie vs direct SQL, app-to-a
 | Header | Governance role | Trust level |
 |---|---|---|
 | `X-Forwarded-Email` | **Primary identity** for audit and access control. Cannot be forged when proxy is enabled. | High |
-| `X-Forwarded-Access-Token` | OBO token for downstream API calls (Genie, Agent Bricks). **Does NOT carry `sql` scope** — regardless of OAuth integration configuration. | Medium |
+| `X-Forwarded-Access-Token` | OBO token for downstream API calls (Genie, Agent Bricks). Carries `sql` scope **only when the user has completed UI User Authorization** for the `sql` scope — otherwise a minimal OIDC identity token. | Medium |
 | `X-Forwarded-Groups` | Group membership for `is_member()` evaluation in row filters. | High |
+| `X-Request-Id` | UUID injected per request by the proxy for distributed tracing. Use for correlation across logs and downstream services. | Low |
 
-**Critical constraint**: `X-Forwarded-Access-Token` is a minimal OIDC identity token. Adding `sql` to `user_authorized_scopes` does NOT fix this — the platform issues a minimal token regardless. SQL operations require M2M (`WorkspaceClient()`) with identity from `X-Forwarded-Email`.
+**SQL scope via User Authorization**: When a user completes the UI-driven OAuth authorization flow and grants the `sql` scope, the proxy mints a real OBO JWT. In this case `X-Forwarded-Access-Token` carries SQL scope, and `current_user()` in a SQL warehouse returns the **human user's email** — not the SP. This is the only path to true per-user SQL OBO through the proxy.
+
+**When `sql` scope is not authorized**: The proxy issues a minimal OIDC identity token. SQL operations must use M2M (`WorkspaceClient()`) with identity sourced from `X-Forwarded-Email`.
+
+**OBO SQL gotcha**: Use `httpx` or `requests` directly with `X-Forwarded-Access-Token` as the Bearer token for SQL calls — do NOT use the `WorkspaceClient()` SDK. The SDK reads `DATABRICKS_TOKEN` from the environment, which is the app's SP M2M credential, and will override the OBO token.
 
 ---
 
@@ -57,11 +62,29 @@ When one Databricks App calls another, both have proxies. With `authorization: e
 
 ---
 
+## Supported Frameworks
+
+The proxy sits in front of any Python web framework the app runs. Supported: **Streamlit**, **Gradio**, **Flask**, **Dash**, and **Shiny** (Python). The proxy behavior — header injection, OBO minting, authorization enforcement — is identical regardless of framework.
+
+---
+
+## App Status Lifecycle
+
+| State | Meaning |
+|---|---|
+| `Running` | App is healthy and serving traffic. |
+| `Stopped` | App has been manually stopped or scaled to zero. |
+| `Deploying` | App is starting up or redeploying. Headers are not yet injected. |
+| `Crashed` | App exited unexpectedly. Check logs before re-examining auth behavior — crashes during startup can produce misleading 502s. |
+
+---
+
 ## Gotchas
 
 | Issue | Governance impact |
 |---|---|
 | `ModelServingUserCredentials()` doesn't work in Apps | Silently falls back to M2M — returns SP identity, not user. Audit records will show the wrong identity. |
+| OBO SQL: use httpx/requests, not the SDK | `WorkspaceClient()` reads `DATABRICKS_TOKEN` env var (the SP's M2M credential) and overrides the OBO token. Use `httpx` or `requests` directly with the `X-Forwarded-Access-Token` value as the Bearer token. |
 | `authorization: disabled` means no auth at all | Unauthenticated requests reach your app. Only use on downstream apps behind another proxy. |
 | Two different SPs for two apps | Each deployment gets a new SP. Grants don't carry over — grant both SPs separately. |
 | Token refresh doesn't pick up new scopes | Adding scopes to an OAuth integration doesn't affect existing tokens. Requires app delete + recreate to force re-authorization. |

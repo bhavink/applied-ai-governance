@@ -1,5 +1,6 @@
 <!--
   Synced from databricks-fieldkit on 2026-04-27
+  Refreshed: 2026-07-07
   Sources: governance/context-based-ingress.md, apps/_azure/context-based-policies.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/security/network/front-end/context-based-ingress
@@ -66,6 +67,23 @@ Internet  ·  Corporate VPN  ·  Private Link  ·  Cloud peering
 ## Account-Level Context-Based Ingress
 
 A single policy attaches to one or more workspaces. Each rule combines four dimensions.
+
+### Policy Types
+
+Context-based ingress has two policy types with different lifecycle rules:
+
+| | Account-Level Policies | Workspace-Level Policies |
+|---|---|---|
+| Scope | Apply to one or more workspaces from the account console | Apply to a single workspace |
+| Lifecycle | **Permanent — cannot be renamed or deleted** once created | Can be renamed and deleted |
+| Evaluation order | Evaluated first | Evaluated after account-level policies |
+| Denial logging | Denials are **not yet logged** in `system.access.inbound_network` | Logged normally |
+| Recommended use | Org-wide baselines (corporate VPN, partner ranges) | Workspace-specific narrowing |
+
+**Implications for account-level policies:**
+- Name them deliberately before creation — the name is permanent.
+- A denial from an account-level policy does not appear in the audit table. Use dry-run mode and direct API verification during initial rollout.
+- Account-level policies apply before workspace IP access lists. A workspace-level allow cannot override an account-level deny.
 
 ### Rule grammar
 
@@ -231,6 +249,8 @@ FQDN-based allowlists are more durable than IP-based rules when SaaS providers r
 | IP-based egress allowlists for SaaS | FQDN-based rules in cloud firewall — durable when SaaS providers rotate IPs |
 | Editing the default network policy as a first step | Create a named policy and attach to a single workspace first; default propagates broadly |
 | Switching to "Restrict" mode without dry-run | Dry-run for at least 7 days; review `inbound_network` denials before flipping |
+| Choosing a throwaway name for an account-level policy | Account-level policy names are permanent and cannot be changed. Choose a clear, org-meaningful name before creation. |
+| Assuming account-level denials appear in audit | Account-level policy denials are not yet logged in `system.access.inbound_network`. Validate coverage via dry-run and direct API calls during rollout. |
 
 ---
 

@@ -1,5 +1,6 @@
 <!--
   Synced from databricks-fieldkit on 2026-04-27
+  Refreshed: 2026-07-07
   Sources: governance/unity-catalog.md, governance/abac.md, governance/row-filters.md, governance/column-masks.md, governance/governed-tags.md, governance/data-classification.md, governance/best-practices.md, governance/metastore-management.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/data-governance/unity-catalog/
@@ -35,6 +36,23 @@ GRANT SELECT ON TABLE my_catalog.accounting.transactions TO `analysts`;
 ```
 
 Reference: [GRANT Statement](https://docs.databricks.com/aws/en/sql/language-manual/security-grant.html)
+
+### BROWSE — Self-Service Catalog Discovery
+
+`BROWSE` is a lightweight privilege that lets users discover catalog and schema structure without granting data access. Users can see catalog, schema, and table names; they cannot read rows, column values, or execute functions.
+
+```sql
+-- Allow all account users to browse the catalog structure
+GRANT BROWSE ON CATALOG my_catalog TO `account users`;
+```
+
+| What BROWSE grants | What BROWSE does NOT grant |
+|---|---|
+| See catalog, schema, table, and view names | Read any data (SELECT) |
+| Inspect table metadata (column names, data types) | Execute functions |
+| Discover available objects for self-service | Access external locations or volumes |
+
+**Governance pattern:** Grant `BROWSE` on shared catalogs to `account users` as the discovery floor. Then layer `SELECT` grants on specific schemas or tables to the groups that need data access. This prevents the alternative: users creating shadow copies of data because they cannot find the governed source.
 
 ## Row Filters
 
@@ -95,10 +113,12 @@ SELECT COUNT(*) FROM my_catalog.sales.opportunities WITH (NO ROW FILTER);
 
 ### Row Filter Gotchas
 
+> **#1 silent RLS failure:** `is_member()` in OBO paths (Genie, Agent Bricks) evaluates the execution service identity, not the calling user. Users see 0 rows with no error. Replace with `current_user()` + allowlist table.
+
 | Issue | Impact | Fix |
 |---|---|---|
+| `is_member()` evaluates the execution service identity in OBO paths | **Silent data denial.** Group-based row filters do not match the human caller's groups when Genie or Agent Bricks executes the query. Users see 0 rows; no error is surfaced. This is the #1 silent RLS failure in OBO deployments. | Use `current_user()` + allowlist table lookup. `current_user()` always resolves to the human caller's email in OBO chains. |
 | `is_member()` only checks workspace-level groups | Account-level groups return false | Use `is_account_group_member()` or lookup table |
-| `is_member()` under Genie OBO evaluates service context | Group-based row filters do not match human's workspace groups | Use `current_user()` + allowlist table lookup as the recommended pattern under Genie OBO |
 | Row filter on a view is not inherited from base table | View needs its own filter | Apply filters to both table and view |
 | Filter function references deleted group | `is_member('gone')` returns false for everyone | Monitor for 0-row results |
 | SP-executed queries bypass per-user filters | M2M sees all rows matching SP identity | Design SP-level filters or use OBO |
@@ -156,7 +176,7 @@ AS (CASE WHEN current_user() IN (SELECT email FROM authorized_viewers) THEN phon
 
 ## ABAC (Attribute-Based Access Control)
 
-> Public Preview. Databricks recommends ABAC for governance at scale.
+> Databricks recommends ABAC for governance at scale.
 
 ABAC uses governed tags to drive centralized policies. Instead of configuring filters per table, define policies that reference tags. Tags classify; policies enforce.
 
@@ -375,10 +395,49 @@ Reference: [Genie Space](https://docs.databricks.com/aws/en/genie/)
 - Use account-level groups for cross-workspace consistency
 - Create a standard group taxonomy: `<catalog>_readers`, `<catalog>_writers`, `pii_readers`, `data_stewards`
 
+### Managed vs External Tables
+
+Default to **managed tables**. They are fully governed by UC: lifecycle, location, and access control are all owned by the metastore.
+
+Use **external tables** only when the underlying storage must be shared with non-Databricks systems (e.g., a Spark cluster outside of Databricks, or a partner reading the same S3 prefix directly). When you do use external tables:
+
+- Do not register the same external location across multiple metastores. If two metastores point to the same location, UC governance applies only to the metastore that manages the external table — the other metastore has unmediated access to the storage.
+- Drop of an external table does NOT delete the underlying data. Ensure this is intentional; orphaned external data is a common source of ungoverned copies.
+
+| | Managed | External |
+|---|---|---|
+| Location managed by | Unity Catalog | You |
+| Drop deletes data | Yes | No |
+| Cross-metastore risk | None | High if same location registered in multiple metastores |
+| Recommended default | **Yes** | Only when storage must be shared with non-Databricks systems |
+
 ### Catalog Design
 - Use catalogs as environment boundaries: prod, staging, dev, sandbox
 - Never run AI tools against prod with write permissions without approval workflow
 - Don't use `main` catalog for production
+
+### Compute Policy Enforcement
+
+UC features (row filters, column masks, ABAC, data lineage) require compute in **Standard** or **Dedicated** access mode. Single-user clusters in legacy "No Isolation Shared" mode bypass UC enforcement.
+
+Enforce access mode via compute policies so users cannot create non-compliant clusters:
+
+```json
+{
+  "spark_conf.spark.databricks.cluster.profile": {
+    "type": "allowlist",
+    "values": ["serverlessWorker", "singleUser"],
+    "hidden": true
+  },
+  "data_security_mode": {
+    "type": "allowlist",
+    "values": ["SINGLE_USER", "USER_ISOLATION"],
+    "hidden": true
+  }
+}
+```
+
+Attach this policy to user groups that should not be able to create legacy compute. Serverless SQL warehouses always run in Standard mode — no policy needed for warehouse-only users.
 
 ### MCP and AI Agent Governance
 - One SP per capability boundary — read-only agent and write agent must have different SPs

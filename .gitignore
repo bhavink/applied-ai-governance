@@ -48,6 +48,9 @@ wrangler.toml
 *credential*
 *token*
 
+# Exceptions: presentation HTML files are never credentials
+!presentations/*.html
+
 # OAuth and API tokens
 *.token
 *.oauth

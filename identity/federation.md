@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-07
   Sources: auth/token-federation.md, auth/_azure/token-federation.md, auth/_okta/token-federation.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
@@ -98,6 +98,16 @@ Seven enforcement points in the chain, from IdP authentication through UC govern
 7. **UC Governance**: Row filters, column masks, USE CONNECTION fire at SQL engine level
 
 Points 1-5 are loud (HTTP errors on failure). Point 6 is semi-loud (structured ACCESS_DENIED). Point 7 is silent (fewer rows, masked columns).
+
+## Gotchas
+
+| Issue | Impact | Fix |
+|---|---|---|
+| Account limit: 5 federated token issuers | A 6th issuer registration fails silently or with a non-obvious error | Consolidate issuers where possible; each environment (dev/stage/prod) counts toward the limit if it uses a distinct IdP issuer |
+| JDBC/ODBC not supported | Native token exchange (RFC 8693) does not work for JDBC or ODBC connections — API-only | Route JDBC/ODBC callers through an API layer that performs the exchange server-side |
+| `client_id` required for SP (role-based) exchange | Unlike per-user exchange, including `client_id` is what selects the SP — omitting it routes to per-user account-wide policy instead | Always include `client_id` for role-to-SP mapping in this pattern |
+
+---
 
 ## Databricks Documentation
 
