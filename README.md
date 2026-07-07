@@ -34,19 +34,18 @@ Network, developer guardrails, and policy/compliance pillars are defined in the 
 
 | # | Deck | Audience | Topic |
 |---|------|----------|-------|
-| 01 | [AI Governance — The Complete Picture](https://bhavink.github.io/applied-ai-governance/presentations/01-ai-governance-complete.html) | Exec | One auth layer, three token paths, six enforcement layers, resource auth matrix, decision trees, prerequisites checklists |
-| 02 | [Identity & Authorization by Resource Type](https://bhavink.github.io/applied-ai-governance/presentations/02-identity-authorization-by-resource.html) | Technical | Serving Endpoints, Genie, UC Functions, Vector Search, UC HTTP Connections, Tables, Lakebase — auth model, identity flow, and gotchas for each |
-| 03 | [AI Orchestration & Tool Governance](https://bhavink.github.io/applied-ai-governance/presentations/03-ai-orchestration-tool-governance.html) | Technical | Agent Bricks, MCP servers, UC Connections, token federation, AI Gateway, observability — end-to-end orchestration governance |
-| 04 | [E2E User Identity Propagation — Cross-IdP Token Exchange](https://bhavink.github.io/applied-ai-governance/presentations/05-cross-idp-token-exchange.html) | Technical | External app + customer IdP + Databricks data as one identity chain. JWKS decision gate, RFC 8693 POST, UC current_user() enforcement, gotchas, IdP team checklist |
-| 05 | [Unity AI Gateway — Capability Deep Dive](https://bhavink.github.io/applied-ai-governance/presentations/06-unity-ai-gateway-capabilities.html) | Technical | Eight capabilities via Acme Financial user story (customer chatbot, analyst assistant, compliance agent). Routing, rate limits, guardrails, service policies, spend caps, MCP Services, prompt registry |
-| 06 | [AI Agent Cost Control & Governance](https://bhavink.github.io/applied-ai-governance/presentations/07-agent-cost-governance.html) | Technical | Claude Code, Codex, Gemini routed through Unity Gateway. Six governance layers: model allowlisting, rate limits, hard spend caps, guardrails, service policies, sandbox isolation |
-| 07 | [Service Principal Identity & M2M Governance](https://bhavink.github.io/applied-ai-governance/presentations/08-sp-m2m-identity.html) | Technical | One SP per service, SP→Group→UC GRANT chain, client credentials flow, current_user() UUID behavior, secret scope management, audit trail. Completes the identity story from Deck 04 |
+| 01 | [AI Governance — The Complete Picture](https://bhavink.github.io/applied-ai-governance/presentations/01-ai-governance-complete.html) | Exec | Three token paths, seven enforcement layers (incl. Service Policies + MCP Services), resource auth matrix, BROWSE privilege, decision trees |
+| 02 | [Identity, Authorization & Orchestration — Technical Reference](https://bhavink.github.io/applied-ai-governance/presentations/02-identity-auth-orchestration.html) | Technical | Three token paths, auth-by-resource matrix (7 resources), per-resource gotchas, Agent Bricks orchestration, MCP three types, UC HTTP Connections, end-to-end animated flow, 8 failure patterns |
+| 03 | [E2E User Identity Propagation — Cross-IdP Token Exchange](https://bhavink.github.io/applied-ai-governance/presentations/05-cross-idp-token-exchange.html) | Technical | External app + customer IdP + Databricks data as one identity chain. JWKS decision gate, RFC 8693 POST, UC current_user() enforcement, gotchas, IdP team checklist |
+| 04 | [Unity AI Gateway — Capability Deep Dive](https://bhavink.github.io/applied-ai-governance/presentations/06-unity-ai-gateway-capabilities.html) | Technical | Eight capabilities via Acme Financial user story. Routing, rate limits, guardrails, service policies, spend caps, MCP Services, prompt registry |
+| 05 | [AI Agent Cost Control & Governance](https://bhavink.github.io/applied-ai-governance/presentations/07-agent-cost-governance.html) | Technical | Claude Code, Codex, Gemini routed through Unity Gateway. Six governance layers: model allowlisting, rate limits, hard spend caps, guardrails, service policies, sandbox isolation |
+| 06 | [Service Principal Identity & M2M Governance](https://bhavink.github.io/applied-ai-governance/presentations/08-sp-m2m-identity.html) | Technical | One SP per service, SP→Group→UC GRANT chain, client credentials flow, current_user() UUID behavior, secret scope management, audit trail. Completes the identity story from Deck 03 |
 
 **Implementation Guides:**
 
 | # | Guide | Topic |
 |---|-------|-------|
-| IG | [Federation Token Exchange — Implementation Blueprint](https://bhavink.github.io/applied-ai-governance/presentations/federation-implementation-blueprint.html) | 12 prerequisites, 7-step flow, Auth0 / Okta / Entra ID walkthroughs, error catalog, smoke tests. Companion to Decks 03 and 04 |
+| IG | [Federation Token Exchange — Implementation Blueprint](https://bhavink.github.io/applied-ai-governance/presentations/federation-implementation-blueprint.html) | 12 prerequisites, 7-step flow, Auth0 / Okta / Entra ID walkthroughs, error catalog, smoke tests. Companion to Decks 02 and 03 |
 
 Browse all decks (including archived previous versions): [Presentations](https://bhavink.github.io/applied-ai-governance/presentations/)
 
