@@ -13,6 +13,7 @@ Two distinct concepts, often conflated:
 2. [Authorization](authorization.md): The three token patterns, UC governance, OAuth scopes, service principals
 3. [U2M from External Apps](u2m-external-obo.md): OBO from a non-Databricks app when users are already provisioned in the workspace
 4. [Per-User BYO-IdP Federation](byoidp-peruser-federation.md): External app + customer-owned IdP → per-user identity and row-level security via account-wide token exchange (with the no-JWKS fallback)
+4a. [Teams / Copilot Studio → Genie & Agent Bricks OBO](teams-copilot-genie-obo.md): Per-user identity into Genie from Microsoft Teams and Copilot Studio — and the second, independent gate (Genie space publish mode) that OBO alone doesn't satisfy
 5. [Federation Exchange](federation.md): Bridging external identity providers to Databricks for users who don't have workspace accounts
 6. [GCP Workload Identity Federation](gcp-workload-identity-federation.md): Any GCP workload (GKE, Cloud Run, Compute Engine, etc.) to Databricks via RFC 8693, no secrets required
 

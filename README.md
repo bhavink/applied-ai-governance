@@ -40,6 +40,8 @@ Network, developer guardrails, and policy/compliance pillars are defined in the 
 | 04 | [Unity AI Gateway — Capability Deep Dive](https://bhavink.github.io/applied-ai-governance/presentations/06-unity-ai-gateway-capabilities.html) | Technical | Eight capabilities via Acme Financial user story. Routing, rate limits, guardrails, service policies, spend caps, MCP Services, prompt registry |
 | 05 | [AI Agent Cost Control & Governance](https://bhavink.github.io/applied-ai-governance/presentations/07-agent-cost-governance.html) | Technical | Claude Code, Codex, Gemini routed through Unity Gateway. Six governance layers: model allowlisting, rate limits, hard spend caps, guardrails, service policies, sandbox isolation |
 | 06 | [Service Principal Identity & M2M Governance](https://bhavink.github.io/applied-ai-governance/presentations/08-sp-m2m-identity.html) | Technical | One SP per service, SP→Group→UC GRANT chain, client credentials flow, current_user() UUID behavior, secret scope management, audit trail. Completes the identity story from Deck 03 |
+| 07 | [AI/BI Dashboard Embedding Without a Second Login](https://bhavink.github.io/applied-ai-governance/presentations/09-aibi-dashboard-embedding.html) | Technical | Embedding a dashboard behind a foreign IdP without a second login prompt: two embedding models compared, SP-based 3-step token mint, `__aibi_external_value` scoping (app-enforced, not UC row filters), decision gate vs Deck 03's cross-IdP exchange |
+| 08 | [Answers Scoped to the Person Asking — Teams & Copilot Studio](https://bhavink.github.io/applied-ai-governance/presentations/10-teams-copilot-genie-obo.html) | Technical | Per-user identity into Genie/Agent Bricks from Microsoft Teams and Copilot Studio: 4 integration paths mapped, confirmed OAuth-federation path code-traced, the "two gates" insight (token-layer OBO + Genie space publish mode — `VIEWER` vs `EMBEDDED_CREDENTIALS`), native marketplace apps flagged as open question |
 
 **Implementation Guides:**
 
@@ -89,4 +91,5 @@ A: Yes, using OAuth U2M Per User connections. Each user authenticates separately
 
 ---
 
-*Last updated: 2026-07-07*
+*Last updated: 2026-07-10*
+
