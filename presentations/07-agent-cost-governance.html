@@ -350,7 +350,7 @@ tr:hover td{background:var(--surface)}
 
 <div class="topbar">
   <div class="title">Acme Engineering &mdash; <span>Agent Cost &amp; Governance</span></div>
-  <div class="counter" id="counter">01 / 15</div>
+  <div class="counter" id="counter">01 / 16</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 
@@ -898,9 +898,60 @@ HTTP/1.1 <span class="kw">429</span> Too Many Requests
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 11 · OBSERVABILITY: THE USAGE DASHBOARD
+     SLIDE 11 · LAYER 6 CONTINUED: CONTEXTUAL POLICIES (OMNIGENT)
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="11">
+  <div class="label r">Layer 6 of 6 &mdash; continued</div>
+  <h2 class="r">Contextual policies &mdash; governance that remembers the session.</h2>
+  <p class="r muted" style="max-width:72ch">A static allow/deny rule judges one action in isolation. A contextual policy judges an action against everything the agent has already done this session &mdash; then updates its own state for the next decision.</p>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r">The state machine</div>
+      <div class="card card-red r">
+        <h4>Handler signature</h4>
+        <p>Every contextual policy is a function: it receives the <strong>current session state</strong> plus the <strong>new event</strong>, and returns a <strong>verdict</strong> plus the <strong>updated state</strong>. The updated state persists for the rest of that session.</p>
+      </div>
+      <div class="card r">
+        <h4>Four verdicts, not three</h4>
+        <table style="margin-top:6px">
+          <tbody>
+            <tr><td><span class="badge badge-green">ALLOW</span></td><td>Proceed as requested</td></tr>
+            <tr><td><span class="badge badge-red">DENY</span></td><td>Block the action outright</td></tr>
+            <tr><td><span class="badge badge-amber">ASK</span></td><td>Pause for human approval</td></tr>
+            <tr><td><span class="badge badge-blue">TRANSFORM</span></td><td>Rewrite the action, then proceed</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout r">
+        The same email that would have gone out early in a session may require human approval later &mdash; the verdict depends on accumulated session state, not just the action itself.
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r">Built-in contextual policies</div>
+      <table class="r">
+        <thead>
+          <tr><th>Policy</th><th>Tracks</th><th>Behavior</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Google Drive</strong></td><td>Docs accessed / created</td><td>Reading a confidential doc tightens write access afterward (no write-down)</td></tr>
+          <tr><td><strong>Risk score</strong></td><td>Cumulative session risk</td><td>Crossing a threshold requires approval for sensitive actions</td></tr>
+          <tr><td><strong>Cost</strong></td><td>Cumulative session spend</td><td>Soft threshold asks; hard cap blocks expensive models</td></tr>
+          <tr><td><strong>Intent-based authz</strong></td><td>The user's initial prompt</td><td>Only tools relevant to the stated goal are permitted &mdash; blocks unrelated or injected calls</td></tr>
+        </tbody>
+      </table>
+      <div class="card card-ink r">
+        <h4>Why this matters for Acme</h4>
+        <p>The per-session spend cap in the sandbox policy (previous slide) is itself one contextual policy &mdash; a cost tracker with a hard cap. The same mechanism generalizes to risk scoring and intent scoping, without any change to the gateway layer.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 12 · OBSERVABILITY: THE USAGE DASHBOARD
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
   <div class="label r">Observability</div>
   <h2 class="r">The usage table that answers every question finance has.</h2>
   <p class="r muted" style="max-width:72ch"><code>system.ai_gateway.usage</code> &mdash; every call, every model, every cost, every identity. Queryable like any Unity Catalog table.</p>
@@ -962,9 +1013,9 @@ HTTP/1.1 <span class="kw">429</span> Too Many Requests
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 12 · GOVERNANCE MATRIX
+     SLIDE 13 · GOVERNANCE MATRIX
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="12">
+<div class="slide" data-slide="13">
   <div class="label r">Summary</div>
   <h2 class="r">Six layers, independently configurable.</h2>
   <p class="r muted" style="max-width:72ch">Defense in depth. Some controls are account-wide. Some are per-team. Some are per-agent type. Each layer can change without touching the others.</p>
@@ -1032,9 +1083,9 @@ HTTP/1.1 <span class="kw">429</span> Too Many Requests
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 13 · BEFORE AND AFTER
+     SLIDE 14 · BEFORE AND AFTER
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="13">
+<div class="slide" data-slide="14">
   <div class="label r">Acme Engineering</div>
   <h2 class="r">Before and after.</h2>
   <div class="two-col mt2">
@@ -1079,9 +1130,9 @@ HTTP/1.1 <span class="kw">429</span> Too Many Requests
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 14 · IMPLEMENTATION SEQUENCE
+     SLIDE 15 · IMPLEMENTATION SEQUENCE
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="14">
+<div class="slide" data-slide="15">
   <div class="label r">Recommended sequence</div>
   <h2 class="r">Don't boil the ocean. Start here.</h2>
   <p class="r muted" style="max-width:72ch">Each step is independently valuable. Stop after any step if the org isn't ready. The controls compound &mdash; later steps become easier once earlier ones are in place.</p>
@@ -1133,9 +1184,9 @@ HTTP/1.1 <span class="kw">429</span> Too Many Requests
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 15 · CLOSING CALLIGRAM
+     SLIDE 16 · CLOSING CALLIGRAM
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide slide-calli" data-slide="15">
+<div class="slide slide-calli" data-slide="16">
   <div class="r">
     <div class="calli-hero">
       EVERY<br>
