@@ -50,10 +50,10 @@ This setting lives on the **space**, independent of the client integration. Veri
 | Custom AI agent + Azure Bot Service + OAuth federation | Per-user OBO — `current_user()` = human | Confirmed, code-traced against the official reference implementation | Yes |
 | Copilot Studio via MCP, "End user credentials" | Per-user (U2M) | Confirmed to exist (Databricks blog + internal field guidance) | Yes |
 | Copilot Studio via MCP, "Maker credentials" | Shared — everyone runs as the maker's identity | Confirmed M2M by design, not a degraded OBO mode | N/A — already shared |
-| Native "Databricks Genie" app (Teams marketplace) | Unknown at token layer | Not disclosed in official docs | Yes, whatever it turns out to be |
-| Native "Databricks Genie on Microsoft 365 Copilot" | Unknown at token layer | Not disclosed in official docs | Yes |
+| Native "Databricks Genie" app (Teams marketplace) | Verify directly | Confirm with a live test before rollout | Yes |
+| Native "Databricks Genie on Microsoft 365 Copilot" | Verify directly | Confirm with a live test before rollout | Yes |
 
-The two native marketplace apps are a genuine open question, not a "no" — official docs never state their token-layer identity model one way or the other. The only auth-adjacent detail disclosed (a `User.ReadBasic.All` Graph permission on the Teams app) is for looking up who's asking, not evidence that the query executes as that person in Unity Catalog. Test directly — two users with different UC grants, same question, compare results and `system.access.audit` — before relying on RLS through either native app.
+Treat the two native marketplace apps the way you'd treat any new integration surface: confirm the identity model with a direct test rather than assuming it either way. The only auth-adjacent detail available (a `User.ReadBasic.All` Graph permission on the Teams app) is for looking up who's asking, not evidence either way about query-time identity. The test is simple and worth running before rollout: two users with different UC grants, same question, compare results and `system.access.audit`.
 
 ---
 
