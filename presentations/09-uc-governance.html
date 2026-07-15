@@ -112,17 +112,53 @@ tr:hover td{background:var(--surface)}
 .nav-overlay-card td:first-child{font-family:var(--mono,monospace);font-weight:600;white-space:nowrap;color:var(--red,#cc3311)}
 .nav-overlay-card .dismiss{margin-top:16px;font-size:0.72rem;color:var(--muted,#666)}
 
+/* nav dot cluster */
+.nav-dots{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:200}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer;transition:all .25s}
+.dot.active{background:var(--red);width:18px;border-radius:3px}
+.dot:hover{background:var(--muted)}
+
+/* calligram / closing */
+.slide-calli{background:var(--ink);color:#fff;justify-content:center;align-items:center;text-align:center}
+.calli-hero{
+  font-size:clamp(3rem,9vw,7.5rem);font-weight:700;
+  letter-spacing:-.04em;line-height:.95;
+  color:#fff;
+  position:relative;display:inline-block;
+}
+.calli-hero .line2{
+  display:block;
+  font-size:clamp(1.6rem,4.5vw,3.8rem);
+  font-weight:300;letter-spacing:.18em;
+  color:var(--red);text-transform:uppercase;
+  margin-top:.15em;
+}
+.calli-hero .line3{
+  display:block;
+  font-size:clamp(1.6rem,4.5vw,3.8rem);
+  font-weight:700;letter-spacing:-.03em;
+  color:#fff;
+  margin-top:.1em;
+}
+.calli-sub{
+  margin-top:clamp(1.2rem,3vh,2.2rem);
+  font-size:var(--sz-body);color:rgba(255,255,255,.55);
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.calli-rule{width:56px;height:3px;background:var(--red);margin:clamp(.8rem,2vh,1.4rem) auto}
+
 @media(max-width:900px){.two-col,.three-col,.four-col{grid-template-columns:1fr}.dt-row{grid-template-columns:1fr}}
-@media print{.slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always}.topbar,.progress-track,.nav-controls,.nav-overlay{display:none}}
+@media print{.slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always}.topbar,.progress-track,.nav-controls,.nav-dots,.nav-overlay{display:none}}
 </style>
 </head>
 <body>
 
 <div class="topbar">
   <div class="title">Unity Catalog <span>Governance</span></div>
-  <div class="counter" id="counter">01 / 15</div>
+  <div class="counter" id="counter">01 / 16</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+<div class="nav-dots" id="navDots"></div>
 <div class="nav-controls">
   <button class="nav-btn" id="homeBtn" title="First slide (Home)" onclick="goTo(0)">&#8962;</button>
   <button class="nav-btn" id="prevBtn" title="Previous slide" onclick="goTo(current-1)">&larr;</button>
@@ -153,9 +189,25 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 2: THE CHALLENGE -->
+<!-- SLIDE 2: AGENDA -->
 <!-- ================================================================ -->
 <div class="slide" data-slide="2">
+  <div class="label reveal">Agenda</div>
+  <h2 class="reveal">What this deck covers</h2>
+  <div class="card mt-2 reveal" style="max-width:800px">
+    <ul style="padding-left:1.2em">
+      <li>The problem: once identity is resolved, what can each user actually see</li>
+      <li>What: the UC hierarchy and four governance layers (workspace bindings, privileges, ABAC, row filters/column masks)</li>
+      <li>Why: one consistent enforcement model across Genie, Agent Bricks, MCP, notebooks, and dashboards</li>
+      <li>How: row filter and column mask syntax, ABAC tags/policies, the OBO gotcha, and a decision guide</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 3: THE CHALLENGE -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="3">
   <div class="label reveal">The Challenge</div>
   <h2 class="reveal">Once identity is resolved, what can each user actually see?</h2>
   <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--red)">
@@ -168,9 +220,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 3: UC HIERARCHY -->
+<!-- SLIDE 4: UC HIERARCHY -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="3">
+<div class="slide" data-slide="4">
   <div class="label reveal">Foundation</div>
   <h2 class="reveal">The UC Hierarchy</h2>
   <p class="reveal" style="color:var(--muted)">Every securable object lives in a three-level namespace. Permissions propagate downward.</p>
@@ -199,9 +251,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 4: FOUR LAYERS OVERVIEW -->
+<!-- SLIDE 5: FOUR LAYERS OVERVIEW -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="4">
+<div class="slide" data-slide="5">
   <div class="label reveal">Access Control</div>
   <h2 class="reveal">Four Complementary Layers</h2>
   <p class="reveal" style="color:var(--muted)">UC evaluates all four layers in sequence before returning any data. Each answers a different question.</p>
@@ -233,9 +285,9 @@ tr:hover td{background:var(--surface)}
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 5: WORKSPACE + PRIVILEGES -->
+<!-- SLIDE 6: WORKSPACE + PRIVILEGES -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="5">
+<div class="slide" data-slide="6">
   <div class="label reveal">Layers 1 + 2</div>
   <h2 class="reveal">Workspace Restrictions & Privileges</h2>
   <div class="two-col mt-2">
@@ -267,9 +319,9 @@ GRANT USE SCHEMA ON SCHEMA
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 6: ROW FILTERS - HOW THEY WORK -->
+<!-- SLIDE 7: ROW FILTERS - HOW THEY WORK -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="6">
+<div class="slide" data-slide="7">
   <div class="label reveal">Layer 4a</div>
   <h2 class="reveal">Row Filters: How They Work</h2>
   <p class="reveal" style="color:var(--muted)">Row filters automatically restrict which rows a user sees. Applied at query time by the SQL engine.</p>
@@ -301,43 +353,6 @@ ALTER TABLE deals
         <p style="font-size:var(--sz-small)"><strong>One filter per table.</strong> If you need multiple filter conditions, combine them in a single function using OR/AND logic.</p>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- ================================================================ -->
-<!-- SLIDE 7: ROW FILTERS - IDENTITY FUNCTIONS -->
-<!-- ================================================================ -->
-<div class="slide" data-slide="7">
-  <div class="label reveal">Row Filters</div>
-  <h2 class="reveal">current_user() vs is_member()</h2>
-  <p class="reveal" style="color:var(--muted)">Two identity functions, different propagation behavior. Choose based on your token pattern.</p>
-  <div class="two-col mt-2">
-    <div class="card card-blue reveal">
-      <h4>current_user()</h4>
-      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">Returns the calling user's email from the active SQL token.</p>
-      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Filter: only see your own rows</span>
-WHERE owner = current_user()</pre>
-      <table class="mt-1">
-        <tr><td style="font-weight:600;width:80px">OBO</td><td>Returns the human's email. Propagates through Genie, Agent Bricks, MCP chains.</td></tr>
-        <tr><td style="font-weight:600">M2M</td><td>Returns the SP's application ID.</td></tr>
-        <tr><td style="font-weight:600">Best for</td><td>Per-user row ownership, individual audit trails.</td></tr>
-      </table>
-    </div>
-    <div class="card card-red reveal">
-      <h4>is_member()</h4>
-      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">Returns TRUE if the executing identity belongs to a workspace group.</p>
-      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Filter: role-based access</span>
-WHERE is_member('sales_west')
-  AND region = 'WEST'</pre>
-      <table class="mt-1">
-        <tr><td style="font-weight:600;width:80px">M2M</td><td>Evaluates the SP's group membership. Works well when you control the SP.</td></tr>
-        <tr><td style="font-weight:600">OBO</td><td>Evaluates the human's groups. Works as expected.</td></tr>
-        <tr><td style="font-weight:600">Best for</td><td>Role-based filtering, federation patterns.</td></tr>
-      </table>
-    </div>
-  </div>
-  <div class="card mt-2 reveal" style="text-align:center;border-left:4px solid var(--ink)">
-    <p><strong>OBO pattern:</strong> prefer <code>current_user()</code>, which propagates the human identity end-to-end. <strong>Federation pattern:</strong> use <code>is_member()</code>, where role-based SPs map to workspace groups.</p>
   </div>
 </div>
 
@@ -389,43 +404,9 @@ ALTER TABLE customers
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 9: COLUMN MASKS - OBO GOTCHA -->
+<!-- SLIDE 9: ABAC + GOVERNED TAGS -->
 <!-- ================================================================ -->
 <div class="slide" data-slide="9">
-  <div class="label reveal">Column Masks</div>
-  <h2 class="reveal">is_member() in OBO Chains</h2>
-  <p class="reveal" style="color:var(--muted)">A critical distinction when column masks use is_member() in different token patterns.</p>
-  <div class="two-col mt-2">
-    <div class="card card-green reveal">
-      <h4>M2M: is_member() works as expected</h4>
-      <p style="font-size:var(--sz-small);margin-bottom:8px">When a service principal executes the SQL directly, <code>is_member()</code> evaluates the SP's workspace group membership. You control group assignment explicitly.</p>
-      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- SP is in 'admins' group</span>
-is_member('admins') => TRUE
-<span style="color:var(--green)">-- Full SSN returned</span></pre>
-    </div>
-    <div class="card card-amber reveal">
-      <h4>OBO: is_member() evaluates the service layer</h4>
-      <p style="font-size:var(--sz-small);margin-bottom:8px">In Genie or Agent Bricks OBO flows, <code>is_member()</code> evaluates the service layer's identity, not the calling user's groups. This is a known behavior.</p>
-      <pre style="font-size:var(--sz-code)"><span style="color:var(--amber)">-- Pattern: use allowlist table</span>
-CASE
-  WHEN EXISTS (
-    SELECT 1 FROM role_allowlist
-    WHERE email = current_user()
-      AND role = 'admin'
-  ) THEN ssn
-  ELSE '***-**-' || RIGHT(ssn, 4)
-END</pre>
-    </div>
-  </div>
-  <div class="card mt-2 reveal" style="text-align:center">
-    <p><strong>Rule of thumb:</strong> For masks in OBO chains, replace <code>is_member()</code> with a <code>current_user()</code> lookup against a UC-governed allowlist table.</p>
-  </div>
-</div>
-
-<!-- ================================================================ -->
-<!-- SLIDE 10: ABAC + GOVERNED TAGS -->
-<!-- ================================================================ -->
-<div class="slide" data-slide="10">
   <div class="label reveal">Layer 3</div>
   <h2 class="reveal">ABAC with Governed Tags</h2>
   <p class="reveal" style="color:var(--muted)">Attribute-Based Access Control uses tags to enforce dynamic, scalable policies without per-object permissions.</p>
@@ -458,9 +439,9 @@ CREATE ACCESS POLICY high_sens_policy
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 11: ABAC BENEFITS -->
+<!-- SLIDE 10: WHY ABAC AT SCALE -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="11">
+<div class="slide" data-slide="10">
   <div class="label reveal">ABAC</div>
   <h2 class="reveal">Why ABAC at Scale</h2>
   <div class="two-col mt-2">
@@ -500,9 +481,107 @@ CREATE ACCESS POLICY high_sens_policy
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 12: ROW FILTER + COLUMN MASK TOGETHER -->
+<!-- SLIDE 11: ALL ENFORCED BY THE SQL ENGINE -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="11">
+  <div class="label reveal">Enforcement</div>
+  <h2 class="reveal">All Enforced by the SQL Engine</h2>
+  <p class="reveal" style="color:var(--muted)">Not application code. Not middleware. The SQL engine itself enforces every layer.</p>
+  <div class="three-col mt-2">
+    <div class="card card-green reveal">
+      <h4>No Code Changes</h4>
+      <p style="font-size:var(--sz-small)">Applications run the same SQL. Governance is invisible to the app layer. Add a row filter and every query automatically respects it.</p>
+    </div>
+    <div class="card card-green reveal">
+      <h4>Cannot Bypass</h4>
+      <p style="font-size:var(--sz-small)">Row filters and column masks are injected by the engine. No SQL trick, no API shortcut, no SDK shortcut can skip them. The only override is ownership or admin privilege.</p>
+    </div>
+    <div class="card card-green reveal">
+      <h4>Full Audit Trail</h4>
+      <p style="font-size:var(--sz-small)">Every query is logged with the identity that executed it, the governance policies that fired, and the data that was returned. System tables provide the full lineage.</p>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="max-width:800px;margin:0 auto;text-align:center;border-left:4px solid var(--ink)">
+    <p style="font-size:var(--sz-h3);font-weight:600">Same table. Same query. Different identity. Different data.</p>
+    <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">This is the core principle of UC governance. It works identically for Genie, Agent Bricks, MCP servers, notebooks, dashboards, and any tool that executes SQL through a warehouse.</p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 12: current_user() vs is_member() -->
 <!-- ================================================================ -->
 <div class="slide" data-slide="12">
+  <div class="label reveal">Row Filters</div>
+  <h2 class="reveal">current_user() vs is_member()</h2>
+  <p class="reveal" style="color:var(--muted)">Two identity functions, different propagation behavior. Choose based on your token pattern.</p>
+  <div class="two-col mt-2">
+    <div class="card card-blue reveal">
+      <h4>current_user()</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">Returns the calling user's email from the active SQL token.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Filter: only see your own rows</span>
+WHERE owner = current_user()</pre>
+      <table class="mt-1">
+        <tr><td style="font-weight:600;width:80px">OBO</td><td>Returns the human's email. Propagates through Genie, Agent Bricks, MCP chains.</td></tr>
+        <tr><td style="font-weight:600">M2M</td><td>Returns the SP's application ID.</td></tr>
+        <tr><td style="font-weight:600">Best for</td><td>Per-user row ownership, individual audit trails.</td></tr>
+      </table>
+    </div>
+    <div class="card card-red reveal">
+      <h4>is_member()</h4>
+      <p style="font-size:var(--sz-small);font-weight:600;margin-bottom:8px">Returns TRUE if the executing identity belongs to a workspace group.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Filter: role-based access</span>
+WHERE is_member('sales_west')
+  AND region = 'WEST'</pre>
+      <table class="mt-1">
+        <tr><td style="font-weight:600;width:80px">M2M</td><td>Evaluates the SP's group membership. Works well when you control the SP.</td></tr>
+        <tr><td style="font-weight:600">OBO</td><td>Evaluates the human's groups. Works as expected.</td></tr>
+        <tr><td style="font-weight:600">Best for</td><td>Role-based filtering, federation patterns.</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center;border-left:4px solid var(--ink)">
+    <p><strong>OBO pattern:</strong> prefer <code>current_user()</code>, which propagates the human identity end-to-end. <strong>Federation pattern:</strong> use <code>is_member()</code>, where role-based SPs map to workspace groups.</p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 13: is_member() IN OBO CHAINS -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="13">
+  <div class="label reveal">Column Masks</div>
+  <h2 class="reveal">is_member() in OBO Chains</h2>
+  <p class="reveal" style="color:var(--muted)">A critical distinction when column masks use is_member() in different token patterns.</p>
+  <div class="two-col mt-2">
+    <div class="card card-green reveal">
+      <h4>M2M: is_member() works as expected</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">When a service principal executes the SQL directly, <code>is_member()</code> evaluates the SP's workspace group membership. You control group assignment explicitly.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- SP is in 'admins' group</span>
+is_member('admins') => TRUE
+<span style="color:var(--green)">-- Full SSN returned</span></pre>
+    </div>
+    <div class="card card-amber reveal">
+      <h4>OBO: is_member() evaluates the service layer</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">In Genie or Agent Bricks OBO flows, <code>is_member()</code> evaluates the service layer's identity, not the calling user's groups. This is a known behavior.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--amber)">-- Pattern: use allowlist table</span>
+CASE
+  WHEN EXISTS (
+    SELECT 1 FROM role_allowlist
+    WHERE email = current_user()
+      AND role = 'admin'
+  ) THEN ssn
+  ELSE '***-**-' || RIGHT(ssn, 4)
+END</pre>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center">
+    <p><strong>Rule of thumb:</strong> For masks in OBO chains, replace <code>is_member()</code> with a <code>current_user()</code> lookup against a UC-governed allowlist table.</p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 14: ROW FILTER + COLUMN MASK TOGETHER -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="14">
   <div class="label reveal">Combined</div>
   <h2 class="reveal">Row Filters + Column Masks Together</h2>
   <p class="reveal" style="color:var(--muted)">Both can apply to the same table. The row filter runs first, then column masks apply to surviving rows.</p>
@@ -547,9 +626,9 @@ ALTER TABLE deals ALTER COLUMN margin_pct SET MASK mask_margin;</pre>
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 13: DECISION TABLE -->
+<!-- SLIDE 15: DECISION TABLE -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="13">
+<div class="slide" data-slide="15">
   <div class="label reveal">Decision Guide</div>
   <h2 class="reveal">When to Use Which Pattern</h2>
   <div class="flex-1 mt-2 reveal" style="max-width:850px">
@@ -600,54 +679,17 @@ ALTER TABLE deals ALTER COLUMN margin_pct SET MASK mask_margin;</pre>
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 14: ENFORCEMENT SUMMARY -->
+<!-- SLIDE 16: CLOSING CALLIGRAM -->
 <!-- ================================================================ -->
-<div class="slide" data-slide="14">
-  <div class="label reveal">Enforcement</div>
-  <h2 class="reveal">All Enforced by the SQL Engine</h2>
-  <p class="reveal" style="color:var(--muted)">Not application code. Not middleware. The SQL engine itself enforces every layer.</p>
-  <div class="three-col mt-2">
-    <div class="card card-green reveal">
-      <h4>No Code Changes</h4>
-      <p style="font-size:var(--sz-small)">Applications run the same SQL. Governance is invisible to the app layer. Add a row filter and every query automatically respects it.</p>
-    </div>
-    <div class="card card-green reveal">
-      <h4>Cannot Bypass</h4>
-      <p style="font-size:var(--sz-small)">Row filters and column masks are injected by the engine. No SQL trick, no API shortcut, no SDK shortcut can skip them. The only override is ownership or admin privilege.</p>
-    </div>
-    <div class="card card-green reveal">
-      <h4>Full Audit Trail</h4>
-      <p style="font-size:var(--sz-small)">Every query is logged with the identity that executed it, the governance policies that fired, and the data that was returned. System tables provide the full lineage.</p>
-    </div>
+<div class="slide slide-calli" data-slide="16">
+  <div class="calli-hero reveal">
+    FOUR LAYERS.
+    <span class="line2">ONE ENGINE.</span>
+    <span class="line3">EVERY QUERY GOVERNED.</span>
   </div>
-  <div class="card mt-2 reveal" style="max-width:800px;margin:0 auto;text-align:center;border-left:4px solid var(--ink)">
-    <p style="font-size:var(--sz-h3);font-weight:600">Same table. Same query. Different identity. Different data.</p>
-    <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">This is the core principle of UC governance. It works identically for Genie, Agent Bricks, MCP servers, notebooks, dashboards, and any tool that executes SQL through a warehouse.</p>
-  </div>
-</div>
-
-<!-- ================================================================ -->
-<!-- SLIDE 15: SUMMARY -->
-<!-- ================================================================ -->
-<div class="slide slide-title" data-slide="15">
-  <div class="label reveal">Summary</div>
-  <h1 class="reveal" style="font-size:var(--sz-h1)">Unity Catalog Governance</h1>
-  <div style="max-width:700px;text-align:left;margin:24px auto 0" class="reveal">
-    <table>
-      <tr><td style="font-weight:700;color:var(--red);width:40px;font-size:1.4em;text-align:center">4</td><td>Complementary access control layers, evaluated in sequence</td></tr>
-      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">2</td><td>Identity functions: <code>current_user()</code> for OBO, <code>is_member()</code> for federation</td></tr>
-      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">1</td><td>SQL engine enforces everything, with no application code changes</td></tr>
-      <tr><td style="font-weight:700;color:var(--red);font-size:1.4em;text-align:center">&infin;</td><td>ABAC scales to thousands of tables with governed tags + policies</td></tr>
-    </table>
-  </div>
-  <div class="card card-green mt-3 reveal" style="max-width:700px;margin:0 auto;text-align:center">
-    <p style="font-size:var(--sz-h3);font-weight:600">Workspace bindings + GRANTs + ABAC + Row Filters + Column Masks</p>
-    <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">Defense in depth. Every layer adds protection. All audited.</p>
-  </div>
-  <div class="reveal mt-2" style="text-align:center">
-    <a href="https://github.com/bhavink/applied-ai-governance" target="_blank" style="color:var(--red);font-size:var(--sz-small);text-decoration:none;border-bottom:1px solid var(--red)">github.com/bhavink/applied-ai-governance</a>
-  </div>
-  <div class="red-line reveal" style="margin-top:24px"></div>
+  <div class="calli-rule reveal"></div>
+  <div class="calli-sub reveal">Workspace bindings + GRANTs + ABAC + Row filters + Column masks &mdash; enforced by the SQL engine, not application code.</div>
+  <div class="calli-sub reveal" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--sz-label);opacity:.4">Databricks Applied AI Governance Series &middot; Deck 09</div>
 </div>
 
 <!-- ================================================================ -->
@@ -668,6 +710,9 @@ function goTo(n) {
   setTimeout(() => slides[prev].classList.remove('exit-left'), 400);
   document.getElementById('counter').textContent = `${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
   document.getElementById('progressBar').style.width = `${((current + 1) / total) * 100}%`;
+  document.querySelectorAll('.dot').forEach((d, i) => {
+    d.classList.toggle('active', i === current);
+  });
 }
 
 document.addEventListener('keydown', e => {
@@ -683,6 +728,15 @@ document.addEventListener('touchend', e => {
   const dx = e.changedTouches[0].clientX - touchStartX;
   if (Math.abs(dx) > 50) dx < 0 ? goTo(current + 1) : goTo(current - 1);
 });
+
+/* nav dots */
+const dotsEl = document.getElementById('navDots');
+for (let i = 0; i < total; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.addEventListener('click', () => goTo(i));
+  dotsEl.appendChild(d);
+}
 
 goTo(0);
 

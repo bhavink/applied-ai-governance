@@ -1,16 +1,17 @@
 <!--
-  Top-level entry point for the Applied AI Governance deck series.
-  Condensed from the prior 22-slide deep dive into a leaner orientation
-  deck: states the governance model at a high level and links out to
-  the 11 topic decks (02-12) for implementation depth. Rebuilt on the
-  current skeleton design system (see 10-teams-copilot-genie-obo.html).
+  Synced from databricks-fieldkit on 2026-04-27
+  Sources: governance/http-connections.md, governance/service-credentials.md, mcp/external-mcp.md, mcp/external-connection-tools.md
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/
+    - https://learn.microsoft.com/en-us/azure/databricks/
+  This file is auto-prepared and human-reviewed before publish.
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>AI Governance on Databricks: Overview</title>
+<title>UC HTTP Connections — Databricks</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ── tokens ────────────────────────────────────────────────────────────── */
@@ -191,7 +192,7 @@ tr:hover td{background:var(--surface)}
 /* ── architecture flow ───────────────────────────────────────────────────── */
 .arch-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;gap:0;min-height:0}
 .arch-row{display:flex;align-items:center;justify-content:center;gap:0}
-.arch-agents{display:flex;align-items:stretch;gap:clamp(.5rem,1vw,.9rem);justify-content:center;flex-wrap:wrap}
+.arch-agents{display:flex;align-items:stretch;gap:clamp(.5rem,1vw,.9rem);justify-content:center}
 .abox{
   background:var(--surface);border:1px solid var(--border);border-radius:6px;
   padding:clamp(.5rem,1vw,.85rem) clamp(.7rem,1.4vw,1.1rem);
@@ -315,11 +316,6 @@ tr:hover td{background:var(--surface)}
 .gate-cell p{font-size:var(--sm);line-height:1.55;color:var(--muted)}
 .gate-label{font-size:var(--xs);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:4px}
 
-/* ── deck-link table cell ────────────────────────────────────────────────── */
-.deck-link{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px solid var(--red)}
-.deck-link:hover{color:var(--red)}
-.deck-file{display:block;font-size:var(--xs);color:var(--muted);font-family:var(--mono);margin-top:2px}
-
 /* ── height breakpoints ──────────────────────────────────────────────────── */
 @media(max-height:700px){
   :root{--pad:clamp(1.2rem,3vw,2.2rem)}
@@ -353,8 +349,8 @@ tr:hover td{background:var(--surface)}
 <body>
 
 <div class="topbar">
-  <div class="title">Acme Corp &mdash; <span>AI Governance on Databricks: Overview</span></div>
-  <div class="counter" id="counter">01 / 10</div>
+  <div class="title">Databricks &mdash; <span>UC HTTP Connections</span></div>
+  <div class="counter" id="counter">01 / 17</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 
@@ -384,14 +380,11 @@ tr:hover td{background:var(--surface)}
      SLIDE 1 · TITLE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide slide-title active" data-slide="1">
-  <h1 class="r">AI Governance on <em>Databricks</em></h1>
-  <div class="sub r">Overview: identity, authorization, and tool governance for enterprise AI</div>
+  <h1 class="r">UC HTTP Connections</h1>
+  <div class="sub r">Governing External Service Access</div>
   <div class="red-rule r"></div>
   <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:640px">
-    One governance model for business users and AI agents alike, whether access originates internally or through a partner or customer's own identity provider.
-  </p>
-  <p class="r" style="margin-top:12px;color:var(--muted);font-size:var(--xs);max-width:640px">
-    Deck 01, the entry point. Decks 02 through 12 go deep on each governance domain referenced here.
+    Pillar 4: Tool &amp; API Governance
   </p>
 </div>
 
@@ -401,69 +394,311 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="2">
   <div class="label r">Agenda</div>
-  <h2 class="r">What this overview covers</h2>
-  <div class="r flex1" style="display:flex;flex-direction:column;gap:clamp(.5rem,1.2vw,.9rem);margin-top:clamp(.6rem,1.4vw,1rem)">
-    <div class="seq-step r delay-1">
-      <div class="seq-num">1</div>
-      <div class="seq-body"><strong>The issue</strong><p>Business users and AI agents both need governed access to the same data, internally and through external partner/customer identity providers, without a separate trust model per surface.</p></div>
-    </div>
-    <div class="seq-step r delay-2">
-      <div class="seq-num">2</div>
-      <div class="seq-body"><strong>The governance model, at a glance</strong><p>One trust boundary, three token paths, seven enforcement layers, and a resource lens for what's being accessed.</p></div>
-    </div>
-    <div class="seq-step r delay-3">
-      <div class="seq-num">3</div>
-      <div class="seq-body"><strong>Why it matters</strong><p>Consistent governance regardless of surface, a single control plane for audit and compliance, and faster delivery of new AI surfaces.</p></div>
-    </div>
-    <div class="seq-step r delay-4">
-      <div class="seq-num">4</div>
-      <div class="seq-body"><strong>Where to go deeper</strong><p>A map to the 11 topic decks (02 through 12) that cover implementation detail for each domain.</p></div>
-    </div>
+  <h2 class="r">What we&rsquo;ll cover</h2>
+  <div class="flex1 mt3" style="display:flex;flex-direction:column;gap:clamp(.6rem,1.4vw,1.1rem);max-width:78ch">
+    <div class="card r"><p><strong>The problem</strong> &mdash; credential sprawl and no centralized on/off switch for agent-to-API calls</p></div>
+    <div class="card r"><p><strong>What</strong> &mdash; the UC connection proxy model and four authentication methods</p></div>
+    <div class="card r"><p><strong>Why</strong> &mdash; centralized credential storage, instant revocation, defense in depth</p></div>
+    <div class="card r"><p><strong>How</strong> &mdash; setup steps, provider prerequisites, GRANT/REVOKE USE CONNECTION, common gotchas</p></div>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 3 · THE ISSUE
+     SLIDE 3 · THE CHALLENGE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="3">
-  <div class="label r">The issue</div>
-  <h2 class="r">Business users and AI agents both need governed access to the same data, without a separate trust model per surface.</h2>
+  <div class="label r">The Challenge</div>
+  <h2 class="r">Your agents call external APIs. Who controls that traffic?</h2>
   <div class="two-col mt2">
     <div class="card card-red r">
-      <h4>Business users</h4>
-      <p>Ask plain-English questions, build dashboards, and work through Genie, copilots, and agents. Each expects to see only the data their own permissions allow.</p>
+      <h4>Credential sprawl</h4>
+      <p>API keys scattered across env vars, app code, and CI pipelines. Every rotation means redeploying every consumer. No single inventory of who holds what credential, or when it expires.</p>
     </div>
-    <div class="card card-red r">
-      <h4>AI agents</h4>
-      <p>Orchestrate tools and call data on a user's behalf. Partners and customers need the same capabilities, reached through their own portals and their own identity providers.</p>
+    <div class="card card-ink r">
+      <h4>Authorization gap</h4>
+      <p>Any agent that can reach the network can call any external API. There is no centralized on/off switch. Revoking access means hunting down every place the credential was copied.</p>
     </div>
-  </div>
-  <div class="callout r mt2">
-    Same data, same AI, same governance expected, whether the requester is an employee or an external partner or customer authenticating through their own IdP.
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 4 · WHAT (1/4): ONE TRUST BOUNDARY
+     SLIDE 4 · THE PROXY MODEL
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="4">
-  <div class="label r">What: the model, at a glance</div>
-  <h2 class="r">One authorization engine, however authentication arrives</h2>
-  <p class="r muted" style="max-width:760px">Databricks enforces authorization in exactly one place: Unity Catalog. Authentication can originate from the workspace identity provider for internal users, or from an external IdP via token federation for partners and customers. Every path converges on UC before any data or tool is touched.</p>
+  <div class="label r">Core Concept</div>
+  <h2 class="r">Application code never touches credentials</h2>
   <div class="arch-wrap r">
-    <div class="arch-row" style="margin-bottom:clamp(.5rem,1vw,.8rem)">
-      <div class="abox sys r delay-1">Internal IdP<small>Entra ID &middot; Okta &middot; SAML/OIDC</small></div>
+    <div class="arch-row">
+      <div class="abox r delay-1">Agent / App<small>Calls connection</small></div>
       <div class="arch-arrow delay-2">&rarr;</div>
-      <div class="abox uc r delay-3">Unity Catalog<small style="color:var(--red);opacity:.7">single trust boundary</small></div>
-      <div class="arch-arrow delay-4">&larr;</div>
-      <div class="abox sys r delay-5">External IdP<small>partner / customer, via federation</small></div>
+      <div class="abox gateway r delay-3">UC Connection Proxy<small>USE CONNECTION check</small></div>
+      <div class="arch-arrow delay-4">&rarr;</div>
+      <div class="abox r delay-5">Inject Credential<small>Server-side only</small></div>
+      <div class="arch-arrow delay-5">&rarr;</div>
+      <div class="abox sys r delay-6">External Service<small>GitHub, Slack, etc.</small></div>
     </div>
-    <div class="arch-vstack r delay-6">
-      <div class="arch-varrow">&darr;</div>
-      <div class="card card-green r delay-7" style="text-align:center;max-width:600px">
-        <p><strong>Same governance, regardless of which door the identity walked in.</strong> Data, tools, and agents all check the same UC privileges.</p>
+  </div>
+  <div class="card card-green r mt3">
+    <p><strong>App never holds the credential.</strong> Databricks injects it at proxy time. REVOKE USE CONNECTION = instant removal. No redeployment needed.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 5 · FOUR AUTH METHODS OVERVIEW
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label r">Overview</div>
+  <h2 class="r">Four authentication methods, one governance model</h2>
+  <div class="r mt2 flex1">
+    <table>
+      <thead>
+        <tr><th>Method</th><th>External Identity</th><th>Credential Lifecycle</th><th>Best For</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Bearer Token</td><td>Shared (static token)</td><td>Manual rotation</td><td>Simple APIs</td></tr>
+        <tr><td>OAuth M2M</td><td>Shared (service/app)</td><td>Auto-refresh</td><td>Service-to-service</td></tr>
+        <tr><td>OAuth U2M Shared</td><td>Shared (one user&rsquo;s token)</td><td>Auto-refresh</td><td>OAuth without M2M support</td></tr>
+        <tr><td>OAuth U2M Per User</td><td>Per user (individual token)</td><td>Auto-refresh per user</td><td>User-scoped data</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card r mt2">
+    <p>All four enforce <code>USE CONNECTION</code> on the Databricks side. The auth method determines <em>how</em> the external credential is obtained; USE CONNECTION determines <em>who</em> is allowed to use it.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 6 · AUTH METHOD 1 — BEARER TOKEN
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label r">Auth Method 1</div>
+  <h2 class="r">Bearer Token: simple, static, shared</h2>
+  <div class="two-col mt2">
+    <div>
+      <div class="label r" style="margin-bottom:0">How it works</div>
+      <ul class="r" style="padding-left:1.1em;display:flex;flex-direction:column;gap:6px;margin-top:8px">
+        <li>Store an API key or static token in the connection</li>
+        <li>All callers with USE CONNECTION share the same credential</li>
+        <li>Databricks injects the token into the <code>Authorization</code> header at proxy time</li>
+        <li>Rotation requires updating the connection and is manual</li>
+      </ul>
+    </div>
+    <div>
+      <div class="label r" style="margin-bottom:0">Trade-offs</div>
+      <div class="card r" style="margin-top:8px">
+        <ul>
+          <li style="color:var(--green)">+ Simple setup</li>
+          <li style="color:var(--green)">+ Works with any API that accepts a static token</li>
+          <li style="color:var(--red)">- No auto-refresh</li>
+          <li style="color:var(--red)">- No per-user identity at the external service</li>
+          <li style="color:var(--red)">- Token expiration requires manual intervention</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="card card-red r mt2">
+    <p>Token expiration requires manual intervention. Use OAuth methods when the external service supports them.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 7 · AUTH METHOD 2 — OAUTH M2M
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label r">Auth Method 2</div>
+  <h2 class="r">OAuth M2M: service-to-service, auto-refresh</h2>
+  <div class="two-col mt2">
+    <div>
+      <div class="label r" style="margin-bottom:0">How it works</div>
+      <ul class="r" style="padding-left:1.1em;display:flex;flex-direction:column;gap:6px;margin-top:8px">
+        <li>Uses <code>client_credentials</code> grant type</li>
+        <li>Databricks stores the Client ID and Client Secret</li>
+        <li>Tokens are refreshed automatically before expiration</li>
+        <li>All callers share the same service identity at the external provider</li>
+      </ul>
+    </div>
+    <div>
+      <div class="label r" style="margin-bottom:0">Trade-offs</div>
+      <div class="card r" style="margin-top:8px">
+        <ul>
+          <li style="color:var(--green)">+ Auto-refresh, no manual rotation</li>
+          <li style="color:var(--green)">+ Standard OAuth, widely supported</li>
+          <li style="color:var(--green)">+ No user interaction required</li>
+          <li style="color:var(--red)">- Shared identity, no per-user tracking at external service</li>
+          <li style="color:var(--red)">- External service must support client_credentials</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="card card-green r mt2">
+    <p>Recommended over Bearer Token when the external service supports OAuth. Eliminates manual rotation entirely.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 8 · AUTH METHOD 3 — OAUTH U2M SHARED
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label r">Auth Method 3</div>
+  <h2 class="r">OAuth U2M Shared: one user authorizes for all</h2>
+  <div class="two-col mt2">
+    <div>
+      <div class="label r" style="margin-bottom:0">How it works</div>
+      <ul class="r" style="padding-left:1.1em;display:flex;flex-direction:column;gap:6px;margin-top:8px">
+        <li>One user completes the OAuth consent flow</li>
+        <li>Their refresh token is stored in the connection</li>
+        <li>All callers with USE CONNECTION share this single user&rsquo;s token</li>
+        <li>Databricks auto-refreshes using the stored refresh token</li>
+      </ul>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0;color:var(--red)">Risk</div>
+      <div class="card card-red r">
+        <p><strong>Single point of failure.</strong> If the authorizing user leaves the organization, revokes consent, or changes their password, the connection breaks for <em>every</em> consumer. Recovery requires a new user to re-authorize.</p>
+      </div>
+      <div class="label r" style="margin-bottom:0">When to use</div>
+      <p class="r">External service supports OAuth but does <em>not</em> support the <code>client_credentials</code> grant. U2M Shared is a fallback when M2M is unavailable.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 9 · AUTH METHOD 4 — OAUTH U2M PER USER
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label r" style="color:var(--red)">Auth Method 4</div>
+  <h2 class="r">OAuth U2M Per User: true end-to-end identity</h2>
+  <div class="two-col mt2">
+    <div>
+      <div class="label r" style="margin-bottom:0">Flow</div>
+      <div class="flex1" style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+        <div class="seq-step r">
+          <div class="seq-num">1</div>
+          <div class="seq-body"><strong>User triggers action</strong><p>Query, tool call, or agent step</p></div>
+        </div>
+        <div class="seq-step r">
+          <div class="seq-num">2</div>
+          <div class="seq-body"><strong>Proxy checks the grant</strong><p><code>USE CONNECTION</code> grant for <code>current_user()</code></p></div>
+        </div>
+        <div class="seq-step r">
+          <div class="seq-num">3</div>
+          <div class="seq-body"><strong>First-time consent</strong><p>User completes OAuth consent at the external provider</p></div>
+        </div>
+        <div class="seq-step r">
+          <div class="seq-num">4</div>
+          <div class="seq-body"><strong>Per-user token stored</strong><p>Subsequent calls auto-refresh</p></div>
+        </div>
+        <div class="seq-step r">
+          <div class="seq-num">5</div>
+          <div class="seq-body"><strong>Individual identity at the service</strong><p>External service receives the individual user&rsquo;s token</p></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="label r" style="margin-bottom:0">Why it matters</div>
+      <table class="r" style="margin-top:8px">
+        <tbody>
+          <tr><td><strong>Databricks side</strong></td><td><code>current_user()</code> identity preserved</td></tr>
+          <tr><td><strong>External side</strong></td><td>Individual user&rsquo;s OAuth token</td></tr>
+          <tr><td><strong>User leaves</strong></td><td>Only their access breaks, others unaffected</td></tr>
+          <tr><td><strong>Audit</strong></td><td>Per-user attribution at both layers</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card r mt2">
+    <p><strong>Supported providers:</strong> Google (Drive, Docs, Gmail, Calendar), GitHub, Glean, SharePoint, and custom OAuth providers.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 10 · WHY IT MATTERS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label r">Why it matters</div>
+  <h2 class="r">The business case for the proxy model</h2>
+  <div class="three-col mt2">
+    <div class="card card-green r">
+      <h4>Operational velocity</h4>
+      <p>REVOKE USE CONNECTION removes access instantly, no redeployment needed. Without it, revoking a leaked credential means hunting down every place it was copied and redeploying every consumer.</p>
+    </div>
+    <div class="card card-blue r">
+      <h4>Risk reduction</h4>
+      <p>The credential never leaves storage &mdash; it&rsquo;s injected server-side at proxy time. Serverless Network Perimeter (SNP) and USE CONNECTION are two independent layers: reachability and authorization. Neither alone is sufficient.</p>
+    </div>
+    <div class="card card-amber r">
+      <h4>Audit and compliance</h4>
+      <p><code>SHOW GRANTS ON CONNECTION</code> gives a queryable inventory of exactly who can use which connection &mdash; centralized credential storage, per-identity authorization, instant revocation.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 11 · DECISION FRAMEWORK
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label r">Decision Framework</div>
+  <h2 class="r">Choosing the right method</h2>
+  <div class="flex1 mt2">
+    <table class="r">
+      <thead><tr><th>Condition</th><th>Method</th></tr></thead>
+      <tbody>
+        <tr><td>Need per-user identity at the external service?</td><td><span class="badge badge-red">U2M Per User</span></td></tr>
+        <tr><td>External service supports OAuth <code>client_credentials</code>?</td><td><span class="badge badge-blue">OAuth M2M</span></td></tr>
+        <tr><td>External service supports OAuth but no <code>client_credentials</code>?</td><td><span class="badge badge-amber">U2M Shared</span></td></tr>
+        <tr><td>Static API key only?</td><td><span class="badge badge-muted">Bearer Token</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card r mt2">
+    <p>Start from the top. The first &ldquo;Yes&rdquo; is your method. U2M Per User gives the strongest governance posture but requires external OAuth support and per-user consent.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 12 · PROVIDER PREREQUISITES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label r">Prerequisites</div>
+  <h2 class="r">Can your provider support U2M?</h2>
+  <p class="r muted mb1">Six requirements, service-agnostic. If all six are yes, it works with UC HTTP connections.</p>
+  <div class="two-col flex1">
+    <div class="card card-red r">
+      <div class="label" style="margin-bottom:6px">Mandatory requirements</div>
+      <table>
+        <tbody>
+          <tr><td style="font-weight:700;width:170px">Authorization Code Grant</td><td>RFC 6749 Section 4.1. User redirected to consent page, provider redirects back with auth code.</td></tr>
+          <tr><td style="font-weight:700">Refresh tokens</td><td>Provider must issue a <code>refresh_token</code>. Scope varies: Google (<code>offline_access</code>), Microsoft (<code>offline_access</code>), Salesforce (<code>refresh_token</code>).</td></tr>
+          <tr><td style="font-weight:700">Custom redirect URIs</td><td>Must allow registering <code>&lt;workspace&gt;/login/oauth/http.html</code> as a redirect URI.</td></tr>
+          <tr><td style="font-weight:700">Confidential client</td><td>Client ID + Client Secret (not public/PKCE-only clients).</td></tr>
+          <tr><td style="font-weight:700">Standard token endpoint</td><td><code>grant_type=authorization_code</code> for initial exchange, <code>grant_type=refresh_token</code> for renewal.</td></tr>
+          <tr><td style="font-weight:700">HTTPS endpoints</td><td>All authorization and token endpoints must be HTTPS.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card card-amber r">
+        <div class="label" style="margin-bottom:6px">Credential exchange methods</div>
+        <table>
+          <tbody>
+            <tr><td style="font-weight:700;width:150px"><code>header_and_body</code></td><td>Default. Google, most providers.</td></tr>
+            <tr><td style="font-weight:700"><code>body_only</code></td><td>Some custom OAuth servers.</td></tr>
+            <tr><td style="font-weight:700"><code>header_only</code></td><td>Okta, some enterprise IdPs.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card card-red r">
+        <p><strong>Common blockers:</strong> No auth code grant (M2M only), no refresh tokens, proprietary auth extensions, admin policy blocking third-party apps, redirect URI domain restrictions.</p>
       </div>
     </div>
   </div>
@@ -471,136 +706,144 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 5 · WHAT (2/4): THREE TOKEN PATHS
+     SLIDE 13 · SETUP WALKTHROUGH
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="5">
-  <div class="label r">What: token paths</div>
-  <h2 class="r">Three token paths, one identity model</h2>
-  <p class="r muted" style="max-width:760px">U2M, OBO, and M2M are token acquisition paths, not separate authentication systems. What changes is whose identity Unity Catalog sees.</p>
-  <div class="r flex1 mt1" style="overflow-x:auto">
-    <table style="min-width:600px">
-      <thead><tr><th>Path</th><th>Who authenticates</th><th>Identity in UC</th></tr></thead>
-      <tbody>
-        <tr><td><strong>U2M</strong></td><td>The human, directly</td><td>The human</td></tr>
-        <tr><td><strong>OBO</strong></td><td>The human, via an app that forwards the token</td><td>The human</td></tr>
-        <tr><td><strong>M2M</strong></td><td>The application itself (service principal)</td><td>The service principal</td></tr>
-      </tbody>
-    </table>
+<div class="slide" data-slide="13">
+  <div class="label r">Implementation</div>
+  <h2 class="r">Setting up a U2M connection</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r" style="margin-bottom:0">External OAuth Provider</div>
+      <div class="seq-step r"><div class="seq-num">1</div><div class="seq-body"><p>Create an OAuth client (application registration)</p></div></div>
+      <div class="seq-step r"><div class="seq-num">2</div><div class="seq-body"><p>Add redirect URI: <code>&lt;workspace-url&gt;/login/oauth/http.html</code></p></div></div>
+      <div class="seq-step r"><div class="seq-num">3</div><div class="seq-body"><p>Enable required APIs and scopes (include <code>offline_access</code>)</p></div></div>
+      <div class="seq-step r"><div class="seq-num">4</div><div class="seq-body"><p>Configure consent screen (internal or external)</p></div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r" style="margin-bottom:0">Databricks</div>
+      <div class="seq-step r"><div class="seq-num">1</div><div class="seq-body"><p>Create HTTP connection (Catalog Explorer or SQL)</p></div></div>
+      <div class="seq-step r"><div class="seq-num">2</div><div class="seq-body"><p>Enter host, authorization endpoint, token endpoint</p></div></div>
+      <div class="seq-step r"><div class="seq-num">3</div><div class="seq-body"><p>Enter Client ID and Client Secret from the OAuth provider</p></div></div>
+      <div class="seq-step r"><div class="seq-num">4</div><div class="seq-body"><p>Click &ldquo;Sign in with HTTP&rdquo; to complete the consent flow</p></div></div>
+    </div>
   </div>
-  <div class="callout r mt2">
-    Human calling directly: U2M. Human going through an app: OBO. App itself with no human present: M2M.
+  <div class="card r mt2">
+    <p>Redirect URI pattern: <code>&lt;workspace-url&gt;/login/oauth/http.html</code>. Must match exactly, no trailing slash.</p>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 6 · WHAT (3/4): SEVEN ENFORCEMENT LAYERS
+     SLIDE 14 · OAUTH CONSENT FLOW
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="6">
-  <div class="label r">What: enforcement layers</div>
-  <h2 class="r">Seven layers, checked on every call</h2>
-  <div class="r flex1" style="overflow-x:auto">
-    <table style="min-width:680px">
-      <thead><tr><th>Layer</th><th>Governs</th></tr></thead>
-      <tbody>
-        <tr><td><strong>1 &middot; Identity</strong></td><td>Agent service principal, user OBO, token federation</td></tr>
-        <tr><td><strong>2 &middot; Permission</strong></td><td>UC privileges, MCP Service grants, least-privilege SPs</td></tr>
-        <tr><td><strong>3 &middot; Data</strong></td><td>Row filters, column masks, ABAC, BROWSE privilege</td></tr>
-        <tr><td><strong>4 &middot; Execution</strong></td><td>Model Serving, Apps, serverless sandboxing</td></tr>
-        <tr><td><strong>5 &middot; Service Policy</strong></td><td>Who can call which tools, with what approval gate</td></tr>
-        <tr><td><strong>6 &middot; Content</strong></td><td>AI Gateway guardrails: what the model is allowed to say</td></tr>
-        <tr><td><strong>7 &middot; Audit</strong></td><td>system.access.audit, MLflow traces, inference tables</td></tr>
-      </tbody>
-    </table>
+<div class="slide" data-slide="14">
+  <div class="label r">Deep Dive</div>
+  <h2 class="r">The redirect URI handshake</h2>
+  <div class="flex1 mt2" style="display:flex;flex-direction:column;gap:8px">
+    <div class="seq-step r"><div class="seq-num">1</div><div class="seq-body"><p>User clicks <strong>&ldquo;Sign in with HTTP&rdquo;</strong> in Databricks connection UI</p></div></div>
+    <div class="seq-step r"><div class="seq-num">2</div><div class="seq-body"><p>Databricks redirects browser to the external provider&rsquo;s <strong>authorization endpoint</strong></p></div></div>
+    <div class="seq-step r"><div class="seq-num">3</div><div class="seq-body"><p>User reviews and <strong>grants consent</strong> at the external provider&rsquo;s consent screen</p></div></div>
+    <div class="seq-step r"><div class="seq-num">4</div><div class="seq-body"><p>External provider redirects back to <code>&lt;workspace&gt;/login/oauth/http.html</code> with an auth code</p></div></div>
+    <div class="seq-step r"><div class="seq-num">5</div><div class="seq-body"><p>Databricks exchanges the auth code for <strong>access + refresh tokens</strong> (server-side)</p></div></div>
+    <div class="seq-step r"><div class="seq-num">6</div><div class="seq-body"><p>Connection is <strong>active</strong>. Subsequent calls auto-refresh using the stored refresh token.</p></div></div>
   </div>
-  <div class="callout r mt2">
-    No design should rely on a single layer.
+  <div class="card card-blue r mt2">
+    <p>The <code>offline_access</code> scope is required to obtain a refresh token. Without it, the connection works for approximately one hour, then fails silently when the access token expires.</p>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 7 · WHAT (4/4): THE RESOURCE LENS
+     SLIDE 15 · GOTCHAS
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="7">
-  <div class="label r">What: the resource lens</div>
-  <h2 class="r">Authorization differs by what's being accessed</h2>
-  <div class="r arch-agents mt2">
-    <div class="abox r delay-1">Serving Endpoints</div>
-    <div class="abox r delay-2">Genie Spaces</div>
-    <div class="abox r delay-3">UC Functions</div>
-    <div class="abox r delay-4">Vector Search</div>
-    <div class="abox uc r delay-5" style="font-size:var(--sm);padding:clamp(.5rem,1vw,.85rem) clamp(.7rem,1.4vw,1.1rem)">MCP Services<small style="color:var(--red);opacity:.7">new UC securable</small></div>
-    <div class="abox r delay-6">Tables</div>
-    <div class="abox danger r delay-7">Lakebase<small>PG-native, the exception</small></div>
-  </div>
-  <p class="r muted mt2" style="max-width:760px">MCP Services are now UC securables, the recommended path for external tool access, governed like any other catalog object. Lakebase is the one exception: PG-native authorization (roles, GRANT, RLS), not Unity Catalog.</p>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 8 · WHY
-     ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="8">
-  <div class="label r">Why this matters</div>
-  <h2 class="r">One model, not one per surface</h2>
+<div class="slide" data-slide="15">
+  <div class="label r">Gotchas</div>
+  <h2 class="r">Common setup errors and fixes</h2>
   <div class="three-col mt2">
-    <div class="card card-green r">
-      <h4>Consistent governance</h4>
-      <p>The same rules apply whether the surface is Genie, Teams, a custom app, or a partner portal. No per-integration reinterpretation of who can see what.</p>
+    <div class="card r" style="border-left:none;border-top:3px solid var(--red)">
+      <h4><code>redirect_uri_mismatch</code></h4>
+      <p>URI must exactly match what the provider expects. No trailing slash. Check the error details page for the exact value the provider received.</p>
     </div>
-    <div class="card card-blue r">
-      <h4>Lower audit burden</h4>
-      <p>One control plane to prove compliance against: system.access.audit and MLflow traces cover every surface, not a bespoke log per integration.</p>
+    <div class="card r" style="border-left:none;border-top:3px solid var(--amber)">
+      <h4><code>admin_policy_enforced</code></h4>
+      <p>Org admin blocks unauthorized OAuth apps. Allowlist the Client ID in the provider&rsquo;s admin console before attempting consent.</p>
     </div>
-    <div class="card card-amber r">
-      <h4>Velocity</h4>
-      <p>New AI surfaces plug into the same identity and authorization model instead of re-solving it, so teams ship faster without reopening the trust question.</p>
+    <div class="card r" style="border-left:none;border-top:3px solid var(--blue)">
+      <h4><code>offline_access</code> scope</h4>
+      <p>Required for a refresh token. Without it, the connection works for ~1 hour then fails silently. Always include this scope.</p>
+    </div>
+  </div>
+  <div class="three-col mt2">
+    <div class="card r" style="border-left:none;border-top:3px solid var(--border)">
+      <h4>Immutable name</h4>
+      <p>Connection name cannot be changed after creation. Choose carefully. Consumers reference it by name in SQL and tool configs.</p>
+    </div>
+    <div class="card r" style="border-left:none;border-top:3px solid var(--border)">
+      <h4>Owner access</h4>
+      <p>The creator has irrevocable USE CONNECTION. Transfer ownership to a service principal if you need to control access fully.</p>
+    </div>
+    <div class="card r" style="border-left:none;border-top:3px solid var(--border)">
+      <h4>MCP flag locked</h4>
+      <p><code>isMcpConnection</code> cannot be toggled after creation. If you need to change it, delete the connection and recreate it.</p>
     </div>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 9 · HOW: WHERE TO GO DEEPER
+     SLIDE 16 · USE CONNECTION GOVERNANCE
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="9">
-  <div class="label r">How: where to go deeper</div>
-  <h2 class="r">For implementation detail, see:</h2>
-  <div class="r flex1" style="overflow-x:auto">
-    <table style="min-width:720px">
-      <thead><tr><th>Deck</th><th>Covers</th></tr></thead>
-      <tbody>
-        <tr><td><a class="deck-link" href="02-unity-ai-gateway.html">Unity AI Gateway</a><span class="deck-file">02-unity-ai-gateway.html</span></td><td>Routing, rate limits, guardrails, spend caps, MCP Services</td></tr>
-        <tr><td><a class="deck-link" href="03-identity-auth-foundations.html">Identity &amp; Auth Foundations</a><span class="deck-file">03-identity-auth-foundations.html</span></td><td>U2M/OBO/M2M in depth, one authentication layer</td></tr>
-        <tr><td><a class="deck-link" href="04-authorization-by-resource.html">Authorization by Resource Type</a><span class="deck-file">04-authorization-by-resource.html</span></td><td>The full resource-authorization matrix</td></tr>
-        <tr><td><a class="deck-link" href="05-orchestration-tool-governance.html">Orchestration &amp; Tool Governance</a><span class="deck-file">05-orchestration-tool-governance.html</span></td><td>Agent Bricks, MCP, service policies</td></tr>
-        <tr><td><a class="deck-link" href="06-cross-idp-federation.html">Cross-IdP Federation</a><span class="deck-file">06-cross-idp-federation.html</span></td><td>Token exchange across identity providers</td></tr>
-        <tr><td><a class="deck-link" href="07-sp-m2m-identity.html">SP &amp; M2M Identity</a><span class="deck-file">07-sp-m2m-identity.html</span></td><td>Governance for service principals and machine identities</td></tr>
-        <tr><td><a class="deck-link" href="08-uc-connections.html">UC Connections</a><span class="deck-file">08-uc-connections.html</span></td><td>Unity Catalog HTTP Connections to external services</td></tr>
-        <tr><td><a class="deck-link" href="09-uc-governance.html">UC Governance</a><span class="deck-file">09-uc-governance.html</span></td><td>Row filters, column masks, ABAC</td></tr>
-        <tr><td><a class="deck-link" href="10-agent-cost-governance.html">Agent Cost Governance</a><span class="deck-file">10-agent-cost-governance.html</span></td><td>Cost control for agentic workloads</td></tr>
-        <tr><td><a class="deck-link" href="11-aibi-dashboard-embedding.html">AI/BI Dashboard Embedding</a><span class="deck-file">11-aibi-dashboard-embedding.html</span></td><td>Embedding dashboards for foreign identity providers</td></tr>
-        <tr><td><a class="deck-link" href="12-teams-copilot-genie-obo.html">Teams/Copilot Studio &rarr; Genie OBO</a><span class="deck-file">12-teams-copilot-genie-obo.html</span></td><td>Per-user identity from Teams and Copilot Studio</td></tr>
-      </tbody>
-    </table>
+<div class="slide" data-slide="16">
+  <div class="label r">Governance</div>
+  <h2 class="r">GRANT USE CONNECTION: the on/off switch</h2>
+  <div class="two-col mt2">
+    <div>
+      <div class="label r" style="margin-bottom:0">SQL Examples</div>
+      <pre class="r" style="margin-top:8px"><span class="cm">-- Grant access</span>
+<span class="kw">GRANT</span> USE CONNECTION
+  <span class="kw">ON</span> CONNECTION my_github_conn
+  <span class="kw">TO</span> `data-engineering`;
+
+<span class="cm">-- Revoke access</span>
+<span class="kw">REVOKE</span> USE CONNECTION
+  <span class="kw">ON</span> CONNECTION my_github_conn
+  <span class="kw">FROM</span> `data-engineering`;
+
+<span class="cm">-- Audit grants</span>
+<span class="kw">SHOW GRANTS</span>
+  <span class="kw">ON</span> CONNECTION my_github_conn;</pre>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0">Defense in Depth</div>
+      <div class="card card-amber r">
+        <h4>Layer 1: Network (SNP)</h4>
+        <p>Serverless Network Perimeter controls which FQDNs are reachable at the network layer. Blocks egress regardless of caller.</p>
+      </div>
+      <div class="card card-blue r">
+        <h4>Layer 2: Credential (USE CONNECTION)</h4>
+        <p>Even if the host is reachable, the caller needs a USE CONNECTION grant to get credentials injected. No grant = 403, credential never leaves storage.</p>
+      </div>
+    </div>
   </div>
+  <div class="card r mt2">
+    <p><strong>Combined:</strong> SNP controls which destinations are reachable. USE CONNECTION controls which identities can authenticate. Neither alone is sufficient; together they form a complete egress governance layer.</p>
+  </div>
+  <p class="r" style="margin-top:14px;color:var(--muted);font-size:var(--xs)">Reference: github.com/bhavink/applied-ai-governance</p>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 10 · CLOSING CALLIGRAM
+     SLIDE 17 · CLOSING CALLIGRAM
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide slide-calli" data-slide="10">
+<div class="slide slide-calli" data-slide="17">
   <div class="calli-hero r">
-    UNITY CATALOG.
-    <span class="line2">THE TRUST BOUNDARY.</span>
-    <span class="line3">GOVERNANCE FOLLOWS IDENTITY.</span>
+    ONE PROXY.
+    <span class="line2">FOUR METHODS.</span>
+    <span class="line3">ZERO EXPOSED CREDENTIALS.</span>
   </div>
   <div class="calli-rule r"></div>
-  <div class="calli-sub r">Identity &middot; Permission &middot; Data &middot; Execution &middot; Service &middot; Content &middot; Audit</div>
-  <div class="calli-sub r" style="margin-top:clamp(.4rem,1vh,.7rem)">OBO &middot; M2M &middot; Federation &middot; MCP Services &middot; Omnigent</div>
-  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Acme Corp &middot; Databricks Applied AI Governance Series &middot; Deck 01</div>
+  <div class="calli-sub r">The credential never leaves storage. USE CONNECTION is the only switch.</div>
+  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Databricks Applied AI Governance Series &middot; Deck 08</div>
 </div>
 
 

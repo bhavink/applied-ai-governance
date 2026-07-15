@@ -1,16 +1,9 @@
-<!--
-  Top-level entry point for the Applied AI Governance deck series.
-  Condensed from the prior 22-slide deep dive into a leaner orientation
-  deck: states the governance model at a high level and links out to
-  the 11 topic decks (02-12) for implementation depth. Rebuilt on the
-  current skeleton design system (see 10-teams-copilot-genie-obo.html).
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>AI Governance on Databricks: Overview</title>
+<title>Per-User Identity in Teams &amp; Copilot Studio</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ── tokens ────────────────────────────────────────────────────────────── */
@@ -191,7 +184,7 @@ tr:hover td{background:var(--surface)}
 /* ── architecture flow ───────────────────────────────────────────────────── */
 .arch-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;gap:0;min-height:0}
 .arch-row{display:flex;align-items:center;justify-content:center;gap:0}
-.arch-agents{display:flex;align-items:stretch;gap:clamp(.5rem,1vw,.9rem);justify-content:center;flex-wrap:wrap}
+.arch-agents{display:flex;align-items:stretch;gap:clamp(.5rem,1vw,.9rem);justify-content:center}
 .abox{
   background:var(--surface);border:1px solid var(--border);border-radius:6px;
   padding:clamp(.5rem,1vw,.85rem) clamp(.7rem,1.4vw,1.1rem);
@@ -315,11 +308,6 @@ tr:hover td{background:var(--surface)}
 .gate-cell p{font-size:var(--sm);line-height:1.55;color:var(--muted)}
 .gate-label{font-size:var(--xs);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:4px}
 
-/* ── deck-link table cell ────────────────────────────────────────────────── */
-.deck-link{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px solid var(--red)}
-.deck-link:hover{color:var(--red)}
-.deck-file{display:block;font-size:var(--xs);color:var(--muted);font-family:var(--mono);margin-top:2px}
-
 /* ── height breakpoints ──────────────────────────────────────────────────── */
 @media(max-height:700px){
   :root{--pad:clamp(1.2rem,3vw,2.2rem)}
@@ -353,8 +341,8 @@ tr:hover td{background:var(--surface)}
 <body>
 
 <div class="topbar">
-  <div class="title">Acme Corp &mdash; <span>AI Governance on Databricks: Overview</span></div>
-  <div class="counter" id="counter">01 / 10</div>
+  <div class="title">Acme Corp &mdash; <span>Per-User Identity in Teams &amp; Copilot Studio</span></div>
+  <div class="counter" id="counter">01 / 12</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 
@@ -384,14 +372,14 @@ tr:hover td{background:var(--surface)}
      SLIDE 1 · TITLE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide slide-title active" data-slide="1">
-  <h1 class="r">AI Governance on <em>Databricks</em></h1>
-  <div class="sub r">Overview: identity, authorization, and tool governance for enterprise AI</div>
+  <h1 class="r">Per-User Identity in <em>Teams and Copilot Studio</em></h1>
+  <div class="sub r">Bringing per-user identity into Genie and Agent Bricks when access is surfaced through Microsoft Teams and Copilot Studio.</div>
   <div class="red-rule r"></div>
   <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:640px">
-    One governance model for business users and AI agents alike, whether access originates internally or through a partner or customer's own identity provider.
+    Acme's rollout: hundreds of employees asking Genie questions from inside Teams and Copilot &mdash; each expecting to see only their own data
   </p>
   <p class="r" style="margin-top:12px;color:var(--muted);font-size:var(--xs);max-width:640px">
-    Deck 01, the entry point. Decks 02 through 12 go deep on each governance domain referenced here.
+    Deck 12 &mdash; companion to Deck 06 (Cross-IdP Token Exchange) and Deck 11 (AI/BI Dashboard Embedding). This deck: Teams &amp; Copilot Studio specifically, and a gate the others don't have.
   </p>
 </div>
 
@@ -401,23 +389,42 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="2">
   <div class="label r">Agenda</div>
-  <h2 class="r">What this overview covers</h2>
-  <div class="r flex1" style="display:flex;flex-direction:column;gap:clamp(.5rem,1.2vw,.9rem);margin-top:clamp(.6rem,1.4vw,1rem)">
-    <div class="seq-step r delay-1">
+  <h2 class="r">What this deck covers.</h2>
+  <div class="flex1 mt2" style="display:flex;flex-direction:column;gap:clamp(.6rem,1.2vw,.9rem);overflow-y:auto">
+    <div class="seq-step r">
       <div class="seq-num">1</div>
-      <div class="seq-body"><strong>The issue</strong><p>Business users and AI agents both need governed access to the same data, internally and through external partner/customer identity providers, without a separate trust model per surface.</p></div>
+      <div class="seq-body">
+        <strong>Four integration paths into Genie</strong>
+        <p>A custom Teams bot, Copilot Studio in two credential modes, and the native marketplace app &mdash; each with a different identity model.</p>
+      </div>
     </div>
-    <div class="seq-step r delay-2">
+    <div class="seq-step r">
       <div class="seq-num">2</div>
-      <div class="seq-body"><strong>The governance model, at a glance</strong><p>One trust boundary, three token paths, seven enforcement layers, and a resource lens for what's being accessed.</p></div>
+      <div class="seq-body">
+        <strong>The confirmed token-exchange architecture</strong>
+        <p>Teams sign-in through Entra ID, an RFC 8693 token exchange, and how that identity reaches Agent Bricks and Genie.</p>
+      </div>
     </div>
-    <div class="seq-step r delay-3">
+    <div class="seq-step r">
       <div class="seq-num">3</div>
-      <div class="seq-body"><strong>Why it matters</strong><p>Consistent governance regardless of surface, a single control plane for audit and compliance, and faster delivery of new AI surfaces.</p></div>
+      <div class="seq-body">
+        <strong>The two-gate model</strong>
+        <p>Token-layer identity is Gate 1. The Genie space's publish mode is Gate 2. Most rollouts only check the first.</p>
+      </div>
     </div>
-    <div class="seq-step r delay-4">
+    <div class="seq-step r">
       <div class="seq-num">4</div>
-      <div class="seq-body"><strong>Where to go deeper</strong><p>A map to the 11 topic decks (02 through 12) that cover implementation detail for each domain.</p></div>
+      <div class="seq-body">
+        <strong>What breaks silently, and the setting to check</strong>
+        <p>Why a correctly-configured token still doesn't guarantee per-user data access.</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">5</div>
+      <div class="seq-body">
+        <strong>How to verify before rollout</strong>
+        <p>The two-user test, decision guidance per path, and the gotchas that trip teams up.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -428,42 +435,96 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="3">
   <div class="label r">The issue</div>
-  <h2 class="r">Business users and AI agents both need governed access to the same data, without a separate trust model per surface.</h2>
+  <h2 class="r">Genie and Agent Bricks are reachable from Teams and Copilot Studio through four different paths &mdash; each handling identity differently.</h2>
   <div class="two-col mt2">
-    <div class="card card-red r">
-      <h4>Business users</h4>
-      <p>Ask plain-English questions, build dashboards, and work through Genie, copilots, and agents. Each expects to see only the data their own permissions allow.</p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card card-red r" style="text-align:center;padding:18px 12px">
+        <div class="stat">4</div>
+        <div class="stat-label">distinct integration paths into Genie from Teams and Copilot Studio</div>
+      </div>
+      <div class="card r">
+        <h4>The four paths, by name</h4>
+        <ul>
+          <li>Custom AI agent + Azure Bot Service + OAuth federation</li>
+          <li>Copilot Studio via MCP, &ldquo;End user credentials&rdquo;</li>
+          <li>Copilot Studio via MCP, &ldquo;Maker credentials&rdquo;</li>
+          <li>Native &ldquo;Databricks Genie&rdquo; app (Teams / M365 Copilot marketplace)</li>
+        </ul>
+      </div>
     </div>
-    <div class="card card-red r">
-      <h4>AI agents</h4>
-      <p>Orchestrate tools and call data on a user's behalf. Partners and customers need the same capabilities, reached through their own portals and their own identity providers.</p>
+    <div class="card card-ink r">
+      <h4>The question every rollout has to answer</h4>
+      <p>When two different employees ask Genie the same question from inside Teams or Copilot Studio, do they get answers scoped to their own row-level permissions &mdash; or the same answer regardless of who's asking?</p>
+      <p class="mt2">The answer depends on which of the four paths is in use, and on two separate settings, not one. The four paths look similar from the client side, which is exactly what makes this easy to get wrong.</p>
     </div>
-  </div>
-  <div class="callout r mt2">
-    Same data, same AI, same governance expected, whether the requester is an employee or an external partner or customer authenticating through their own IdP.
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 4 · WHAT (1/4): ONE TRUST BOUNDARY
+     SLIDE 4 · WHAT — FOUR PATHS MAPPED
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="4">
-  <div class="label r">What: the model, at a glance</div>
-  <h2 class="r">One authorization engine, however authentication arrives</h2>
-  <p class="r muted" style="max-width:760px">Databricks enforces authorization in exactly one place: Unity Catalog. Authentication can originate from the workspace identity provider for internal users, or from an external IdP via token federation for partners and customers. Every path converges on UC before any data or tool is touched.</p>
+  <div class="label r">What &mdash; the four paths</div>
+  <h2 class="r">Four paths into Genie from Teams and Copilot. They don't share an identity model.</h2>
+  <div class="r flex1" style="overflow-x:auto">
+    <table style="min-width:720px">
+      <thead>
+        <tr><th>Path</th><th>Token-layer identity</th><th>Confidence</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Custom AI agent + Azure Bot Service + OAuth federation</strong></td>
+          <td><span class="badge badge-green">Per-user OBO</span></td>
+          <td>Confirmed, code-traced</td>
+        </tr>
+        <tr>
+          <td><strong>Copilot Studio via MCP, &ldquo;End user credentials&rdquo;</strong></td>
+          <td><span class="badge badge-green">Per-user (U2M)</span></td>
+          <td>Confirmed to exist</td>
+        </tr>
+        <tr>
+          <td><strong>Copilot Studio via MCP, &ldquo;Maker credentials&rdquo;</strong></td>
+          <td><span class="badge badge-muted">Shared, by design</span></td>
+          <td>Confirmed M2M, not a bug</td>
+        </tr>
+        <tr>
+          <td><strong>Native &ldquo;Databricks Genie&rdquo; app (Teams / M365 Copilot marketplace)</strong></td>
+          <td><span class="badge badge-amber">Verify directly</span></td>
+          <td>Confirm with a two-user test before rollout</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="r" style="margin-top:clamp(.6rem,1.2vw,1rem)">
+    <div class="card card-amber" style="padding:clamp(.6rem,1.2vw,1rem)">
+      <p><strong>Treat the native marketplace apps as verify-before-you-rely-on-it, not assume-either-way.</strong> Run the same two-user, different-grants test you'd run on any integration before trusting per-person results in production.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 5 · WHAT — ARCHITECTURE, CONFIRMED PATH
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label r">What &mdash; the confirmed architecture</div>
+  <h2 class="r">A Teams sign-in card, one token exchange, and the human's identity all the way to Genie.</h2>
   <div class="arch-wrap r">
     <div class="arch-row" style="margin-bottom:clamp(.5rem,1vw,.8rem)">
-      <div class="abox sys r delay-1">Internal IdP<small>Entra ID &middot; Okta &middot; SAML/OIDC</small></div>
+      <div class="abox sp r delay-1">Teams User<small>sign-in card</small></div>
       <div class="arch-arrow delay-2">&rarr;</div>
-      <div class="abox uc r delay-3">Unity Catalog<small style="color:var(--red);opacity:.7">single trust boundary</small></div>
-      <div class="arch-arrow delay-4">&larr;</div>
-      <div class="abox sys r delay-5">External IdP<small>partner / customer, via federation</small></div>
+      <div class="abox sys r delay-3">Entra ID<small>access_as_user scope</small></div>
+      <div class="arch-arrow delay-4">&rarr;</div>
+      <div class="abox sys r delay-5">/oidc/v1/token<small>RFC 8693 exchange</small></div>
     </div>
     <div class="arch-vstack r delay-6">
       <div class="arch-varrow">&darr;</div>
-      <div class="card card-green r delay-7" style="text-align:center;max-width:600px">
-        <p><strong>Same governance, regardless of which door the identity walked in.</strong> Data, tools, and agents all check the same UC privileges.</p>
+      <div style="font-size:var(--xs);color:var(--muted)">no client_id &mdash; stays per-user, not SP</div>
+      <div class="abox uc r delay-7">Agent Bricks Supervisor<small style="color:var(--red);opacity:.7">Genie sub-agent, OBO auto-forwarded</small></div>
+      <div class="arch-varrow delay-8">&darr;</div>
+      <div class="card card-green r delay-9" style="text-align:center;max-width:560px">
+        <p><strong>current_user() = the human, at the Genie/UC layer.</strong> Same account-wide RFC 8693 exchange already used for Power BI &mdash; Teams is just a new front-end for it.</p>
       </div>
     </div>
   </div>
@@ -471,117 +532,176 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 5 · WHAT (2/4): THREE TOKEN PATHS
-     ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="5">
-  <div class="label r">What: token paths</div>
-  <h2 class="r">Three token paths, one identity model</h2>
-  <p class="r muted" style="max-width:760px">U2M, OBO, and M2M are token acquisition paths, not separate authentication systems. What changes is whose identity Unity Catalog sees.</p>
-  <div class="r flex1 mt1" style="overflow-x:auto">
-    <table style="min-width:600px">
-      <thead><tr><th>Path</th><th>Who authenticates</th><th>Identity in UC</th></tr></thead>
-      <tbody>
-        <tr><td><strong>U2M</strong></td><td>The human, directly</td><td>The human</td></tr>
-        <tr><td><strong>OBO</strong></td><td>The human, via an app that forwards the token</td><td>The human</td></tr>
-        <tr><td><strong>M2M</strong></td><td>The application itself (service principal)</td><td>The service principal</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="callout r mt2">
-    Human calling directly: U2M. Human going through an app: OBO. App itself with no human present: M2M.
-  </div>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 6 · WHAT (3/4): SEVEN ENFORCEMENT LAYERS
+     SLIDE 6 · WHAT — TWO GATES, NOT ONE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="6">
-  <div class="label r">What: enforcement layers</div>
-  <h2 class="r">Seven layers, checked on every call</h2>
-  <div class="r flex1" style="overflow-x:auto">
-    <table style="min-width:680px">
-      <thead><tr><th>Layer</th><th>Governs</th></tr></thead>
-      <tbody>
-        <tr><td><strong>1 &middot; Identity</strong></td><td>Agent service principal, user OBO, token federation</td></tr>
-        <tr><td><strong>2 &middot; Permission</strong></td><td>UC privileges, MCP Service grants, least-privilege SPs</td></tr>
-        <tr><td><strong>3 &middot; Data</strong></td><td>Row filters, column masks, ABAC, BROWSE privilege</td></tr>
-        <tr><td><strong>4 &middot; Execution</strong></td><td>Model Serving, Apps, serverless sandboxing</td></tr>
-        <tr><td><strong>5 &middot; Service Policy</strong></td><td>Who can call which tools, with what approval gate</td></tr>
-        <tr><td><strong>6 &middot; Content</strong></td><td>AI Gateway guardrails: what the model is allowed to say</td></tr>
-        <tr><td><strong>7 &middot; Audit</strong></td><td>system.access.audit, MLflow traces, inference tables</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="callout r mt2">
-    No design should rely on a single layer.
+  <div class="label r">What &mdash; two gates, not one</div>
+  <h2 class="r">Per-user identity depends on two separate settings.</h2>
+  <div class="two-col mt2">
+    <div class="card card-green r" style="display:flex;flex-direction:column;gap:8px">
+      <div class="gate-label" style="color:var(--green)">Gate 1 &mdash; Token layer</div>
+      <h4>Did a real per-user token reach Databricks?</h4>
+      <p>OAuth federation, no <code>client_id</code> in the exchange, &ldquo;End user credentials&rdquo; selected in Copilot Studio. This is the gate everyone checks &mdash; and the one all the setup guides walk you through.</p>
+    </div>
+    <div class="card card-red r" style="display:flex;flex-direction:column;gap:8px">
+      <div class="gate-label" style="color:var(--red)">Gate 2 &mdash; Genie space publish mode</div>
+      <h4>Is the space published VIEWER, not EMBEDDED_CREDENTIALS?</h4>
+      <p>This lives on the <strong>space</strong>, not the client integration. It's invisible from the Teams bot's or Copilot Studio connector's configuration screen &mdash; you have to check the space directly.</p>
+    </div>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 7 · WHAT (4/4): THE RESOURCE LENS
+     SLIDE 7 · WHY THIS MATTERS
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="7">
-  <div class="label r">What: the resource lens</div>
-  <h2 class="r">Authorization differs by what's being accessed</h2>
-  <div class="r arch-agents mt2">
-    <div class="abox r delay-1">Serving Endpoints</div>
-    <div class="abox r delay-2">Genie Spaces</div>
-    <div class="abox r delay-3">UC Functions</div>
-    <div class="abox r delay-4">Vector Search</div>
-    <div class="abox uc r delay-5" style="font-size:var(--sm);padding:clamp(.5rem,1vw,.85rem) clamp(.7rem,1.4vw,1.1rem)">MCP Services<small style="color:var(--red);opacity:.7">new UC securable</small></div>
-    <div class="abox r delay-6">Tables</div>
-    <div class="abox danger r delay-7">Lakebase<small>PG-native, the exception</small></div>
+  <div class="label r">Why this matters</div>
+  <h2 class="r">Every Teams and Copilot rollout hits this question &mdash; and getting it wrong fails silently.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="callout r">
+        &ldquo;We're putting Genie in Teams so people don't have to leave their chat window. But when Priya and Sam both ask &lsquo;what's my region's revenue,&rsquo; do they get <em>different</em> answers &mdash; or the same one?&rdquo;
+      </div>
+      <div class="r" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+        <div class="card card-red" style="text-align:center;padding:14px 10px">
+          <div class="stat">4</div>
+          <div class="stat-label">distinct integration paths</div>
+        </div>
+        <div class="card card-red" style="text-align:center;padding:14px 10px">
+          <div class="stat">1</div>
+          <div class="stat-label">answer everyone assumes, wrongly</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card card-amber r">
+        <h4>The assumption that trips people up</h4>
+        <p>&ldquo;We used OAuth / OBO, so we're covered.&rdquo; Getting the token layer right is necessary &mdash; and, on its own, not sufficient. There's a second setting, on the Genie space itself, that decides whether any of that per-user auth actually reaches the data.</p>
+      </div>
+      <div class="card card-red r">
+        <h4>The concrete consequence</h4>
+        <p>If Gate 2 is missed, every user sees the exact same data &mdash; regardless of how correctly the token exchange, OAuth federation, or Copilot Studio credential setting is configured upstream. There's no error and no warning; the space just quietly runs every query as its publisher.</p>
+      </div>
+    </div>
   </div>
-  <p class="r muted mt2" style="max-width:760px">MCP Services are now UC securables, the recommended path for external tool access, governed like any other catalog object. Lakebase is the one exception: PG-native authorization (roles, GRANT, RLS), not Unity Catalog.</p>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 8 · WHY
+     SLIDE 8 · HOW — THE EXCHANGE, CODE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="8">
-  <div class="label r">Why this matters</div>
-  <h2 class="r">One model, not one per surface</h2>
-  <div class="three-col mt2">
-    <div class="card card-green r">
-      <h4>Consistent governance</h4>
-      <p>The same rules apply whether the surface is Genie, Teams, a custom app, or a partner portal. No per-integration reinterpretation of who can see what.</p>
+  <div class="label r">How &mdash; the token exchange</div>
+  <h2 class="r">The exchange, traced from Databricks&rsquo; own reference implementation.</h2>
+  <div class="two-col mt1">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r" style="margin-bottom:0">Token exchange</div>
+      <pre class="r"><span class="kw">POST</span> {databricks_host}/oidc/v1/token
+
+<span class="kw">grant_type</span>=urn:ietf:params:oauth:
+  grant-type:token-exchange
+&amp;<span class="kw">subject_token</span>={entra_jwt_from_teams}
+&amp;<span class="kw">subject_token_type</span>=
+  urn:ietf:params:oauth:token-type:jwt
+&amp;<span class="kw">scope</span>=all-apis
+<span class="cm"># no client_id -- omitting it is what</span>
+<span class="cm"># keeps this per-user, not SP</span></pre>
     </div>
-    <div class="card card-blue r">
-      <h4>Lower audit burden</h4>
-      <p>One control plane to prove compliance against: system.access.audit and MLflow traces cover every surface, not a bespoke log per integration.</p>
-    </div>
-    <div class="card card-amber r">
-      <h4>Velocity</h4>
-      <p>New AI surfaces plug into the same identity and authorization model instead of re-solving it, so teams ship faster without reopening the trust question.</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r" style="margin-bottom:0">Result &mdash; token used as-is by the SDK</div>
+      <pre class="r"><span class="kw">workspace_client</span> = WorkspaceClient(
+    host=databricks_host,
+    token=oauth_db_token,
+)
+<span class="cm"># calls to the serving endpoint now carry</span>
+<span class="cm"># the user's identity; Agent Bricks OBO</span>
+<span class="cm"># forwards it automatically to Genie</span></pre>
+      <div class="card card-ink r">
+        <p>This is the <strong>identical</strong> exchange already documented for external apps with a bring-your-own IdP. Teams/Azure Bot Service is a new front-door, not a new mechanism.</p>
+      </div>
     </div>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 9 · HOW: WHERE TO GO DEEPER
+     SLIDE 9 · HOW — GATE 2, IN DETAIL
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="9">
-  <div class="label r">How: where to go deeper</div>
-  <h2 class="r">For implementation detail, see:</h2>
+  <div class="label r">How &mdash; check the publish mode</div>
+  <h2 class="r">One setting decides who the SQL runs as &mdash; regardless of the token.</h2>
   <div class="r flex1" style="overflow-x:auto">
-    <table style="min-width:720px">
-      <thead><tr><th>Deck</th><th>Covers</th></tr></thead>
+    <table style="min-width:640px">
+      <thead><tr><th>Publish mode</th><th>Who the SQL runs as</th><th>Per-user RLS?</th></tr></thead>
       <tbody>
-        <tr><td><a class="deck-link" href="02-unity-ai-gateway.html">Unity AI Gateway</a><span class="deck-file">02-unity-ai-gateway.html</span></td><td>Routing, rate limits, guardrails, spend caps, MCP Services</td></tr>
-        <tr><td><a class="deck-link" href="03-identity-auth-foundations.html">Identity &amp; Auth Foundations</a><span class="deck-file">03-identity-auth-foundations.html</span></td><td>U2M/OBO/M2M in depth, one authentication layer</td></tr>
-        <tr><td><a class="deck-link" href="04-authorization-by-resource.html">Authorization by Resource Type</a><span class="deck-file">04-authorization-by-resource.html</span></td><td>The full resource-authorization matrix</td></tr>
-        <tr><td><a class="deck-link" href="05-orchestration-tool-governance.html">Orchestration &amp; Tool Governance</a><span class="deck-file">05-orchestration-tool-governance.html</span></td><td>Agent Bricks, MCP, service policies</td></tr>
-        <tr><td><a class="deck-link" href="06-cross-idp-federation.html">Cross-IdP Federation</a><span class="deck-file">06-cross-idp-federation.html</span></td><td>Token exchange across identity providers</td></tr>
-        <tr><td><a class="deck-link" href="07-sp-m2m-identity.html">SP &amp; M2M Identity</a><span class="deck-file">07-sp-m2m-identity.html</span></td><td>Governance for service principals and machine identities</td></tr>
-        <tr><td><a class="deck-link" href="08-uc-connections.html">UC Connections</a><span class="deck-file">08-uc-connections.html</span></td><td>Unity Catalog HTTP Connections to external services</td></tr>
-        <tr><td><a class="deck-link" href="09-uc-governance.html">UC Governance</a><span class="deck-file">09-uc-governance.html</span></td><td>Row filters, column masks, ABAC</td></tr>
-        <tr><td><a class="deck-link" href="10-agent-cost-governance.html">Agent Cost Governance</a><span class="deck-file">10-agent-cost-governance.html</span></td><td>Cost control for agentic workloads</td></tr>
-        <tr><td><a class="deck-link" href="11-aibi-dashboard-embedding.html">AI/BI Dashboard Embedding</a><span class="deck-file">11-aibi-dashboard-embedding.html</span></td><td>Embedding dashboards for foreign identity providers</td></tr>
-        <tr><td><a class="deck-link" href="12-teams-copilot-genie-obo.html">Teams/Copilot Studio &rarr; Genie OBO</a><span class="deck-file">12-teams-copilot-genie-obo.html</span></td><td>Per-user identity from Teams and Copilot Studio</td></tr>
+        <tr>
+          <td><code>VIEWER</code></td>
+          <td>The calling identity &mdash; the human, if a per-user token reached the API</td>
+          <td><span class="badge badge-green">Yes</span></td>
+        </tr>
+        <tr>
+          <td><code>EMBEDDED_CREDENTIALS</code></td>
+          <td>The space's publisher &mdash; always</td>
+          <td><span class="badge badge-red">No</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="r" style="margin-top:clamp(.6rem,1.2vw,1rem)">
+    <div class="card card-red">
+      <p><strong>Where to check:</strong> the Genie space's own settings &mdash; not the Teams bot configuration and not the Copilot Studio connector. Gate 2 lives entirely on the space, so a review of the client integration alone will never surface it.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 10 · HOW — DECISION GATE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label r">How &mdash; what to do, per path</div>
+  <h2 class="r">Which path, and what to verify on each.</h2>
+  <div class="gate-grid flex1 mt1">
+    <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
+      <div class="gate-label" style="color:var(--green)">Building a custom Teams bot</div>
+      <h4>Use Azure Bot Service + OAuth federation</h4>
+      <p>Officially documented pattern. Check Gate 2 on the target Genie space before shipping.</p>
+    </div>
+    <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
+      <div class="gate-label" style="color:var(--green)">Using Copilot Studio</div>
+      <h4>Select &ldquo;End user credentials,&rdquo; not &ldquo;Maker credentials&rdquo;</h4>
+      <p>Gives real per-user identity &mdash; still gated by Gate 2. &ldquo;Maker credentials&rdquo; is fine when shared access is the actual intent.</p>
+    </div>
+    <div class="gate-cell r" style="background:var(--amber-bg);border-color:var(--amber)">
+      <div class="gate-label" style="color:var(--amber)">Already using the native marketplace app</div>
+      <h4>Verify before you promise per-user RLS to anyone</h4>
+      <p>Run the two-user test yourself and confirm the result before this shows up in a customer conversation &mdash; standard due diligence for any new integration surface.</p>
+    </div>
+    <div class="gate-cell r" style="background:var(--blue-bg);border-color:var(--blue)">
+      <div class="gate-label" style="color:var(--blue)">Every path, no exceptions</div>
+      <h4>Check the Genie space's publish mode directly</h4>
+      <p>Don't infer it from the client integration's settings. It's a property of the space, and it silently overrides everything upstream of it.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 11 · HOW — GOTCHAS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label r">How &mdash; gotchas</div>
+  <h2 class="r">What breaks quietly if you skip the fine print.</h2>
+  <div class="r flex1" style="overflow-x:auto">
+    <table style="min-width:680px">
+      <thead><tr><th>Issue</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Correct OBO token, wrong publish mode</strong></td><td>The most common way this silently fails &mdash; see the previous slide.</td></tr>
+        <tr><td><strong><code>client_id</code> in the token exchange</strong></td><td>Omit it. Including it selects a service principal and collapses RLS to the SP.</td></tr>
+        <tr><td><strong><code>preferred_username</code> vs other claims</strong></td><td>The federation policy's subject claim must match what your tenant's Entra tokens actually carry.</td></tr>
+        <tr><td><strong>Two unrelated things both called &ldquo;Genie + Teams&rdquo;</strong></td><td>The native marketplace app and the custom Azure Bot Service pattern are different integrations. Confirm which one before answering an RLS question.</td></tr>
+        <tr><td><strong>&ldquo;Maker credentials&rdquo; in Copilot Studio</strong></td><td>Intentionally shared by design &mdash; not a degraded or broken OBO mode.</td></tr>
       </tbody>
     </table>
   </div>
@@ -589,18 +709,17 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 10 · CLOSING CALLIGRAM
+     SLIDE 12 · CLOSING CALLIGRAM
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide slide-calli" data-slide="10">
+<div class="slide slide-calli" data-slide="12">
   <div class="calli-hero r">
-    UNITY CATALOG.
-    <span class="line2">THE TRUST BOUNDARY.</span>
-    <span class="line3">GOVERNANCE FOLLOWS IDENTITY.</span>
+    TWO GATES.
+    <span class="line2">ONE IDENTITY.</span>
+    <span class="line3">EVERY SURFACE.</span>
   </div>
   <div class="calli-rule r"></div>
-  <div class="calli-sub r">Identity &middot; Permission &middot; Data &middot; Execution &middot; Service &middot; Content &middot; Audit</div>
-  <div class="calli-sub r" style="margin-top:clamp(.4rem,1vh,.7rem)">OBO &middot; M2M &middot; Federation &middot; MCP Services &middot; Omnigent</div>
-  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Acme Corp &middot; Databricks Applied AI Governance Series &middot; Deck 01</div>
+  <div class="calli-sub r">Check the token. Check the space. Don't assume either from the other.</div>
+  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Acme Corp &middot; Databricks Applied AI Governance Series &middot; Deck 12</div>
 </div>
 
 

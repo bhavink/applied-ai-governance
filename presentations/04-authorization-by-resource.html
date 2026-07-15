@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Authorization by Resource Type</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── tokens ────────────────────────────────────────────────────────────── */
+:root {
+  --bg:     #ffffff;
+  --ink:    #1a1a1a;
+  --red:    #cc3311;
+  --surface:#f5f5f5;
+  --border: #e2e2e2;
+  --muted:  #616161;
+  --green:  #1a7a3c;
+  --green-bg:#e8f5ed;
+  --amber:  #a85e00;
+  --amber-bg:#fff4e0;
+  --blue:   #1648c0;
+  --blue-bg:#eef2ff;
+  --font:   'Space Grotesk', sans-serif;
+  --mono:   'DM Mono', monospace;
+  --pad:    clamp(2rem,4.5vw,4rem);
+  --h1:     clamp(2rem,4.5vw,3.4rem);
+  --h2:     clamp(1.35rem,2.8vw,2.1rem);
+  --h3:     clamp(0.98rem,1.8vw,1.32rem);
+  --body:   clamp(0.83rem,1.35vw,1.02rem);
+  --sm:     clamp(0.72rem,1.05vw,0.86rem);
+  --xs:     clamp(0.62rem,0.82vw,0.72rem);
+  --code:   clamp(0.66rem,0.95vw,0.80rem);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:var(--font);background:var(--bg);color:var(--ink)}
+
+/* ── chrome ─────────────────────────────────────────────────────────────── */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:46px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 22px;
+  background:var(--ink);color:#fff;z-index:100;font-size:var(--sm);
+}
+.topbar .title{font-weight:600;letter-spacing:-0.02em}
+.topbar .title span{color:var(--red)}
+.topbar .counter{font-variant-numeric:tabular-nums;opacity:.65}
+.progress-track{position:fixed;top:46px;left:0;right:0;height:3px;background:var(--border);z-index:100}
+.progress-bar{height:100%;background:var(--red);transition:width .38s ease;width:0}
+
+/* ── nav controls ────────────────────────────────────────────────────────── */
+.nav-controls{position:fixed;bottom:18px;right:22px;display:flex;align-items:center;gap:7px;z-index:200}
+.nav-btn{
+  width:38px;height:38px;border-radius:50%;border:1.5px solid var(--border);
+  background:var(--bg);color:var(--ink);font-size:.95rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .18s;padding:0;line-height:1;
+}
+.nav-btn:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+.nav-btn:disabled{opacity:.22;cursor:default;pointer-events:none}
+.help-btn{
+  width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);
+  background:var(--bg);color:var(--muted);font-size:.68rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-weight:700;
+  margin-left:6px;transition:all .18s;
+}
+.help-btn:hover{border-color:var(--ink);color:var(--ink)}
+
+/* nav dot cluster */
+.nav-dots{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:200}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer;transition:all .25s}
+.dot.active{background:var(--red);width:18px;border-radius:3px}
+.dot:hover{background:var(--muted)}
+
+/* keyboard overlay */
+.kb-overlay{position:fixed;inset:0;background:rgba(26,26,26,.82);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .28s}
+.kb-overlay.visible{opacity:1;pointer-events:auto}
+.kb-card{background:#fff;border-radius:8px;padding:30px 38px;max-width:360px;width:90%;text-align:center}
+.kb-card h3{font-size:1.05rem;font-weight:700;margin-bottom:14px;letter-spacing:-.02em}
+.kb-card table{width:100%;text-align:left;font-size:.80rem;border-collapse:collapse}
+.kb-card td{padding:5px 8px;border-bottom:1px solid #eee}
+.kb-card td:first-child{font-family:var(--mono);font-weight:600;color:var(--red);white-space:nowrap}
+.kb-card .dismiss{margin-top:14px;font-size:.70rem;color:var(--muted)}
+
+/* ── slide shell ─────────────────────────────────────────────────────────── */
+.slide{
+  position:absolute;top:46px;left:0;right:0;bottom:0;
+  opacity:0;pointer-events:none;
+  transform:translateX(56px);
+  transition:opacity .38s ease,transform .38s ease;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  padding:var(--pad);
+}
+.slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+.slide.exit-left{opacity:0;transform:translateX(-56px)}
+
+/* ── stagger reveals ─────────────────────────────────────────────────────── */
+.r{opacity:0;transform:translateY(16px);transition:opacity .45s ease,transform .45s ease}
+.slide.active .r{opacity:1;transform:translateY(0)}
+.slide.active .r:nth-child(1){transition-delay:.05s}
+.slide.active .r:nth-child(2){transition-delay:.12s}
+.slide.active .r:nth-child(3){transition-delay:.20s}
+.slide.active .r:nth-child(4){transition-delay:.28s}
+.slide.active .r:nth-child(5){transition-delay:.36s}
+.slide.active .r:nth-child(6){transition-delay:.44s}
+.slide.active .r:nth-child(7){transition-delay:.52s}
+.slide.active .r:nth-child(8){transition-delay:.60s}
+.slide.active .r:nth-child(9){transition-delay:.68s}
+.slide.active .r:nth-child(10){transition-delay:.76s}
+
+/* extra named delays for architecture arrows */
+.delay-1{transition-delay:.10s!important}
+.delay-2{transition-delay:.25s!important}
+.delay-3{transition-delay:.40s!important}
+.delay-4{transition-delay:.55s!important}
+.delay-5{transition-delay:.70s!important}
+.delay-6{transition-delay:.85s!important}
+.delay-7{transition-delay:1.0s!important}
+.delay-8{transition-delay:1.15s!important}
+.delay-9{transition-delay:1.30s!important}
+
+/* ── typography ──────────────────────────────────────────────────────────── */
+.label{font-size:var(--xs);text-transform:uppercase;letter-spacing:.10em;color:var(--red);font-weight:600;margin-bottom:5px}
+.slide h2{font-size:var(--h1);font-weight:700;letter-spacing:-.03em;line-height:1.08;margin-bottom:6px}
+.slide h3{font-size:var(--h2);font-weight:600;letter-spacing:-.02em;margin-bottom:5px}
+.slide p,.slide li{font-size:var(--body);line-height:1.62}
+.muted{color:var(--muted)}
+.red{color:var(--red)}
+.bold{font-weight:700}
+
+/* ── title slide ─────────────────────────────────────────────────────────── */
+.slide-title{justify-content:center;align-items:center;text-align:center}
+.slide-title h1{font-size:clamp(2.5rem,5.5vw,4.2rem);font-weight:700;letter-spacing:-.04em;line-height:1.06;max-width:820px;text-wrap:balance}
+.slide-title h1 em{font-style:normal;color:var(--red)}
+.slide-title .sub{font-size:var(--h3);color:var(--muted);margin-top:14px;font-weight:400;max-width:680px}
+.red-rule{width:72px;height:4px;background:var(--red);margin:18px auto 0}
+
+/* ── layout helpers ──────────────────────────────────────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.2rem,2.5vw,2.2rem);flex:1;min-height:0}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(.9rem,1.8vw,1.4rem);flex:1;min-height:0}
+.four-col{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:clamp(.7rem,1.4vw,1.1rem);flex:1;min-height:0}
+.flex1{flex:1 1 0;min-height:0;overflow:hidden}
+.mt1{margin-top:8px}.mt2{margin-top:16px}.mt3{margin-top:24px}.mt4{margin-top:32px}
+.mb1{margin-bottom:8px}.mb2{margin-bottom:16px}
+
+/* ── cards ───────────────────────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(.9rem,1.8vw,1.4rem)}
+.card h4{font-size:var(--h3);font-weight:600;margin-bottom:7px;letter-spacing:-.01em}
+.card p,.card li{font-size:var(--sm);line-height:1.58}
+.card ul{padding-left:1.1em}
+.card-red{border-left:4px solid var(--red)}
+.card-ink{border-left:4px solid var(--ink)}
+.card-green{border-left:4px solid var(--green);background:var(--green-bg)}
+.card-amber{border-left:4px solid var(--amber);background:var(--amber-bg)}
+.card-blue{border-left:4px solid var(--blue);background:var(--blue-bg)}
+
+/* ── code / pre ──────────────────────────────────────────────────────────── */
+pre,code{font-family:var(--mono);font-size:var(--code)}
+pre{
+  background:#f9f9f9;color:var(--ink);
+  border:1px solid var(--border);border-left:3px solid var(--red);
+  border-radius:4px;padding:clamp(.55rem,1.1vw,.9rem);
+  overflow-x:auto;line-height:1.52;
+}
+code{background:var(--surface);padding:.1em .38em;border-radius:3px;color:var(--ink)}
+.kw{color:var(--red);font-weight:500}
+.cm{color:var(--muted)}
+.st{color:var(--green)}
+
+/* ── table ───────────────────────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:var(--sm)}
+th{text-align:left;font-weight:600;font-size:var(--xs);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:7px 9px;border-bottom:2px solid var(--border)}
+td{padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ── badge ───────────────────────────────────────────────────────────────── */
+.badge{display:inline-block;font-size:var(--xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+.badge-red{background:rgba(204,51,17,.10);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-amber{background:var(--amber-bg);color:var(--amber)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-ink{background:var(--ink);color:#fff}
+.badge-muted{background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+
+/* ── resource grid ───────────────────────────────────────────────────────── */
+.resource-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(.6rem,1.2vw,1rem)}
+.resource-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(.7rem,1.4vw,1.1rem);text-align:center;transition:border-color .2s}
+.resource-card:hover{border-color:var(--red)}
+.resource-card .icon{font-size:clamp(1.3rem,2.3vw,1.8rem);margin-bottom:4px}
+.resource-card .name{font-size:var(--sm);font-weight:600}
+.resource-card .meta{font-size:var(--xs);color:var(--muted);margin-top:2px}
+
+/* ── architecture flow ───────────────────────────────────────────────────── */
+.arch-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;gap:0;min-height:0}
+.arch-row{display:flex;align-items:center;justify-content:center;gap:0}
+.abox{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  padding:clamp(.5rem,1vw,.85rem) clamp(.7rem,1.4vw,1.1rem);
+  text-align:center;font-size:var(--sm);font-weight:500;min-width:clamp(80px,12vw,120px);
+}
+.abox small{display:block;font-size:var(--xs);color:var(--muted);font-weight:400;margin-top:2px}
+.abox.sp{border-color:var(--blue);background:var(--blue-bg);font-weight:600}
+.abox.grp{border-color:var(--green);background:var(--green-bg);font-weight:600}
+.abox.uc{border-color:var(--red);background:rgba(204,51,17,.06);color:var(--red);font-weight:700;font-size:var(--h3);padding:clamp(.7rem,1.4vw,1.1rem) clamp(1.2rem,2.4vw,2rem)}
+.abox.danger{border-color:var(--red);background:rgba(204,51,17,.08);border-width:2px}
+.abox.sys{border-color:var(--ink);background:var(--ink);color:#fff}
+
+.arch-arrow{
+  display:flex;align-items:center;padding:0 clamp(.3rem,.6vw,.5rem);
+  color:var(--red);font-size:var(--h3);font-weight:700;
+  opacity:0;
+}
+.slide.active .arch-arrow{
+  opacity:1;
+  animation:arrowPulse 1.8s ease-in-out infinite;
+}
+.arch-arrow.delay-1{animation-delay:.3s}
+.arch-arrow.delay-2{animation-delay:.6s}
+.arch-arrow.delay-3{animation-delay:.9s}
+.arch-arrow.delay-4{animation-delay:1.2s}
+
+@keyframes arrowPulse{
+  0%,100%{color:var(--red);transform:translateX(0)}
+  50%{color:rgba(204,51,17,.45);transform:translateX(3px)}
+}
+
+/* ── stat highlight ──────────────────────────────────────────────────────── */
+.stat{font-size:clamp(1.8rem,4vw,3rem);font-weight:700;letter-spacing:-.04em;color:var(--red);line-height:1}
+.stat-label{font-size:var(--sm);color:var(--muted);margin-top:4px;font-weight:400}
+
+/* ── story callout ───────────────────────────────────────────────────────── */
+.callout{
+  border-left:4px solid var(--red);padding:14px 20px;
+  background:var(--surface);border-radius:0 5px 5px 0;
+  font-size:clamp(.95rem,1.9vw,1.32rem);line-height:1.55;font-style:italic;
+}
+
+/* ── calligram / closing ─────────────────────────────────────────────────── */
+.slide-calli{background:var(--ink);color:#fff;justify-content:center;align-items:center;text-align:center}
+.calli-hero{
+  font-size:clamp(3rem,9vw,7.5rem);font-weight:700;
+  letter-spacing:-.04em;line-height:.95;
+  color:#fff;
+  position:relative;display:inline-block;
+}
+.calli-hero .line2{
+  display:block;
+  font-size:clamp(1.6rem,4.5vw,3.8rem);
+  font-weight:300;letter-spacing:.18em;
+  color:var(--red);text-transform:uppercase;
+  margin-top:.15em;
+}
+.calli-hero .line3{
+  display:block;
+  font-size:clamp(1.6rem,4.5vw,3.8rem);
+  font-weight:700;letter-spacing:-.03em;
+  color:#fff;
+  margin-top:.1em;
+}
+.calli-sub{
+  margin-top:clamp(1.2rem,3vh,2.2rem);
+  font-size:var(--body);color:rgba(255,255,255,.55);
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.calli-rule{width:56px;height:3px;background:var(--red);margin:clamp(.8rem,2vh,1.4rem) auto}
+
+/* ── height breakpoints ──────────────────────────────────────────────────── */
+@media(max-height:700px){
+  :root{--pad:clamp(1.2rem,3vw,2.2rem)}
+  .slide{padding:clamp(1.2rem,3vw,2.2rem)}
+  .mt3{margin-top:14px}.mt4{margin-top:20px}
+}
+@media(max-height:600px){
+  :root{--pad:1rem}
+  .slide{padding:1rem}
+  .mt2{margin-top:8px}.mt3{margin-top:10px}.mt4{margin-top:14px}
+}
+@media(max-height:500px){
+  :root{--h1:clamp(1.6rem,3.5vw,2.4rem);--h2:clamp(1.1rem,2vw,1.6rem)}
+}
+
+/* ── width breakpoints ───────────────────────────────────────────────────── */
+@media(max-width:900px){
+  .two-col,.three-col,.four-col,.resource-grid{grid-template-columns:1fr}
+}
+
+/* ── print ───────────────────────────────────────────────────────────────── */
+@media print{
+  .slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always;overflow:visible}
+  .topbar,.progress-track,.nav-controls,.nav-dots,.kb-overlay{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">Applied AI Governance &mdash; <span>Authorization by Resource Type</span></div>
+  <div class="counter" id="counter">01 / 15</div>
+</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+
+<div class="nav-dots" id="navDots"></div>
+<div class="nav-controls">
+  <button class="nav-btn" id="homeBtn" title="First slide (Home)" onclick="goTo(0)">&#8962;</button>
+  <button class="nav-btn" id="prevBtn" title="Previous" onclick="goTo(current-1)">&larr;</button>
+  <button class="nav-btn" id="nextBtn" title="Next" onclick="goTo(current+1)">&rarr;</button>
+  <button class="help-btn" id="helpBtn" title="Keyboard shortcuts">?</button>
+</div>
+<div class="kb-overlay" id="kbOverlay">
+  <div class="kb-card">
+    <h3>Navigation</h3>
+    <table>
+      <tr><td>&rarr; / Space</td><td>Next slide</td></tr>
+      <tr><td>&larr;</td><td>Previous slide</td></tr>
+      <tr><td>Home</td><td>First slide</td></tr>
+      <tr><td>End</td><td>Last slide</td></tr>
+      <tr><td>Swipe</td><td>Touch navigation</td></tr>
+    </table>
+    <div class="dismiss">Click anywhere or press Esc to close</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 1 · TITLE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide slide-title active" data-slide="1">
+  <h1 class="r">Authorization by <em>Resource Type</em></h1>
+  <div class="sub r">How access control actually works at each Databricks AI component &mdash; serving endpoints, Genie, vector search, functions, connections, tables, and Lakebase.</div>
+  <div class="red-rule r"></div>
+  <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:640px">
+    Companion to Identity &amp; Auth Foundations. That deck covers the token; this one covers what happens once the token arrives at a resource.
+  </p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 2 · AGENDA
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+  <div class="label r">Agenda</div>
+  <h2 class="r">What this deck covers</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card r"><p><strong>1.</strong> Why authorization differs by resource, not just by token path</p></div>
+      <div class="card r"><p><strong>2.</strong> Serving endpoints, Genie, and Vector Search &mdash; identity model and gotchas each</p></div>
+      <div class="card r"><p><strong>3.</strong> UC Functions and UC HTTP Connections as the safe patterns for writes and external calls</p></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card r"><p><strong>4.</strong> Tables &mdash; row filters, column masks, and the <code>current_user()</code> vs <code>is_member()</code> trap</p></div>
+      <div class="card r"><p><strong>5.</strong> Lakebase &mdash; the one resource that isn't governed by Unity Catalog</p></div>
+      <div class="card r"><p><strong>6.</strong> A decision guide and gotcha checklist for production readiness</p></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 3 · THE ISSUE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="label r">The issue</div>
+  <h2 class="r">The same token hits a different enforcement model at every resource it touches.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="callout r">
+        Teams that get the token path right in Identity &amp; Auth Foundations still get burned here &mdash; because Genie checks a different scope set than Model Serving, Vector Search has no per-user concept at all, and Lakebase doesn't use Unity Catalog.
+      </div>
+      <div class="r" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+        <div class="card card-red" style="text-align:center;padding:14px 10px">
+          <div class="stat">7</div>
+          <div class="stat-label">resources, seven different auth stories</div>
+        </div>
+        <div class="card card-red" style="text-align:center;padding:14px 10px">
+          <div class="stat">1</div>
+          <div class="stat-label">resource that isn't governed by UC at all</div>
+        </div>
+      </div>
+    </div>
+    <div class="card card-ink r">
+      <h4>What this deck answers</h4>
+      <p>For each resource: what identity model applies, what the #1 gotcha is, and the concrete pattern that avoids it.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 4 · THE RESOURCE LENS + SUMMARY
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+  <div class="label r">What &mdash; The resource lens</div>
+  <h2 class="r">Seven resources. Six use Unity Catalog. One doesn't.</h2>
+  <div class="resource-grid r mt1">
+    <div class="resource-card"><div class="icon">&#9881;</div><div class="name">Serving Endpoints</div><div class="meta">UC + scopes</div></div>
+    <div class="resource-card"><div class="icon">&#128172;</div><div class="name">Genie</div><div class="meta">UC + genie scopes</div></div>
+    <div class="resource-card"><div class="icon">&#128269;</div><div class="name">Vector Search</div><div class="meta">UC SELECT</div></div>
+    <div class="resource-card"><div class="icon">&#119891;</div><div class="name">UC Functions</div><div class="meta">UC EXECUTE</div></div>
+    <div class="resource-card"><div class="icon">&#128279;</div><div class="name">UC HTTP Connections</div><div class="meta">USE CONNECTION</div></div>
+    <div class="resource-card"><div class="icon">&#128451;</div><div class="name">Tables</div><div class="meta">Row filters &amp; masks</div></div>
+    <div class="resource-card"><div class="icon">&#128024;</div><div class="name" style="color:var(--red)">Lakebase</div><div class="meta" style="color:var(--red)">PG-native, NOT UC</div></div>
+  </div>
+  <div class="r flex1" style="overflow-x:auto;margin-top:12px">
+    <table style="min-width:700px">
+      <thead><tr><th>Resource</th><th>Recommended path</th><th>current_user() returns</th><th>#1 gotcha</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Serving Endpoints</strong></td><td><span class="badge badge-blue">OBO</span> or <span class="badge badge-ink">M2M</span></td><td>Human (OBO) or SP UUID (M2M)</td><td><code>ModelServingUserCredentials()</code> only inside Model Serving</td></tr>
+        <tr><td><strong>Genie</strong></td><td><span class="badge badge-blue">OBO</span></td><td>Human email</td><td><code>is_member()</code> evaluates the execution service, not the caller</td></tr>
+        <tr><td><strong>Vector Search</strong></td><td><span class="badge badge-ink">M2M</span></td><td>App SP UUID</td><td>No native OBO &mdash; use pre/post-filter for per-user results</td></tr>
+        <tr><td><strong>UC Functions</strong></td><td>Inherits context</td><td>Caller (OBO &rarr; human, M2M &rarr; SP)</td><td>Grant EXECUTE to the agent SP, never raw table writes</td></tr>
+        <tr><td><strong>UC HTTP Connections</strong></td><td><span class="badge badge-ink">M2M</span> + per-user OAuth</td><td>Caller (Databricks side)</td><td>Only U2M Per User / Managed OAuth give per-user identity externally</td></tr>
+        <tr><td><strong>Tables</strong></td><td>Any</td><td>Caller identity</td><td><code>is_member()</code> fails silently in Genie + Agent Bricks OBO</td></tr>
+        <tr><td><strong style="color:var(--red)">Lakebase</strong></td><td><span class="badge badge-ink">M2M</span></td><td>SP client ID (PG role)</td><td><span class="badge badge-red">PG GRANT + RLS</span> &mdash; not UC</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 5 · SERVING ENDPOINTS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label r">What &mdash; Serving Endpoints</div>
+  <h2 class="r">Agent Bricks and Model Serving: OBO or M2M, but never mix up the API.</h2>
+  <div class="two-col mt2">
+    <div class="card card-blue r">
+      <h4>Identity model</h4>
+      <ul class="mt1">
+        <li><strong>OBO:</strong> <code>ModelServingUserCredentials()</code> extracts the user &mdash; inside Model Serving only</li>
+        <li><strong>M2M:</strong> <code>WorkspaceClient()</code> no-args in Databricks App context</li>
+        <li>Scope required: <code>model-serving</code></li>
+        <li>Agent Bricks supervisor auto-forwards OBO to up to 20 sub-agents</li>
+      </ul>
+    </div>
+    <div class="card card-red r">
+      <h4>Two-proxy gotcha</h4>
+      <p>App A calling App B: App B's proxy strips App A's forwarded user token and replaces it with App A's own SP identity.</p>
+      <div class="card card-ink mt2" style="padding:10px 12px">
+        <p style="font-size:var(--sm);color:#fff"><strong>Fix:</strong> use <code>X-Forwarded-Email</code> (proxy-signed, survives hops, cannot be forged) plus M2M SQL with an email-based row filter.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 6 · GENIE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label r">What &mdash; Genie Spaces</div>
+  <h2 class="r">Genie: OBO is the only supported path, and the scope UI lies to you.</h2>
+  <div class="two-col mt2">
+    <div class="card card-blue r">
+      <h4>Identity model</h4>
+      <ul class="mt1">
+        <li>OBO only &mdash; user's token forwarded via <code>X-Forwarded-Access-Token</code></li>
+        <li>Both <code>genie</code> AND <code>dashboards.genie</code> scopes required</li>
+        <li><code>current_user()</code> = calling human; <code>is_member()</code> = execution service</li>
+        <li>Rate limit: 5 queries/min (sliding window)</li>
+      </ul>
+    </div>
+    <div class="card card-amber r">
+      <h4>The scope bug</h4>
+      <p>The App integration UI only shows <code>dashboards.genie</code>. The Genie API checks for <strong>both</strong> scopes.</p>
+      <pre class="mt1">HTTP 403
+"required scopes: genie"</pre>
+      <p class="mt1" style="font-size:var(--sm)"><strong>Fix:</strong> <code>PATCH /api/2.0/preview/accounts/{account_id}/oidc/custom-app-integration/{id}</code> with <code>{"scopes": ["dashboards.genie","genie","sql"]}</code> &mdash; the UI won't show this option.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 7 · VECTOR SEARCH
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label r">What &mdash; Vector Search</div>
+  <h2 class="r">Vector Search: M2M by default, per-user filtering is your application's job.</h2>
+  <div class="two-col mt2">
+    <div class="card card-blue r">
+      <h4>Identity model</h4>
+      <ul class="mt1">
+        <li>M2M only &mdash; App SP has <code>SELECT</code> on the index</li>
+        <li><code>WorkspaceClient()</code> no-args picks up auto-injected SP credentials</li>
+        <li>Scope: <code>vector-search</code>; Delta Sync auto-updates on source change</li>
+      </ul>
+      <div class="card card-amber mt2" style="padding:10px 12px">
+        <p style="font-size:var(--sm)"><strong>No native per-user context.</strong> The SP retrieves results; your code enforces per-user visibility.</p>
+      </div>
+    </div>
+    <div class="card r">
+      <h4>Per-user filtering strategies</h4>
+      <table class="mt1">
+        <tr><td><strong>Pre-filter</strong></td><td>Include a <code>user_group</code> column in the index, pass as a filter in the query. Faster, needs group info indexed.</td></tr>
+        <tr><td><strong>Post-filter</strong></td><td>Retrieve top-K, then check each against user permissions. Flexible for complex/external ACLs, wastes retrieval budget.</td></tr>
+        <tr><td><strong>Shared KB</strong></td><td>M2M is correct as-is &mdash; same docs for every user, no filtering needed.</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 8 · UC FUNCTIONS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label r">What &mdash; UC Functions</div>
+  <h2 class="r">The safe pattern for agent writes: EXECUTE on the function, never raw table grants.</h2>
+  <div class="two-col mt1">
+    <div>
+      <pre class="r"><span class="kw">CREATE FUNCTION</span> prod.tools.approve_deal(
+  deal_id <span class="st">STRING</span>, approver <span class="st">STRING</span>
+)
+<span class="kw">RETURNS STRING LANGUAGE SQL</span>
+<span class="kw">RETURN</span> (
+  <span class="kw">UPDATE</span> prod.sales.deals
+  <span class="kw">SET</span> status = <span class="st">'approved'</span>,
+      approved_by = approver
+  <span class="kw">WHERE</span> id = deal_id
+    <span class="kw">AND</span> current_user() <span class="kw">IN</span> (
+      <span class="kw">SELECT</span> email <span class="kw">FROM</span> prod.sales.approvers
+    )
+);</pre>
+    </div>
+    <div class="card r">
+      <h4>What this achieves</h4>
+      <table class="mt1">
+        <tr><td><strong>Agent SP</strong></td><td>Has EXECUTE on the function</td></tr>
+        <tr><td><strong>Agent SP</strong></td><td>Does NOT have UPDATE on the table</td></tr>
+        <tr><td><strong>Function</strong></td><td>Enforces eligibility via <code>current_user()</code> internally</td></tr>
+        <tr><td><strong>Audit</strong></td><td>Function execution logged to <code>system.access.audit</code></td></tr>
+      </table>
+      <div class="card card-green mt2" style="padding:10px 12px">
+        <p style="font-size:var(--sm)">Functions are the authorization boundary for write operations &mdash; the agent never touches the table directly.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 9 · UC HTTP CONNECTIONS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label r">What &mdash; UC HTTP Connections</div>
+  <h2 class="r">Four auth methods, one governed boundary. Only two give identity on both sides.</h2>
+  <div class="r flex1" style="overflow-x:auto;margin-top:6px">
+    <table style="min-width:680px">
+      <thead><tr><th>Method</th><th>External service sees</th><th>Use case</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Bearer Token</strong></td><td>Shared (one static token)</td><td>Simple integrations, static API keys</td></tr>
+        <tr><td><strong>OAuth M2M</strong></td><td>Shared (app client credentials)</td><td>Org-level, service-to-service access</td></tr>
+        <tr><td><strong>OAuth U2M Shared</strong></td><td>Shared (one user's delegated token)</td><td>Admin-delegated access</td></tr>
+        <tr><td><strong style="color:var(--green)">OAuth U2M Per User</strong></td><td style="color:var(--green);font-weight:600">Per-user identity &#10003;</td><td>User-specific (Jira, GitHub as them)</td></tr>
+        <tr><td><strong style="color:var(--green)">Managed OAuth</strong></td><td style="color:var(--green);font-weight:600">Per-user identity &#10003;</td><td>Google, SharePoint &mdash; Databricks handles OAuth</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="two-col mt2">
+    <div class="card card-ink r" style="padding:12px 14px">
+      <p style="font-size:var(--sm);color:#fff"><strong>Runtime kill switch.</strong> <code>REVOKE USE CONNECTION</code> removes agent access to the tool immediately &mdash; no redeploy, no code change.</p>
+    </div>
+    <div class="card card-amber r" style="padding:12px 14px">
+      <p style="font-size:var(--sm)"><strong>No read-only scope at the connection level.</strong> UC controls who can use the connection, not what they can do through it &mdash; create separate connections with different external credentials for read-only vs. read-write.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 10 · TABLES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label r">What &mdash; Tables</div>
+  <h2 class="r">Row filters and column masks fire everywhere &mdash; but only one function reads correctly everywhere.</h2>
+  <div class="two-col mt2">
+    <div class="card r">
+      <h4>Row filters &amp; column masks</h4>
+      <ul class="mt1">
+        <li>SQL function evaluated at query time, attached to the table</li>
+        <li>Fires regardless of access path: notebook, API, Genie, agent</li>
+        <li>Column masks transform values per user with the same trigger rules</li>
+      </ul>
+    </div>
+    <div class="card card-red r">
+      <h4>current_user() vs is_member()</h4>
+      <table class="mt1">
+        <thead><tr><th>Access path</th><th>current_user()</th><th>is_member()</th></tr></thead>
+        <tbody>
+          <tr><td>Notebook (U2M)</td><td style="color:var(--green)">Human &#10003;</td><td style="color:var(--green)">Human groups &#10003;</td></tr>
+          <tr><td>App SQL (OBO)</td><td style="color:var(--green)">Human &#10003;</td><td style="color:var(--green)">Human groups &#10003;</td></tr>
+          <tr><td>Genie (OBO)</td><td style="color:var(--green)">Human &#10003;</td><td style="color:var(--red);font-weight:600">Exec service &#10007;</td></tr>
+          <tr><td>Agent Bricks (OBO)</td><td style="color:var(--green)">Human &#10003;</td><td style="color:var(--red);font-weight:600">Exec service &#10007;</td></tr>
+        </tbody>
+      </table>
+      <p class="mt1" style="font-size:var(--sm)"><strong>Rule:</strong> use <code>current_user()</code> everywhere. It's correct in every access path; <code>is_member()</code> breaks silently in Genie and Agent Bricks OBO.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 11 · LAKEBASE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label r">What &mdash; Lakebase</div>
+  <h2 class="r">The one exception: PostgreSQL-native authorization, not Unity Catalog.</h2>
+  <div class="two-col mt2">
+    <div class="card card-red r">
+      <h4>PG-native, not UC</h4>
+      <ul class="mt1">
+        <li>AuthN: Databricks OAuth token as PG password, or native PG roles</li>
+        <li>App's SP client ID becomes the PG role name, auto-created on resource binding</li>
+        <li>Role gets <code>CONNECT + CREATE</code>; SELECT/INSERT added manually</li>
+      </ul>
+      <div class="badge badge-red mt2">NOT Unity Catalog</div>
+    </div>
+    <div class="card card-amber r">
+      <h4>Two authorization paths, same data</h4>
+      <p><strong>Direct PG connection</strong> (apps, psql): PG roles + GRANT + RLS govern access.</p>
+      <p class="mt1"><strong>Via lakehouse / DBSQL:</strong> UC policies apply instead of PG grants.</p>
+      <p class="mt1" style="color:var(--amber);font-weight:600">Same data, different auth model depending on access path.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 12 · WHY IT MATTERS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label r">Why it matters</div>
+  <h2 class="r">Getting resource-level authorization wrong doesn't throw an error. It just returns the wrong data.</h2>
+  <div class="three-col mt2">
+    <div class="card card-red r">
+      <h4>Risk</h4>
+      <p style="font-size:var(--sm)">A row filter using <code>is_member()</code> in a Genie space leaks data silently &mdash; no 403, just the wrong rows returned to the wrong person.</p>
+    </div>
+    <div class="card card-amber r">
+      <h4>Compliance</h4>
+      <p style="font-size:var(--sm)">Auditors ask which resource enforced which control. &ldquo;UC row filter&rdquo; and &ldquo;PG RLS policy&rdquo; are different answers for the same-looking table &mdash; know which one applies.</p>
+    </div>
+    <div class="card card-green r">
+      <h4>Velocity</h4>
+      <p style="font-size:var(--sm)">Wrapping writes in a UC Function once means every future agent that needs the same write inherits the same authorization boundary &mdash; no re-derivation per agent.</p>
+    </div>
+  </div>
+  <div class="card card-ink r mt2" style="text-align:center">
+    <p>Authorization is enforced at the resource, not at the application. Every token path from the previous deck still has to clear this layer.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 13 · HOW — DECISION GUIDE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="13">
+  <div class="label r">How &mdash; Decision guide</div>
+  <h2 class="r">Three questions that determine the resource-level pattern.</h2>
+  <div class="three-col mt2">
+    <div class="card r">
+      <div class="label" style="margin-bottom:6px">Question 1</div>
+      <h4 style="font-size:var(--h3)">Does the resource use UC for authorization?</h4>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-green">Yes</span> &mdash; 6 of 7 resources: standard pattern of SP grants, row filters, OAuth scopes.</p>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-red">No</span> &mdash; Lakebase only: PG-native roles, GRANT, RLS policies.</p>
+    </div>
+    <div class="card r">
+      <div class="label" style="margin-bottom:6px">Question 2</div>
+      <h4 style="font-size:var(--h3)">Does the user need per-user identity at the external service?</h4>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-green">Yes</span> &mdash; UC Connection with U2M Per User or Managed OAuth.</p>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-muted">No</span> &mdash; Bearer or M2M OAuth connection is sufficient.</p>
+    </div>
+    <div class="card r">
+      <div class="label" style="margin-bottom:6px">Question 3</div>
+      <h4 style="font-size:var(--h3)">Does the agent need to write to a table?</h4>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-green">Yes</span> &mdash; wrap in a UC Function, grant EXECUTE, not table writes.</p>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-muted">No</span> &mdash; row filters + column masks on the table directly.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 14 · HOW — GOTCHAS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="14">
+  <div class="label r">How &mdash; Gotchas checklist</div>
+  <h2 class="r">Verify these before calling a resource production-ready.</h2>
+  <div class="r flex1" style="overflow-x:auto;margin-top:8px">
+    <table style="min-width:700px">
+      <thead><tr><th>Resource</th><th>Verify</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Serving Endpoints</strong></td><td><code>ModelServingUserCredentials()</code> only inside Model Serving; use <code>X-Forwarded-Email</code> across app-to-app hops</td></tr>
+        <tr><td><strong>Genie</strong></td><td>Both <code>genie</code> + <code>dashboards.genie</code> scopes patched via the account API; row filters use <code>current_user()</code>, never <code>is_member()</code></td></tr>
+        <tr><td><strong>Vector Search</strong></td><td>Pre-filter or post-filter applied &mdash; SP retrieval alone returns the same results to everyone</td></tr>
+        <tr><td><strong>UC Functions</strong></td><td>Agent SP has EXECUTE only, no direct INSERT/UPDATE grants on the underlying table</td></tr>
+        <tr><td><strong>UC HTTP Connections</strong></td><td>Connection ownership set to the app SP; re-grant <code>USE CONNECTION</code> after every redeploy (new deploy = new SP = zero grants)</td></tr>
+        <tr><td><strong>Tables</strong></td><td>Row filters audited for stray <code>is_member()</code> calls, especially on tables also queried through Genie</td></tr>
+        <tr><td><strong>Lakebase</strong></td><td>PG GRANT + RLS configured per table; do not assume UC governs direct PG connections</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 15 · CLOSING CALLIGRAM
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide slide-calli" data-slide="15">
+  <div class="calli-hero r">
+    SEVEN RESOURCES.
+    <span class="line2">SIX USE UC.</span>
+    <span class="line3">ONE DOESN'T.</span>
+  </div>
+  <div class="calli-rule r"></div>
+  <div class="calli-sub r">Authorization lives at the resource. Know which model applies before you trust the result.</div>
+  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Databricks Applied AI Governance Series &middot; Authorization by Resource Type</div>
+</div>
+
+
+<script>
+/* ── slide engine ─────────────────────────────────────────────────────────── */
+const slides = Array.from(document.querySelectorAll('.slide'));
+const total   = slides.length;
+let current   = 0;
+let touchStartX = 0;
+
+function goTo(n) {
+  if (n < 0 || n >= total) return;
+  const prev = slides[current];
+  prev.classList.remove('active');
+  prev.classList.add('exit-left');
+  setTimeout(() => prev.classList.remove('exit-left'), 420);
+
+  current = n;
+  slides[current].classList.add('active');
+  updateChrome();
+}
+
+function updateChrome() {
+  document.getElementById('counter').textContent =
+    String(current + 1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+  document.getElementById('progressBar').style.width =
+    ((current + 1) / total * 100) + '%';
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === total - 1;
+  document.getElementById('homeBtn').disabled = current === 0;
+
+  document.querySelectorAll('.dot').forEach((d, i) => {
+    d.classList.toggle('active', i === current);
+  });
+}
+
+/* nav dots */
+const dotsEl = document.getElementById('navDots');
+for (let i = 0; i < total; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.addEventListener('click', () => goTo(i));
+  dotsEl.appendChild(d);
+}
+
+/* keyboard */
+document.addEventListener('keydown', e => {
+  const overlay = document.getElementById('kbOverlay');
+  if (overlay.classList.contains('visible')) {
+    if (e.key === 'Escape' || e.key === '?') overlay.classList.remove('visible');
+    return;
+  }
+  if (e.key === 'ArrowRight' || e.key === ' ')  { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft')  goTo(current - 1);
+  if (e.key === 'Home')       goTo(0);
+  if (e.key === 'End')        goTo(total - 1);
+  if (e.key === '?')          overlay.classList.add('visible');
+});
+
+/* touch */
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, {passive:true});
+document.addEventListener('touchend',   e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 45) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+}, {passive:true});
+
+/* help button */
+document.getElementById('helpBtn').addEventListener('click', () =>
+  document.getElementById('kbOverlay').classList.add('visible'));
+document.getElementById('kbOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) document.getElementById('kbOverlay').classList.remove('visible');
+});
+
+/* init */
+updateChrome();
+</script>
+</body>
+</html>

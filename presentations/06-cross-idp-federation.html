@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Answers Scoped to the Person Asking</title>
+<title>Cross-IdP Federation</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ── tokens ────────────────────────────────────────────────────────────── */
@@ -341,8 +341,8 @@ tr:hover td{background:var(--surface)}
 <body>
 
 <div class="topbar">
-  <div class="title">Acme Corp &mdash; <span>Per-User Identity in Teams &amp; Copilot Studio</span></div>
-  <div class="counter" id="counter">01 / 11</div>
+  <div class="title">Databricks &mdash; <span>Cross-IdP Federation</span></div>
+  <div class="counter" id="counter">01 / 16</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 
@@ -372,118 +372,116 @@ tr:hover td{background:var(--surface)}
      SLIDE 1 · TITLE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide slide-title active" data-slide="1">
-  <h1 class="r">Answers Scoped to <em>the Person Asking</em></h1>
-  <div class="sub r">Bringing per-user identity into Genie and Agent Bricks from Microsoft Teams and Copilot Studio &mdash; and the one setting that quietly overrides it.</div>
+  <h1 class="r">Cross-IdP <em>Federation</em></h1>
+  <div class="sub r">Bringing external, foreign-IdP users into Databricks-governed apps and analytics &mdash; without a second login and without losing per-user governance.</div>
   <div class="red-rule r"></div>
   <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:640px">
-    Acme's rollout: hundreds of employees asking Genie questions from inside Teams and Copilot &mdash; each expecting to see only their own data
-  </p>
-  <p class="r" style="margin-top:12px;color:var(--muted);font-size:var(--xs);max-width:640px">
-    Deck 10 &mdash; companion to Deck 03/05 (Cross-IdP Token Exchange) and Deck 07 (AI/BI Dashboard Embedding). This deck: Teams &amp; Copilot Studio specifically, and a gate the others don't have.
+    The token exchange mechanics, the two architecture choices, and how to implement it.
   </p>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 2 · WHY THIS IS THE POPULAR ASK
+     SLIDE 2 · AGENDA
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="2">
-  <div class="label r">Why everyone asks this</div>
-  <h2 class="r">Every Teams and Copilot rollout hits the same question.</h2>
-  <div class="two-col mt2">
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div class="callout r">
-        &ldquo;We're putting Genie in Teams so people don't have to leave their chat window. But when Priya and Sam both ask &lsquo;what's my region's revenue,&rsquo; do they get <em>different</em> answers &mdash; or the same one?&rdquo;
-      </div>
-      <div class="r" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
-        <div class="card card-red" style="text-align:center;padding:14px 10px">
-          <div class="stat">4</div>
-          <div class="stat-label">distinct integration paths</div>
-        </div>
-        <div class="card card-red" style="text-align:center;padding:14px 10px">
-          <div class="stat">1</div>
-          <div class="stat-label">answer everyone assumes, wrongly</div>
-        </div>
-      </div>
+  <div class="label r">Agenda</div>
+  <h2 class="r">What this deck covers.</h2>
+  <div class="flex1 mt2" style="display:flex;flex-direction:column;gap:10px;justify-content:center;max-width:760px">
+    <div class="seq-step r">
+      <div class="seq-num">1</div>
+      <div class="seq-body"><strong>The issue</strong><p>External users need governed access, without a Databricks account and without a fragile app-level ACL layer.</p></div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="card card-amber r">
-        <h4>The assumption that trips people up</h4>
-        <p>&ldquo;We used OAuth / OBO, so we're covered.&rdquo; Getting the token layer right is necessary &mdash; and, on its own, not sufficient. There's a second setting, on the Genie space itself, that decides whether any of that per-user auth actually reaches the data.</p>
-      </div>
-      <div class="card card-ink r">
-        <h4>What this deck answers</h4>
-        <p>Which of the four Teams/Copilot paths give real per-user identity today, which are still open questions, and the one setting to check on every single one before trusting the answer.</p>
-      </div>
+    <div class="seq-step r">
+      <div class="seq-num">2</div>
+      <div class="seq-body"><strong>What it is</strong><p>The two-leg token exchange mechanic, and the two architecture choices it supports.</p></div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">3</div>
+      <div class="seq-body"><strong>Why it matters</strong><p>Scale, security, and compliance &mdash; concretely, not hand-wavy.</p></div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">4</div>
+      <div class="seq-body"><strong>How to implement it</strong><p>Actors, prerequisites, federation policy config, and the gotcha that trips up almost every deployment.</p></div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">5</div>
+      <div class="seq-body"><strong>A go/no-go checklist</strong><p>What to verify before this goes live.</p></div>
     </div>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 3 · FOUR PATHS MAPPED
+     SLIDE 3 · THE ISSUE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="3">
-  <div class="label r">The landscape</div>
-  <h2 class="r">Four paths into Genie from Teams and Copilot. They don't share an identity model.</h2>
-  <div class="r flex1" style="overflow-x:auto">
-    <table style="min-width:720px">
-      <thead>
-        <tr><th>Path</th><th>Token-layer identity</th><th>Confidence</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Custom AI agent + Azure Bot Service + OAuth federation</strong></td>
-          <td><span class="badge badge-green">Per-user OBO</span></td>
-          <td>Confirmed, code-traced</td>
-        </tr>
-        <tr>
-          <td><strong>Copilot Studio via MCP, &ldquo;End user credentials&rdquo;</strong></td>
-          <td><span class="badge badge-green">Per-user (U2M)</span></td>
-          <td>Confirmed to exist</td>
-        </tr>
-        <tr>
-          <td><strong>Copilot Studio via MCP, &ldquo;Maker credentials&rdquo;</strong></td>
-          <td><span class="badge badge-muted">Shared, by design</span></td>
-          <td>Confirmed M2M, not a bug</td>
-        </tr>
-        <tr>
-          <td><strong>Native &ldquo;Databricks Genie&rdquo; app (Teams / M365 Copilot marketplace)</strong></td>
-          <td><span class="badge badge-amber">Verify directly</span></td>
-          <td>Confirm with a two-user test before rollout</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="r" style="margin-top:clamp(.6rem,1.2vw,1rem)">
-    <div class="card card-amber" style="padding:clamp(.6rem,1.2vw,1rem)">
-      <p><strong>Treat the native marketplace apps as verify-before-you-rely-on-it, not assume-either-way.</strong> Run the same two-user, different-grants test you'd run on any integration before trusting per-person results in production.</p>
+  <div class="label r">The issue</div>
+  <h2 class="r">External users need governed access. Neither obvious option works well.</h2>
+  <p class="r muted" style="max-width:80ch">Channel partners, external auditors, and consultants need to query Databricks-backed data through an app or dashboard. They authenticate through their own identity provider &mdash; Auth0, Okta, Entra, or whatever their organization uses. They are not in your corporate directory, and in most cases they never will be.</p>
+  <div class="two-col mt2">
+    <div class="card card-red r">
+      <h4>Provision them as Databricks users</h4>
+      <p>Guest-account lifecycle management for hundreds or thousands of external people, across organizations you don&rsquo;t control, that requires cross-tenant directory federation. Doesn&rsquo;t scale past a few dozen users.</p>
     </div>
+    <div class="card card-red r">
+      <h4>Filter data in application code</h4>
+      <p>A custom ACL layer in the app that decides what each external user can see. Fragile by construction &mdash; one bug exposes another customer&rsquo;s data, and there&rsquo;s no independent enforcement layer behind it.</p>
+    </div>
+  </div>
+  <div class="card card-ink mt2 r" style="text-align:center">
+    <p><strong>What&rsquo;s needed:</strong> the external IdP handles authentication, Databricks handles authorization and enforcement, and the human never sees a second login screen or a Databricks credential.</p>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 4 · ARCHITECTURE — CONFIRMED PATH
+     SLIDE 4 · WHAT — THE TWO-LEG MECHANIC
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="4">
-  <div class="label r">The confirmed path</div>
-  <h2 class="r">A Teams sign-in card, one token exchange, and the human's identity all the way to Genie.</h2>
+  <div class="label r">What it is &middot; The mechanic</div>
+  <h2 class="r">Two legs. One identity. Don&rsquo;t conflate them.</h2>
+  <div class="two-col mt2">
+    <div class="card r" style="border-top:3px solid var(--ink)">
+      <div class="gate-label">Leg 1 &mdash; Login</div>
+      <h4>Standard OAuth to the external IdP</h4>
+      <p>The user authenticates to their own IdP via authorization_code + PKCE. The app receives an IdP-signed JWT. This is ordinary SSO. <strong>Databricks is not involved yet</strong> &mdash; and the human&rsquo;s IdP token never leaves the browser or the app&rsquo;s trust boundary.</p>
+    </div>
+    <div class="card r" style="border-top:3px solid var(--red)">
+      <div class="gate-label" style="color:var(--red)">Leg 2 &mdash; Token exchange</div>
+      <h4>RFC 8693, server-side, at <code>/oidc/v1/token</code></h4>
+      <p>The app (or a backend it trusts) sends the IdP JWT to Databricks using grant type <code>token-exchange</code>. Databricks validates the JWT against a federation policy (issuer, audience, subject) and returns a Databricks token. <strong>This is where per-user identity enters Databricks.</strong></p>
+    </div>
+  </div>
+  <div class="callout r mt2">
+    Leg 1 alone never reaches Databricks &mdash; sending the raw IdP JWT to Genie or a SQL endpoint fails. Leg 2 is mandatory, and it is the only step Databricks ever sees.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 5 · WHAT — THE FULL CHAIN, DIAGRAM
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label r">What it is &middot; End to end</div>
+  <h2 class="r">Login to governed data access, in one chain.</h2>
   <div class="arch-wrap r">
     <div class="arch-row" style="margin-bottom:clamp(.5rem,1vw,.8rem)">
-      <div class="abox sp r delay-1">Teams User<small>sign-in card</small></div>
+      <div class="abox sp r delay-1">External User<small>browser / client app</small></div>
       <div class="arch-arrow delay-2">&rarr;</div>
-      <div class="abox sys r delay-3">Entra ID<small>access_as_user scope</small></div>
+      <div class="abox sys r delay-3">External IdP<small>Auth0 &middot; Okta &middot; Entra &middot; any OIDC</small></div>
       <div class="arch-arrow delay-4">&rarr;</div>
-      <div class="abox sys r delay-5">/oidc/v1/token<small>RFC 8693 exchange</small></div>
+      <div class="abox sys r delay-5">App / Backend<small>token broker, holds no user secrets</small></div>
     </div>
     <div class="arch-vstack r delay-6">
       <div class="arch-varrow">&darr;</div>
-      <div style="font-size:var(--xs);color:var(--muted)">no client_id &mdash; stays per-user, not SP</div>
-      <div class="abox uc r delay-7">Agent Bricks Supervisor<small style="color:var(--red);opacity:.7">Genie sub-agent, OBO auto-forwarded</small></div>
+      <div style="font-size:var(--xs);color:var(--muted)">RFC 8693 exchange &mdash; IdP JWT &rarr; Databricks token</div>
+      <div class="abox uc r delay-7">/oidc/v1/token<small style="color:var(--red);opacity:.7">Federation policy: issuer + audience + subject</small></div>
       <div class="arch-varrow delay-8">&darr;</div>
-      <div class="card card-green r delay-9" style="text-align:center;max-width:560px">
-        <p><strong>current_user() = the human, at the Genie/UC layer.</strong> Same account-wide RFC 8693 exchange already used for Power BI &mdash; Teams is just a new front-end for it.</p>
+      <div class="abox grp r delay-9">Genie &middot; SQL &middot; MCP tool<small>called with the exchanged token</small></div>
+      <div class="arch-varrow">&darr;</div>
+      <div class="card card-green r" style="text-align:center;max-width:620px">
+        <p><strong>Unity Catalog enforces at query time</strong> &mdash; row filters, column masks, connection grants &mdash; then audit records the external user&rsquo;s identity from the verified JWT claims.</p>
       </div>
     </div>
   </div>
@@ -491,145 +489,248 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 5 · THE EXCHANGE, CODE
+     SLIDE 6 · WHAT — TWO ARCHITECTURE CHOICES
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="5">
-  <div class="label r">Implementation</div>
-  <h2 class="r">The exchange, traced from Databricks&rsquo; own reference implementation.</h2>
+<div class="slide" data-slide="6">
+  <div class="label r">What it is &middot; The decision</div>
+  <h2 class="r">Same mechanic, two ways to anchor identity. Pick by whether users can ever be Databricks users.</h2>
+  <div class="r flex1 mt1" style="overflow-x:auto">
+    <table style="min-width:720px">
+      <thead><tr><th style="width:20%"></th><th>Per-user OBO</th><th>Role-based service principal</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Identity model</strong></td><td>Each external user is provisioned as a Databricks identity (SCIM)</td><td><code>N</code> users map to <code>O(roles)</code> SPs &mdash; no Databricks provisioning</td></tr>
+        <tr><td><strong>UC evaluates</strong></td><td><code>current_user()</code> &mdash; the real person</td><td><code>is_member()</code> &mdash; the SP&rsquo;s group membership</td></tr>
+        <tr><td><strong>Scales to</strong></td><td>Hundreds of provisioned users</td><td>Thousands of external users, unlimited &mdash; scales with roles, not people</td></tr>
+        <tr><td><strong>Individual attribution</strong></td><td>Native &mdash; <code>current_user()</code> is the email</td><td>Via JWT-tagged audit table, not <code>current_user()</code></td></tr>
+        <tr><td><strong>Best fit</strong></td><td>Known users you can SCIM-provision, need native per-user row filters</td><td>Partners, auditors, consultants &mdash; never becoming Databricks identities</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card card-amber mt2 r">
+    <p><strong>Do not mix the two rules.</strong> Row filters written with <code>current_user()</code> only work when the caller genuinely is that user. Row filters written with <code>is_member()</code> only work when the caller is a role-scoped SP. Using the wrong function for the pattern in place fails silently &mdash; same result for every user, no error.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 7 · WHAT — TOKEN ANATOMY
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label r">What it is &middot; Token anatomy</div>
+  <h2 class="r">What&rsquo;s inside the token at each stage.</h2>
+  <div class="three-col mt1">
+    <div class="card card-red r">
+      <h4>1. IdP JWT</h4>
+      <pre style="font-size:var(--xs)">{
+  <span class="st">"iss"</span>: <span class="st">"https://idp/"</span>,
+  <span class="st">"aud"</span>: <span class="st">"https://workspace"</span>,
+  <span class="st">"sub"</span>: <span class="st">"{client_id}@clients"</span>,
+  <span class="st">"groups"</span>: [<span class="st">"sales-west"</span>],
+  <span class="st">"email"</span>: <span class="st">"sarah@partner.com"</span>
+}</pre>
+      <p>Signed RS256/ES256, verifiable via the IdP&rsquo;s JWKS. HS256 blocks this pattern entirely &mdash; no shared-secret verification path.</p>
+    </div>
+    <div class="card card-ink r">
+      <h4>2. Databricks token</h4>
+      <pre style="font-size:var(--xs)">{
+  <span class="st">"access_token"</span>: <span class="st">"eyJ..."</span>,
+  <span class="st">"expires_in"</span>: 3600
+}
+<span class="cm">// opaque; scoped to the</span>
+<span class="cm">// user or role-SP</span></pre>
+      <p>Not decodable by the caller. Encodes either the user&rsquo;s identity (OBO) or the role-SP&rsquo;s identity, depending on which pattern is in play.</p>
+    </div>
+    <div class="card card-green r">
+      <h4>3. Governance context</h4>
+      <pre style="font-size:var(--xs)"><span class="cm">-- fires automatically,</span>
+<span class="cm">-- no app code needed</span>
+<span class="kw">WHERE</span> current_user() = owner
+<span class="cm">-- or</span>
+<span class="kw">WHERE</span> is_member('west')</pre>
+      <p>Row filters and column masks fire at the SQL engine, per token. Can&rsquo;t be bypassed by the application, the IdP, or the query.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 8 · WHY — SCALE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label r">Why it matters &middot; Scale</div>
+  <h2 class="r">Roles, not people, drive how many identities you manage.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card r" style="text-align:center;padding:14px 10px">
+        <div class="stat">0</div>
+        <div class="stat-label">Databricks users provisioned for external access, in the role-SP pattern</div>
+      </div>
+      <div class="card r" style="text-align:center;padding:14px 10px">
+        <div class="stat">N &rarr; O(roles)</div>
+        <div class="stat-label">external users to service principals &mdash; thousands of partner reps, a handful of SPs</div>
+      </div>
+    </div>
+    <div class="card card-red r">
+      <h4>What this replaces</h4>
+      <p>Provisioning a guest account per external person, syncing directories across organizations you don&rsquo;t control, and managing the lifecycle of every one of those accounts as people join and leave partner firms. None of that is required &mdash; identity is anchored in the role, not the individual account.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 9 · WHY — SECURITY
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label r">Why it matters &middot; Security</div>
+  <h2 class="r">No second login. No Databricks secret in the external app. Revocable in one statement.</h2>
+  <div class="two-col mt2">
+    <div class="card card-red r">
+      <h4>What the user experiences</h4>
+      <p>Standard SSO to their own IdP &mdash; nothing else. The token exchange happens entirely server-side, in under 100ms. No separate Databricks credential is ever issued to or held by the end user.</p>
+    </div>
+    <div class="card card-green r">
+      <h4>What security gets</h4>
+      <p>Access is revocable with a single <code>REVOKE</code> or by removing the SP from a workspace group &mdash; instant, no redeploy. The federation policy is the only thing that trusts the IdP; everything downstream (UC grants, row filters) is completely IdP-agnostic.</p>
+    </div>
+  </div>
+  <div class="card card-ink mt2 r" style="text-align:center">
+    <p><strong>Swap the IdP by updating three fields</strong> &mdash; issuer, audience, subject &mdash; on the federation policy. No application code changes.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 10 · WHY — COMPLIANCE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label r">Why it matters &middot; Compliance</div>
+  <h2 class="r">The external identity is preserved end to end, in both patterns.</h2>
+  <div class="two-col mt2">
+    <div class="card card-red r">
+      <h4>Silent vs. loud failures &mdash; know which you&rsquo;re looking at</h4>
+      <p>Auth failures (401/403) are loud and visible. UC governance enforcement is silent by design: 0 rows returned or a masked <code>NULL</code> column is governance working correctly, not a bug.</p>
+    </div>
+    <div class="card card-green r">
+      <h4>Correlatable audit, regardless of pattern</h4>
+      <p>Whether identity is anchored via <code>current_user()</code> or preserved via JWT-tagged audit records, the external user&rsquo;s email, role, and action are recoverable &mdash; joinable to <code>system.access.audit</code> and MLflow traces.</p>
+    </div>
+  </div>
+  <div class="card card-amber mt2 r" style="text-align:center">
+    <p>&ldquo;Show me what this external user touched last week&rdquo; is answerable from one audit trail, not a custom application log that may or may not have captured it.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 11 · HOW — FIVE ACTORS + PREREQUISITES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label r">How &middot; The system</div>
+  <h2 class="r">Five actors. Twelve prerequisites, verified before you write code.</h2>
   <div class="two-col mt1">
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="label r" style="margin-bottom:0">Token exchange</div>
-      <pre class="r"><span class="kw">POST</span> {databricks_host}/oidc/v1/token
+    <div class="card r">
+      <h4>Five actors, every deployment</h4>
+      <pre style="font-size:var(--xs)">Human &rarr; SPA &rarr; Backend &rarr; Databricks &rarr; MCP/Genie
+            &uarr;         &uarr;
+          IdP (login)  IdP (M2M token)</pre>
+      <p style="margin-top:8px">IdP, browser app (SPA), backend server (holds secrets, brokers the exchange), Databricks (token endpoint + UC), and the tool server (SQL/Genie/MCP) that runs the governed query.</p>
+    </div>
+    <div class="card card-ink r">
+      <h4>12 prerequisites, three groups</h4>
+      <table>
+        <tr><td><strong>IdP side (5)</strong></td><td>SPA app, M2M app, API resource server, claims-injection hook, test users with role metadata</td></tr>
+        <tr><td><strong>Databricks side (4)</strong></td><td>Service principals (one per role), federation policy per SP, SP group memberships, warehouse access</td></tr>
+        <tr><td><strong>Backend side (3)</strong></td><td>M2M client_id, M2M client_secret (secret store only), role-to-SP mapping table</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 12 · HOW — FEDERATION POLICY + EXCHANGE CODE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label r">How &middot; Configuration</div>
+  <h2 class="r">The federation policy, and the exchange call.</h2>
+  <div class="two-col mt1">
+    <div>
+      <div class="label" style="margin-bottom:0">Federation policy (per SP or account-level)</div>
+      <pre class="r"><span class="kw">POST</span> /accounts/{account_id}/servicePrincipals
+     /{sp_id}/federationPolicies
+
+{
+  <span class="st">"oidc_policy"</span>: {
+    <span class="st">"issuer"</span>:    <span class="st">"https://{idp}/"</span>,
+    <span class="st">"audiences"</span>: [<span class="st">"https://{workspace}"</span>],
+    <span class="st">"subject"</span>:   <span class="st">"{jwt-sub-claim}"</span>
+  }
+}</pre>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:0">Token exchange (RFC 8693)</div>
+      <pre class="r"><span class="kw">POST</span> /oidc/v1/token
 
 <span class="kw">grant_type</span>=urn:ietf:params:oauth:
   grant-type:token-exchange
-&amp;<span class="kw">subject_token</span>={entra_jwt_from_teams}
-&amp;<span class="kw">subject_token_type</span>=
+<span class="kw">subject_token</span>={idp_jwt}
+<span class="kw">subject_token_type</span>=
   urn:ietf:params:oauth:token-type:jwt
-&amp;<span class="kw">scope</span>=all-apis
-<span class="cm"># no client_id -- omitting it is what</span>
-<span class="cm"># keeps this per-user, not SP</span></pre>
+<span class="kw">scope</span>=all-apis
+<span class="cm"># client_id present -&gt; role-SP token</span>
+<span class="cm"># client_id omitted -&gt; per-user token</span></pre>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="label r" style="margin-bottom:0">Result &mdash; token used as-is by the SDK</div>
-      <pre class="r"><span class="kw">workspace_client</span> = WorkspaceClient(
-    host=databricks_host,
-    token=oauth_db_token,
-)
-<span class="cm"># calls to the serving endpoint now carry</span>
-<span class="cm"># the user's identity; Agent Bricks OBO</span>
-<span class="cm"># forwards it automatically to Genie</span></pre>
-      <div class="card card-ink r">
-        <p>This is the <strong>identical</strong> exchange already documented for external apps with a bring-your-own IdP. Teams/Azure Bot Service is a new front-door, not a new mechanism.</p>
-      </div>
-    </div>
+  </div>
+  <div class="card card-amber mt1 r">
+    <p><strong>Get the exact values from a real, decoded JWT &mdash; never guess them.</strong> Trailing slashes on the issuer, <code>@clients</code> suffixes, and GUID-vs-name subject formats all vary by IdP and all cause silent mismatches.</p>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 6 · THE INSIGHT — TWO GATES
+     SLIDE 13 · HOW — current_user() vs is_member()
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="6">
-  <div class="label r">The insight</div>
-  <h2 class="r">Per-user identity needs two gates open. Most teams only check one.</h2>
-  <div class="two-col mt2">
-    <div class="card card-green r" style="display:flex;flex-direction:column;gap:8px">
-      <div class="gate-label" style="color:var(--green)">Gate 1 &mdash; Token layer</div>
-      <h4>Did a real per-user token reach Databricks?</h4>
-      <p>OAuth federation, no <code>client_id</code> in the exchange, &ldquo;End user credentials&rdquo; selected in Copilot Studio. This is the gate everyone checks &mdash; and the one all the setup guides walk you through.</p>
+<div class="slide" data-slide="13">
+  <div class="label r">How &middot; The gotcha that matters most</div>
+  <h2 class="r">Use the row-filter function that matches your pattern &mdash; or it fails silently.</h2>
+  <div class="two-col mt1">
+    <div class="card r" style="border-top:3px solid var(--green)">
+      <div class="gate-label" style="color:var(--green)">Per-user OBO pattern</div>
+      <pre style="font-size:var(--xs)"><span class="kw">RETURN</span> <span class="kw">IF</span>(current_user() <span class="kw">IN</span>
+  (<span class="kw">SELECT</span> email <span class="kw">FROM</span> approved),
+  val, <span class="kw">NULL</span>);</pre>
+      <p style="font-size:var(--sm)">Works because the caller genuinely is that user. Using <code>is_member()</code> here evaluates the <em>execution service&rsquo;s</em> identity, not the human&rsquo;s &mdash; every OBO user sees the same result.</p>
     </div>
-    <div class="card card-red r" style="display:flex;flex-direction:column;gap:8px">
-      <div class="gate-label" style="color:var(--red)">Gate 2 &mdash; Genie space publish mode</div>
-      <h4>Is the space published VIEWER, not EMBEDDED_CREDENTIALS?</h4>
-      <p>This lives on the <strong>space</strong>, not the client integration. It's invisible from the Teams bot's or Copilot Studio connector's configuration screen &mdash; you have to check the space directly.</p>
+    <div class="card r" style="border-top:3px solid var(--red)">
+      <div class="gate-label" style="color:var(--red)">Role-based SP pattern</div>
+      <pre style="font-size:var(--xs)"><span class="kw">WHERE</span> is_member(<span class="st">'sales_west'</span>)
+  <span class="kw">AND</span> region = <span class="st">'WEST'</span></pre>
+      <p style="font-size:var(--sm)">Works because the token is scoped to a role-SP with real group membership. Using <code>current_user()</code> here just returns the SP&rsquo;s application_id UUID &mdash; not useful for per-person filtering.</p>
     </div>
   </div>
-  <div class="r" style="margin-top:clamp(.6rem,1.2vw,1rem)">
-    <div class="card card-amber" style="padding:clamp(.6rem,1.2vw,1rem)">
-      <p><strong>Both gates must be open.</strong> Nail Gate 1 perfectly and still fail silently at Gate 2 &mdash; the space runs every query as its publisher, no matter whose token called it.</p>
-    </div>
+  <div class="callout r mt2">
+    UC enforcement never errors when the wrong function is used &mdash; it just returns the wrong rows, correctly, for the identity it was actually given. Test with two different personas before trusting either pattern in production.
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 7 · GATE 2, IN DETAIL
+     SLIDE 14 · HOW — GOTCHAS
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="7">
-  <div class="label r">Gate 2, in detail</div>
-  <h2 class="r">One setting decides who the SQL runs as &mdash; regardless of the token.</h2>
-  <div class="r flex1" style="overflow-x:auto">
-    <table style="min-width:640px">
-      <thead><tr><th>Publish mode</th><th>Who the SQL runs as</th><th>Per-user RLS?</th></tr></thead>
-      <tbody>
-        <tr>
-          <td><code>VIEWER</code></td>
-          <td>The calling identity &mdash; the human, if a per-user token reached the API</td>
-          <td><span class="badge badge-green">Yes</span></td>
-        </tr>
-        <tr>
-          <td><code>EMBEDDED_CREDENTIALS</code></td>
-          <td>The space's publisher &mdash; always</td>
-          <td><span class="badge badge-red">No</span></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="r" style="margin-top:clamp(.6rem,1.2vw,1rem)">
-    <div class="card card-red">
-      <p><strong>The failure mode nobody notices:</strong> the Teams bot signs users in correctly, the federation policy is configured correctly, the exchange returns a genuine per-user token &mdash; and every user still sees the same rows, because the space itself was published <code>EMBEDDED_CREDENTIALS</code> back when someone first set it up for a different use case.</p>
-    </div>
-  </div>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 8 · DECISION GATE
-     ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="8">
-  <div class="label r">Decision gate</div>
-  <h2 class="r">Which path, and what to verify on each.</h2>
-  <div class="gate-grid flex1 mt1">
-    <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
-      <div class="gate-label" style="color:var(--green)">Building a custom Teams bot</div>
-      <h4>Use Azure Bot Service + OAuth federation</h4>
-      <p>Official Public Preview pattern, fully documented. Check Gate 2 on the target Genie space before shipping.</p>
-    </div>
-    <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
-      <div class="gate-label" style="color:var(--green)">Using Copilot Studio</div>
-      <h4>Select &ldquo;End user credentials,&rdquo; not &ldquo;Maker credentials&rdquo;</h4>
-      <p>Gives real per-user identity &mdash; still gated by Gate 2. &ldquo;Maker credentials&rdquo; is fine when shared access is the actual intent.</p>
-    </div>
-    <div class="gate-cell r" style="background:var(--amber-bg);border-color:var(--amber)">
-      <div class="gate-label" style="color:var(--amber)">Already using the native marketplace app</div>
-      <h4>Verify before you promise per-user RLS to anyone</h4>
-      <p>Run the two-user test yourself and confirm the result before this shows up in a customer conversation &mdash; standard due diligence for any new integration surface.</p>
-    </div>
-    <div class="gate-cell r" style="background:var(--blue-bg);border-color:var(--blue)">
-      <div class="gate-label" style="color:var(--blue)">Every path, no exceptions</div>
-      <h4>Check the Genie space's publish mode directly</h4>
-      <p>Don't infer it from the client integration's settings. It's a property of the space, and it silently overrides everything upstream of it.</p>
-    </div>
-  </div>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 9 · GOTCHAS
-     ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="9">
+<div class="slide" data-slide="14">
   <div class="label r">Gotchas</div>
   <h2 class="r">What breaks quietly if you skip the fine print.</h2>
   <div class="r flex1" style="overflow-x:auto">
-    <table style="min-width:680px">
+    <table style="min-width:700px">
       <thead><tr><th>Issue</th><th>Detail</th></tr></thead>
       <tbody>
-        <tr><td><strong>Correct OBO token, wrong publish mode</strong></td><td>The most common way this silently fails &mdash; see Slide 7.</td></tr>
-        <tr><td><strong><code>client_id</code> in the token exchange</strong></td><td>Omit it. Including it selects a service principal and collapses RLS to the SP.</td></tr>
-        <tr><td><strong><code>preferred_username</code> vs other claims</strong></td><td>The federation policy's subject claim must match what your tenant's Entra tokens actually carry.</td></tr>
-        <tr><td><strong>Two unrelated things both called &ldquo;Genie + Teams&rdquo;</strong></td><td>The native marketplace app and the custom Azure Bot Service pattern are different integrations. Confirm which one before answering an RLS question.</td></tr>
-        <tr><td><strong>&ldquo;Maker credentials&rdquo; in Copilot Studio</strong></td><td>Intentionally shared by design &mdash; not a degraded or broken OBO mode.</td></tr>
+        <tr><td><strong>HS256-signed IdP tokens</strong></td><td>Shared-secret signing can&rsquo;t be validated by Databricks without the secret. Token exchange is unavailable &mdash; fall back to SSO login for that IdP.</td></tr>
+        <tr><td><strong>Subject claim format varies by IdP</strong></td><td>Auth0: <code>{client_id}@clients</code>. Okta: <code>{client_id}</code>, no suffix. Entra: the app&rsquo;s Object ID (a GUID), not the Application ID. Decode a real token before writing the policy.</td></tr>
+        <tr><td><strong>Trailing slash on issuer</strong></td><td>Must match the JWT&rsquo;s <code>iss</code> claim exactly. Most IdPs include it; some don&rsquo;t. A mismatch here is the single most common cause of exchange failures.</td></tr>
+        <tr><td><strong>Including <code>client_id</code> changes the outcome</strong></td><td>Present &rarr; token is scoped to that service principal. Omitted &rarr; token is scoped to the calling user. Pick deliberately, not by accident.</td></tr>
+        <tr><td><strong>5-issuer account limit</strong></td><td>Databricks allows up to five federated token issuers per account. More IdPs require consolidation or the SSO fallback for the extras.</td></tr>
+        <tr><td><strong>Wrong row-filter function for the pattern</strong></td><td>See previous slide &mdash; the most consequential mistake on this list.</td></tr>
       </tbody>
     </table>
   </div>
@@ -637,50 +738,34 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 10 · BEFORE / AFTER
+     SLIDE 15 · HOW — GO/NO-GO CHECKLIST
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="10">
-  <div class="label r">Transformation</div>
-  <h2 class="r">Before and after: trusting a Teams/Copilot rollout's data access.</h2>
-  <div class="two-col mt3">
-    <div class="ba-col">
-      <div class="r" style="font-size:var(--xs);text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--red);padding-bottom:8px;border-bottom:2px solid var(--red)">Before</div>
-      <div class="ba-item r">
-        <div class="ba-icon" style="color:var(--red)">&#x2715;</div>
-        <div><strong>&ldquo;We used OAuth, so we're covered.&rdquo;</strong> One gate checked, assumed sufficient. Nobody looked at the Genie space's publish mode.</div>
-      </div>
-      <div class="ba-item r">
-        <div class="ba-icon" style="color:var(--red)">&#x2715;</div>
-        <div><strong>Native marketplace app rolled out on faith.</strong> No one asked whether it runs per-user or shared &mdash; the docs don't say, so the question just got dropped.</div>
-      </div>
-    </div>
-    <div class="ba-col">
-      <div class="r" style="font-size:var(--xs);text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--green);padding-bottom:8px;border-bottom:2px solid var(--green)">After</div>
-      <div class="ba-item r">
-        <div class="ba-icon" style="color:var(--green)">&#x2713;</div>
-        <div><strong>Both gates verified, independently.</strong> Token layer confirmed via the exchange; publish mode confirmed by checking the space directly &mdash; not inferred from either.</div>
-      </div>
-      <div class="ba-item r">
-        <div class="ba-icon" style="color:var(--green)">&#x2713;</div>
-        <div><strong>Native app usage tested, not assumed.</strong> Two users, two grant sets, one question &mdash; results compared before anyone tells a customer it's per-user.</div>
-      </div>
-    </div>
+<div class="slide" data-slide="15">
+  <div class="label r">Go/no-go checklist</div>
+  <h2 class="r">Complete this before writing any code.</h2>
+  <div class="gate-grid flex1 mt1">
+    <div class="gate-cell r"><h4>IdP signs with RS256 or ES256</h4><p>Confirmed with the IdP team, along with the JWKS URL. This alone determines whether the pattern is possible.</p></div>
+    <div class="gate-cell r"><h4>Federation policy fields decoded from a real JWT</h4><p>Issuer, audience, subject &mdash; copied exactly, never guessed.</p></div>
+    <div class="gate-cell r"><h4>Row-filter function matches the chosen pattern</h4><p><code>current_user()</code> for per-user OBO, <code>is_member()</code> for role-based SPs &mdash; not mixed.</p></div>
+    <div class="gate-cell r"><h4>Role-to-SP map is the single source of truth</h4><p>Every IdP role has a mapping entry; unmapped roles are denied, not defaulted.</p></div>
+    <div class="gate-cell r"><h4>M2M client secret lives only in the secret store</h4><p>Never in code, config files, or git history.</p></div>
+    <div class="gate-cell r"><h4>Tested with two personas, different grants</h4><p>Confirmed different data returned before this goes to production.</p></div>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 11 · CLOSING CALLIGRAM
+     SLIDE 16 · CLOSING CALLIGRAM
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide slide-calli" data-slide="11">
+<div class="slide slide-calli" data-slide="16">
   <div class="calli-hero r">
-    TWO GATES.
-    <span class="line2">ONE IDENTITY.</span>
-    <span class="line3">EVERY SURFACE.</span>
+    ONE LOGIN.
+    <span class="line2">ONE EXCHANGE.</span>
+    <span class="line3">GOVERNED ACCESS.</span>
   </div>
   <div class="calli-rule r"></div>
-  <div class="calli-sub r">Check the token. Check the space. Don't assume either from the other.</div>
-  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Acme Corp &middot; Databricks Applied AI Governance Series &middot; Deck 10</div>
+  <div class="calli-sub r">The IdP authenticates. Databricks authorizes and enforces. The human never sees the difference.</div>
+  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Databricks &middot; Applied AI Governance Series &middot; Cross-IdP Federation</div>
 </div>
 
 

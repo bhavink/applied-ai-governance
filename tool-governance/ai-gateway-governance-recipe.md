@@ -175,7 +175,7 @@ All Databricks-hosted foundation models become UC securables in `system.ai`.
 | Artifact | Location | Maintained by |
 |---|---|---|
 | Reference docs | `fieldkit/databricks/ai/ai-gateway.md` | Fieldkit weekly auto-refresh |
-| Presentation | `applied-ai-governance/presentations/ai-gateway-governance.html` | Manual (refresh when major features ship) |
+| Presentation | `applied-ai-governance/presentations/02-unity-ai-gateway.html` | Manual (refresh when major features ship) |
 | This recipe | `applied-ai-governance/tool-governance/ai-gateway-governance-recipe.md` | Manual |
 | Notebooks | Workspace (`adb-aigov`) + `0-dayjob/ai-gateway-governance/` backup | Weekly validation job |
 | Dashboards | Workspace (`adb-aigov`) Lakeview | Live (queries run on refresh) |

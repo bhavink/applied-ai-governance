@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Orchestration &amp; Tool Governance</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── tokens ────────────────────────────────────────────────────────────── */
+:root {
+  --bg:     #ffffff;
+  --ink:    #1a1a1a;
+  --red:    #cc3311;
+  --surface:#f5f5f5;
+  --border: #e2e2e2;
+  --muted:  #616161;
+  --green:  #1a7a3c;
+  --green-bg:#e8f5ed;
+  --amber:  #a85e00;
+  --amber-bg:#fff4e0;
+  --blue:   #1648c0;
+  --blue-bg:#eef2ff;
+  --font:   'Space Grotesk', sans-serif;
+  --mono:   'DM Mono', monospace;
+  --pad:    clamp(2rem,4.5vw,4rem);
+  --h1:     clamp(2rem,4.5vw,3.4rem);
+  --h2:     clamp(1.35rem,2.8vw,2.1rem);
+  --h3:     clamp(0.98rem,1.8vw,1.32rem);
+  --body:   clamp(0.83rem,1.35vw,1.02rem);
+  --sm:     clamp(0.72rem,1.05vw,0.86rem);
+  --xs:     clamp(0.62rem,0.82vw,0.72rem);
+  --code:   clamp(0.66rem,0.95vw,0.80rem);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:var(--font);background:var(--bg);color:var(--ink)}
+
+/* ── chrome ─────────────────────────────────────────────────────────────── */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:46px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 22px;
+  background:var(--ink);color:#fff;z-index:100;font-size:var(--sm);
+}
+.topbar .title{font-weight:600;letter-spacing:-0.02em}
+.topbar .title span{color:var(--red)}
+.topbar .counter{font-variant-numeric:tabular-nums;opacity:.65}
+.progress-track{position:fixed;top:46px;left:0;right:0;height:3px;background:var(--border);z-index:100}
+.progress-bar{height:100%;background:var(--red);transition:width .38s ease;width:0}
+
+/* ── nav controls ────────────────────────────────────────────────────────── */
+.nav-controls{position:fixed;bottom:18px;right:22px;display:flex;align-items:center;gap:7px;z-index:200}
+.nav-btn{
+  width:38px;height:38px;border-radius:50%;border:1.5px solid var(--border);
+  background:var(--bg);color:var(--ink);font-size:.95rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .18s;padding:0;line-height:1;
+}
+.nav-btn:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+.nav-btn:disabled{opacity:.22;cursor:default;pointer-events:none}
+.help-btn{
+  width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);
+  background:var(--bg);color:var(--muted);font-size:.68rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-weight:700;
+  margin-left:6px;transition:all .18s;
+}
+.help-btn:hover{border-color:var(--ink);color:var(--ink)}
+
+/* nav dot cluster */
+.nav-dots{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:200}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer;transition:all .25s}
+.dot.active{background:var(--red);width:18px;border-radius:3px}
+.dot:hover{background:var(--muted)}
+
+/* keyboard overlay */
+.kb-overlay{position:fixed;inset:0;background:rgba(26,26,26,.82);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .28s}
+.kb-overlay.visible{opacity:1;pointer-events:auto}
+.kb-card{background:#fff;border-radius:8px;padding:30px 38px;max-width:360px;width:90%;text-align:center}
+.kb-card h3{font-size:1.05rem;font-weight:700;margin-bottom:14px;letter-spacing:-.02em}
+.kb-card table{width:100%;text-align:left;font-size:.80rem;border-collapse:collapse}
+.kb-card td{padding:5px 8px;border-bottom:1px solid #eee}
+.kb-card td:first-child{font-family:var(--mono);font-weight:600;color:var(--red);white-space:nowrap}
+.kb-card .dismiss{margin-top:14px;font-size:.70rem;color:var(--muted)}
+
+/* ── slide shell ─────────────────────────────────────────────────────────── */
+.slide{
+  position:absolute;top:46px;left:0;right:0;bottom:0;
+  opacity:0;pointer-events:none;
+  transform:translateX(56px);
+  transition:opacity .38s ease,transform .38s ease;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  padding:var(--pad);
+}
+.slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+.slide.exit-left{opacity:0;transform:translateX(-56px)}
+
+/* ── stagger reveals ─────────────────────────────────────────────────────── */
+.r{opacity:0;transform:translateY(16px);transition:opacity .45s ease,transform .45s ease}
+.slide.active .r{opacity:1;transform:translateY(0)}
+.slide.active .r:nth-child(1){transition-delay:.05s}
+.slide.active .r:nth-child(2){transition-delay:.12s}
+.slide.active .r:nth-child(3){transition-delay:.20s}
+.slide.active .r:nth-child(4){transition-delay:.28s}
+.slide.active .r:nth-child(5){transition-delay:.36s}
+.slide.active .r:nth-child(6){transition-delay:.44s}
+.slide.active .r:nth-child(7){transition-delay:.52s}
+.slide.active .r:nth-child(8){transition-delay:.60s}
+.slide.active .r:nth-child(9){transition-delay:.68s}
+.slide.active .r:nth-child(10){transition-delay:.76s}
+
+/* extra named delays for architecture arrows */
+.delay-1{transition-delay:.10s!important}
+.delay-2{transition-delay:.25s!important}
+.delay-3{transition-delay:.40s!important}
+.delay-4{transition-delay:.55s!important}
+.delay-5{transition-delay:.70s!important}
+.delay-6{transition-delay:.85s!important}
+.delay-7{transition-delay:1.0s!important}
+.delay-8{transition-delay:1.15s!important}
+.delay-9{transition-delay:1.30s!important}
+
+/* ── typography ──────────────────────────────────────────────────────────── */
+.label{font-size:var(--xs);text-transform:uppercase;letter-spacing:.10em;color:var(--red);font-weight:600;margin-bottom:5px}
+.slide h2{font-size:var(--h1);font-weight:700;letter-spacing:-.03em;line-height:1.08;margin-bottom:6px}
+.slide h3{font-size:var(--h2);font-weight:600;letter-spacing:-.02em;margin-bottom:5px}
+.slide p,.slide li{font-size:var(--body);line-height:1.62}
+.muted{color:var(--muted)}
+.red{color:var(--red)}
+.bold{font-weight:700}
+
+/* ── title slide ─────────────────────────────────────────────────────────── */
+.slide-title{justify-content:center;align-items:center;text-align:center}
+.slide-title h1{font-size:clamp(2.5rem,5.5vw,4.2rem);font-weight:700;letter-spacing:-.04em;line-height:1.06;max-width:820px;text-wrap:balance}
+.slide-title h1 em{font-style:normal;color:var(--red)}
+.slide-title .sub{font-size:var(--h3);color:var(--muted);margin-top:14px;font-weight:400;max-width:680px}
+.red-rule{width:72px;height:4px;background:var(--red);margin:18px auto 0}
+
+/* ── layout helpers ──────────────────────────────────────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.2rem,2.5vw,2.2rem);flex:1;min-height:0}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(.9rem,1.8vw,1.4rem);flex:1;min-height:0}
+.four-col{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:clamp(.7rem,1.4vw,1.1rem);flex:1;min-height:0}
+.flex1{flex:1 1 0;min-height:0;overflow:hidden}
+.mt1{margin-top:8px}.mt2{margin-top:16px}.mt3{margin-top:24px}.mt4{margin-top:32px}
+.mb1{margin-bottom:8px}.mb2{margin-bottom:16px}
+
+/* ── cards ───────────────────────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(.9rem,1.8vw,1.4rem)}
+.card h4{font-size:var(--h3);font-weight:600;margin-bottom:7px;letter-spacing:-.01em}
+.card p,.card li{font-size:var(--sm);line-height:1.58}
+.card ul{padding-left:1.1em}
+.card-red{border-left:4px solid var(--red)}
+.card-ink{border-left:4px solid var(--ink)}
+.card-green{border-left:4px solid var(--green);background:var(--green-bg)}
+.card-amber{border-left:4px solid var(--amber);background:var(--amber-bg)}
+.card-blue{border-left:4px solid var(--blue);background:var(--blue-bg)}
+
+/* ── code / pre ──────────────────────────────────────────────────────────── */
+pre,code{font-family:var(--mono);font-size:var(--code)}
+pre{
+  background:#f9f9f9;color:var(--ink);
+  border:1px solid var(--border);border-left:3px solid var(--red);
+  border-radius:4px;padding:clamp(.55rem,1.1vw,.9rem);
+  overflow-x:auto;line-height:1.52;
+}
+code{background:var(--surface);padding:.1em .38em;border-radius:3px;color:var(--ink)}
+.kw{color:var(--red);font-weight:500}
+.cm{color:var(--muted)}
+.st{color:var(--green)}
+
+/* ── table ───────────────────────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:var(--sm)}
+th{text-align:left;font-weight:600;font-size:var(--xs);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:7px 9px;border-bottom:2px solid var(--border)}
+td{padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ── badge ───────────────────────────────────────────────────────────────── */
+.badge{display:inline-block;font-size:var(--xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+.badge-red{background:rgba(204,51,17,.10);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-amber{background:var(--amber-bg);color:var(--amber)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-ink{background:var(--ink);color:#fff}
+.badge-muted{background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+
+/* ── architecture flow ───────────────────────────────────────────────────── */
+.arch-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;gap:0;min-height:0}
+.arch-row{display:flex;align-items:center;justify-content:center;gap:0}
+.abox{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  padding:clamp(.5rem,1vw,.85rem) clamp(.7rem,1.4vw,1.1rem);
+  text-align:center;font-size:var(--sm);font-weight:500;min-width:clamp(80px,12vw,120px);
+}
+.abox small{display:block;font-size:var(--xs);color:var(--muted);font-weight:400;margin-top:2px}
+.abox.sp{border-color:var(--blue);background:var(--blue-bg);font-weight:600}
+.abox.grp{border-color:var(--green);background:var(--green-bg);font-weight:600}
+.abox.uc{border-color:var(--red);background:rgba(204,51,17,.06);color:var(--red);font-weight:700;font-size:var(--h3);padding:clamp(.7rem,1.4vw,1.1rem) clamp(1.2rem,2.4vw,2rem)}
+.abox.danger{border-color:var(--red);background:rgba(204,51,17,.08);border-width:2px}
+.abox.amber{border-color:var(--amber);background:var(--amber-bg);font-weight:600}
+.abox.sys{border-color:var(--ink);background:var(--ink);color:#fff}
+
+/* animated arrows */
+.arch-arrow{
+  display:flex;align-items:center;padding:0 clamp(.3rem,.6vw,.5rem);
+  color:var(--red);font-size:var(--h3);font-weight:700;
+  opacity:0;
+}
+.slide.active .arch-arrow{
+  opacity:1;
+  animation:arrowPulse 1.8s ease-in-out infinite;
+}
+.arch-arrow.delay-1{animation-delay:.3s}
+.arch-arrow.delay-2{animation-delay:.6s}
+.arch-arrow.delay-3{animation-delay:.9s}
+.arch-arrow.delay-4{animation-delay:1.2s}
+.arch-arrow.delay-5{animation-delay:1.5s}
+
+@keyframes arrowPulse{
+  0%,100%{color:var(--red);transform:translateX(0)}
+  50%{color:rgba(204,51,17,.45);transform:translateX(3px)}
+}
+
+.arch-vstack{display:flex;flex-direction:column;align-items:center;gap:clamp(.4rem,.8vw,.7rem)}
+.arch-varrow{
+  color:var(--red);font-size:var(--body);font-weight:700;line-height:1;
+  opacity:0;
+}
+.slide.active .arch-varrow{
+  opacity:1;
+  animation:varrowPulse 1.8s ease-in-out infinite;
+}
+.arch-varrow.delay-1{animation-delay:.2s}
+.arch-varrow.delay-2{animation-delay:.5s}
+.arch-varrow.delay-3{animation-delay:.8s}
+.arch-varrow.delay-4{animation-delay:1.1s}
+
+@keyframes varrowPulse{
+  0%,100%{color:var(--red);transform:translateY(0)}
+  50%{color:rgba(204,51,17,.40);transform:translateY(3px)}
+}
+
+/* ── stat highlight ──────────────────────────────────────────────────────── */
+.stat{font-size:clamp(1.8rem,4vw,3rem);font-weight:700;letter-spacing:-.04em;color:var(--red);line-height:1}
+.stat-label{font-size:var(--sm);color:var(--muted);margin-top:4px;font-weight:400}
+
+/* ── story callout ───────────────────────────────────────────────────────── */
+.callout{
+  border-left:4px solid var(--red);padding:14px 20px;
+  background:var(--surface);border-radius:0 5px 5px 0;
+  font-size:clamp(.95rem,1.9vw,1.32rem);line-height:1.55;font-style:italic;
+}
+
+/* ── gate / decision ─────────────────────────────────────────────────────── */
+.gate-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:clamp(.7rem,1.4vw,1.1rem);flex:1;min-height:0}
+.gate-cell{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(.8rem,1.6vw,1.2rem);display:flex;flex-direction:column;gap:6px}
+.gate-cell h4{font-size:var(--h3);font-weight:600;letter-spacing:-.01em}
+.gate-cell p{font-size:var(--sm);line-height:1.55;color:var(--muted)}
+.gate-label{font-size:var(--xs);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:4px}
+
+/* ── implementation sequence ─────────────────────────────────────────────── */
+.seq-step{
+  display:flex;align-items:flex-start;gap:clamp(.8rem,1.5vw,1.2rem);
+  padding:clamp(.5rem,1vw,.8rem);
+  border:1px solid var(--border);border-radius:6px;
+  background:var(--surface);
+}
+.seq-num{
+  flex-shrink:0;width:clamp(1.6rem,3vw,2.2rem);height:clamp(1.6rem,3vw,2.2rem);
+  border-radius:50%;background:var(--red);color:#fff;
+  font-weight:700;font-size:var(--sm);
+  display:flex;align-items:center;justify-content:center;
+  margin-top:.1em;
+}
+.seq-body strong{font-size:var(--body);font-weight:600;display:block;margin-bottom:2px}
+.seq-body p{font-size:var(--sm);color:var(--muted);line-height:1.5}
+
+/* ── check grid ──────────────────────────────────────────────────────────── */
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.check-item{display:flex;align-items:flex-start;gap:8px;font-size:var(--sm);padding:5px 0}
+.check-icon{color:var(--green);font-weight:700;flex-shrink:0;font-size:var(--body)}
+
+/* ── calligram / closing ─────────────────────────────────────────────────── */
+.slide-calli{background:var(--ink);color:#fff;justify-content:center;align-items:center;text-align:center}
+.calli-hero{
+  font-size:clamp(3rem,9vw,7.5rem);font-weight:700;
+  letter-spacing:-.04em;line-height:.95;
+  color:#fff;
+  position:relative;display:inline-block;
+}
+.calli-hero .line2{
+  display:block;
+  font-size:clamp(1.6rem,4.5vw,3.8rem);
+  font-weight:300;letter-spacing:.18em;
+  color:var(--red);text-transform:uppercase;
+  margin-top:.15em;
+}
+.calli-hero .line3{
+  display:block;
+  font-size:clamp(1.6rem,4.5vw,3.8rem);
+  font-weight:700;letter-spacing:-.03em;
+  color:#fff;
+  margin-top:.1em;
+}
+.calli-sub{
+  margin-top:clamp(1.2rem,3vh,2.2rem);
+  font-size:var(--body);color:rgba(255,255,255,.55);
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.calli-rule{width:56px;height:3px;background:var(--red);margin:clamp(.8rem,2vh,1.4rem) auto}
+
+/* ── height breakpoints ──────────────────────────────────────────────────── */
+@media(max-height:700px){
+  :root{--pad:clamp(1.2rem,3vw,2.2rem)}
+  .slide{padding:clamp(1.2rem,3vw,2.2rem)}
+  .mt3{margin-top:14px}.mt4{margin-top:20px}
+  .seq-step{padding:.4rem .7rem}
+}
+@media(max-height:600px){
+  :root{--pad:1rem}
+  .slide{padding:1rem}
+  .mt2{margin-top:8px}.mt3{margin-top:10px}.mt4{margin-top:14px}
+}
+@media(max-height:500px){
+  :root{--h1:clamp(1.6rem,3.5vw,2.4rem);--h2:clamp(1.1rem,2vw,1.6rem)}
+}
+
+/* ── width breakpoints ───────────────────────────────────────────────────── */
+@media(max-width:900px){
+  .two-col,.three-col,.four-col{grid-template-columns:1fr}
+  .gate-grid{grid-template-columns:1fr}
+  .check-grid{grid-template-columns:1fr}
+}
+
+/* ── print ───────────────────────────────────────────────────────────────── */
+@media print{
+  .slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always;overflow:visible}
+  .topbar,.progress-track,.nav-controls,.nav-dots,.kb-overlay{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">Applied AI Governance &mdash; <span>Orchestration &amp; Tool Governance</span></div>
+  <div class="counter" id="counter">01 / 15</div>
+</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+
+<div class="nav-dots" id="navDots"></div>
+<div class="nav-controls">
+  <button class="nav-btn" id="homeBtn" title="First slide (Home)" onclick="goTo(0)">&#8962;</button>
+  <button class="nav-btn" id="prevBtn" title="Previous" onclick="goTo(current-1)">&larr;</button>
+  <button class="nav-btn" id="nextBtn" title="Next" onclick="goTo(current+1)">&rarr;</button>
+  <button class="help-btn" id="helpBtn" title="Keyboard shortcuts">?</button>
+</div>
+<div class="kb-overlay" id="kbOverlay">
+  <div class="kb-card">
+    <h3>Navigation</h3>
+    <table>
+      <tr><td>&rarr; / Space</td><td>Next slide</td></tr>
+      <tr><td>&larr;</td><td>Previous slide</td></tr>
+      <tr><td>Home</td><td>First slide</td></tr>
+      <tr><td>End</td><td>Last slide</td></tr>
+      <tr><td>Swipe</td><td>Touch navigation</td></tr>
+    </table>
+    <div class="dismiss">Click anywhere or press Esc to close</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 1 · TITLE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide slide-title active" data-slide="1">
+  <h1 class="r">Orchestration &amp; <em>Tool Governance</em></h1>
+  <div class="sub r">Model Serving, MCP servers, AI Gateway, and Databricks Apps &mdash; four orchestration pillars, one governance model underneath.</div>
+  <div class="red-rule r"></div>
+  <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:640px">
+    Builds on Identity &amp; Auth Foundations and Authorization by Resource Type &mdash; this deck is about what happens when agents and tools compose.
+  </p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 2 · AGENDA
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+  <div class="label r">Agenda</div>
+  <h2 class="r">What this deck covers</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card r"><p><strong>1.</strong> The four pillars of AI orchestration and where governance is enforced in each</p></div>
+      <div class="card r"><p><strong>2.</strong> Agent Bricks supervisor/sub-agent identity propagation, and the three agent auth methods</p></div>
+      <div class="card r"><p><strong>3.</strong> MCP's three server types and UC Connections as the outbound governance primitive</p></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card r"><p><strong>4.</strong> Unity AI Gateway as the single control surface for LLMs, MCPs, and Model Serving</p></div>
+      <div class="card r"><p><strong>5.</strong> Token federation for automation and external callers</p></div>
+      <div class="card r"><p><strong>6.</strong> Configuration steps, common gotchas, and a production checklist</p></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 3 · THE ISSUE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="label r">The issue</div>
+  <h2 class="r">Composing agents and tools is easy to build. Keeping governance intact across every hop is not.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="callout r">
+        A supervisor calls sub-agents, sub-agents call tools, tools call external services &mdash; each hop is a place where the caller's identity can be silently lost, or where an ungoverned credential can creep in.
+      </div>
+      <div class="r" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+        <div class="card card-red" style="text-align:center;padding:14px 10px">
+          <div class="stat">4</div>
+          <div class="stat-label">orchestration pillars, each with its own governance boundary</div>
+        </div>
+        <div class="card card-red" style="text-align:center;padding:14px 10px">
+          <div class="stat">20</div>
+          <div class="stat-label">max sub-agents in a single supervisor chain</div>
+        </div>
+      </div>
+    </div>
+    <div class="card card-ink r">
+      <h4>What this deck answers</h4>
+      <p>How identity propagates through Model Serving, MCP, and Databricks Apps; where AI Gateway fits (and where it doesn't); and the concrete steps to keep every hop auditable.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 4 · FOUR PILLARS — STACK DIAGRAM
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+  <div class="label r">What &mdash; The orchestration stack</div>
+  <h2 class="r">Four pillars, each solving a different problem. Unity Catalog governs every layer.</h2>
+  <div class="arch-wrap r">
+    <div class="arch-vstack">
+      <div class="abox sp r delay-1" style="min-width:320px">User<small>Human or external application</small></div>
+      <div class="arch-varrow delay-2">&darr;</div>
+      <div class="abox r delay-3" style="min-width:320px;border-color:var(--red);background:rgba(204,51,17,.05)">Identity<small>IdP + token path: OBO / M2M / Federation</small></div>
+      <div class="arch-varrow delay-4">&darr;</div>
+      <div class="abox grp r delay-5" style="min-width:320px">Databricks Apps<small>Managed hosting, automatic OAuth</small></div>
+      <div class="arch-varrow delay-6">&darr;</div>
+      <div class="abox sys r delay-7" style="min-width:320px">Model Serving / Agent Bricks<small>Supervisor endpoint</small></div>
+      <div class="arch-varrow delay-8">&darr;</div>
+      <div class="abox amber r delay-9" style="min-width:320px">Tools<small>Genie &middot; Vector Search &middot; UC Functions &middot; MCP servers</small></div>
+    </div>
+  </div>
+  <div class="card card-ink r mt2" style="text-align:center">
+    <p>AI Gateway layers onto the LLM and MCP traffic within this stack; UC Connections govern the exit to external services. Same Unity Catalog enforcement regardless of which pillar the request passes through.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 5 · AGENT BRICKS — IDENTITY FLOW
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label r">What &mdash; Agent Bricks</div>
+  <h2 class="r">A supervisor coordinates up to 20 sub-agents. OBO propagates the human's identity through all of them.</h2>
+  <div class="arch-wrap r">
+    <div class="arch-row" style="flex-wrap:wrap">
+      <div class="abox sp r delay-1">User<small>Browser</small></div>
+      <div class="arch-arrow delay-2">&rarr;</div>
+      <div class="abox grp r delay-3">Databricks App<small>X-Forwarded-Access-Token</small></div>
+      <div class="arch-arrow delay-4">&rarr;</div>
+      <div class="abox sys r delay-5">Supervisor<small>Model Serving</small></div>
+      <div class="arch-arrow delay-1">&rarr;</div>
+      <div class="abox danger r delay-1">Sub-agents<small>user context forwarded</small></div>
+      <div class="arch-arrow delay-2">&rarr;</div>
+      <div class="abox r delay-3">Resources<small>current_user() = human</small></div>
+    </div>
+  </div>
+  <div class="two-col mt2">
+    <div class="card card-blue r">
+      <h4>OBO mode</h4>
+      <p style="font-size:var(--sm)">Supervisor auto-forwards the user's token to all sub-agents. <code>current_user()</code> = human email from the supervisor down to the deepest tool call &mdash; row filters, Genie RLS, and function auth all see the actual human.</p>
+    </div>
+    <div class="card card-red r">
+      <h4>Runtime limits &amp; scope requirements</h4>
+      <ul class="mt1">
+        <li>Each sub-agent's tools need their own UC grants &mdash; grants don't cascade from the supervisor</li>
+        <li>Genie sub-agents need both <code>genie</code> and <code>dashboards.genie</code> scopes, or a <code>403</code></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 6 · THREE AGENT AUTH METHODS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label r">What &mdash; Agent auth on Model Serving</div>
+  <h2 class="r">Three authentication methods for agents. Mix and match within the same agent.</h2>
+  <div class="three-col mt2">
+    <div class="card card-green r">
+      <h4>Automatic Passthrough</h4>
+      <p style="font-size:var(--sm);font-weight:600">Simplest &mdash; Databricks manages everything.</p>
+      <table class="mt2">
+        <tr><td style="font-weight:600;width:70px">How</td><td>Declare resource dependencies at log time</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td>System-generated SP, least privilege</td></tr>
+        <tr><td style="font-weight:600">Best for</td><td>No per-user access needed</td></tr>
+      </table>
+    </div>
+    <div class="card card-blue r">
+      <h4>On-Behalf-Of (OBO)</h4>
+      <p style="font-size:var(--sm);font-weight:600">Agent runs as the calling user.</p>
+      <table class="mt2">
+        <tr><td style="font-weight:600;width:70px">How</td><td>Initialize in <code>predict()</code> with user credentials</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td><code>current_user()</code> = human email</td></tr>
+        <tr><td style="font-weight:600">Best for</td><td>Per-user access control + audit</td></tr>
+      </table>
+    </div>
+    <div class="card card-red r">
+      <h4>Manual Authentication</h4>
+      <p style="font-size:var(--sm);font-weight:600">Explicit credentials, maximum flexibility.</p>
+      <table class="mt2">
+        <tr><td style="font-weight:600;width:70px">How</td><td>SP OAuth (recommended) via UC secret scopes</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td>Service principal</td></tr>
+        <tr><td style="font-weight:600">Best for</td><td>External resources, prompt registry</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card card-amber r mt2">
+    <p style="font-size:var(--sm)"><strong>Key constraint:</strong> OBO's calling identity is only known at query time &mdash; resources must be initialized inside <code>predict()</code>, not <code>__init__()</code>.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 7 · MCP THREE TYPES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label r">What &mdash; MCP on Databricks</div>
+  <h2 class="r">Three MCP server types, all governed by Unity Catalog.</h2>
+  <div class="three-col mt2">
+    <div class="card card-blue r">
+      <div class="badge badge-blue mb1">Managed</div>
+      <h4>Databricks-hosted</h4>
+      <p style="font-size:var(--sm)">Pre-built connectors: Genie, Vector Search, UC Functions, DBSQL. No code, no infra. Auth: automatic, OBO, or PAT.</p>
+    </div>
+    <div class="card card-green r">
+      <div class="badge badge-green mb1">Custom</div>
+      <h4>Databricks Apps</h4>
+      <p style="font-size:var(--sm)">Your code, deployed as a Databricks App. Full control over tools and auth &mdash; OBO, M2M, or mixed. Auth is OAuth only, PAT not used.</p>
+    </div>
+    <div class="card card-red r">
+      <div class="badge badge-red mb1">External</div>
+      <h4>Via UC Connections</h4>
+      <p style="font-size:var(--sm)">Third-party MCP servers (Jira, GitHub, Slack) accessed through UC HTTP Connections. Credential-free code; the platform injects auth.</p>
+    </div>
+  </div>
+  <div class="card card-ink r mt2" style="padding:12px 16px">
+    <p style="font-size:var(--sm);color:#fff"><strong>Tool selection priority on name collision:</strong> Managed (highest trust) &rarr; Custom (explicit business logic) &rarr; External (third-party). Configure explicit tool routing in the supervisor when ambiguity exists.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 8 · UC CONNECTIONS AS GOVERNANCE PRIMITIVE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label r">What &mdash; UC Connections</div>
+  <h2 class="r">Application code never calls an external service directly. UC proxies the call.</h2>
+  <div class="two-col mt2">
+    <div class="card r">
+      <h4>Two-layer defense in depth</h4>
+      <table class="mt1">
+        <tr><td style="font-weight:700;width:130px">Network (SNP)</td><td>Workspace-level FQDN allowlist &mdash; anything not listed is unreachable</td></tr>
+        <tr><td style="font-weight:700">Credential (UC)</td><td><code>USE CONNECTION</code> grant controls which SP can authenticate, enforced before any network traffic</td></tr>
+      </table>
+    </div>
+    <div>
+      <pre class="r"><span class="cm">-- Grant access</span>
+<span class="kw">GRANT USE CONNECTION</span>
+  <span class="kw">ON CONNECTION</span> github_api
+  <span class="kw">TO</span> `sp-appeals`;
+
+<span class="cm">-- Instant revocation, no redeploy</span>
+<span class="kw">REVOKE USE CONNECTION</span>
+  <span class="kw">ON CONNECTION</span> github_api
+  <span class="kw">FROM</span> `sp-billing`;</pre>
+    </div>
+  </div>
+  <div class="card card-amber r mt2" style="text-align:center">
+    <p><strong>Four auth methods, only two give per-user identity externally:</strong> Bearer and OAuth M2M share one identity with the external service; OAuth U2M Per User and Managed OAuth give each user their own token on both sides.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 9 · FOUR TRAFFIC PATTERNS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label r">What &mdash; Traffic patterns</div>
+  <h2 class="r">Four traffic patterns, four different governance layers. Not every hop needs a gateway.</h2>
+  <div class="r flex1" style="overflow-x:auto;margin-top:8px">
+    <table style="min-width:700px">
+      <thead><tr><th>Pattern</th><th>Caller &rarr; target</th><th>Governance layer</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-green">1</span></td><td>Agent to Databricks services (Genie, FM API, UC)</td><td><strong>No gateway.</strong> Direct OBO &mdash; UC governs at the data plane</td></tr>
+        <tr><td><span class="badge badge-blue">2</span></td><td>Any caller to an LLM endpoint</td><td><strong>Databricks AI Gateway.</strong> Rate limits, guardrails, usage tracking, fallback routing</td></tr>
+        <tr><td><span class="badge badge-red">3</span></td><td>Agent to external services (GitHub, Slack, etc.)</td><td><strong>UC Connections + SNP.</strong> Proxy model, REVOKE = instant removal</td></tr>
+        <tr><td><span class="badge badge-ink">4</span></td><td>External clients to Databricks</td><td><strong>External API Gateway.</strong> Auth translation, per-tenant rate limiting, versioning</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card card-red r mt2">
+    <p style="font-size:var(--sm)"><strong>Why pattern 1 skips the gateway:</strong> re-issuing a token at a gateway makes <code>current_user()</code> resolve to the gateway service, not the human &mdash; row filters then fire as the gateway. UC enforcement happens at the data plane; a gateway can observe HTTP traffic but not which rows were filtered.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 10 · UNITY AI GATEWAY — ONE GATEWAY, THREE PILLARS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label r">What &mdash; Unity AI Gateway</div>
+  <h2 class="r">One gateway governs LLMs, MCPs, and Model Serving endpoints under the same control surface.</h2>
+  <div class="three-col mt2">
+    <div class="card card-red r">
+      <span class="badge badge-red">Pillar 1</span>
+      <h4 class="mt1">LLMs</h4>
+      <p style="font-size:var(--sm)">Agents, LLM endpoints, and coding agents (Cursor, Codex CLI, Claude Code) route through gateway endpoints with native multi-provider APIs.</p>
+    </div>
+    <div class="card card-blue r">
+      <span class="badge badge-blue">Pillar 2</span>
+      <h4 class="mt1">MCPs</h4>
+      <p style="font-size:var(--sm)">External, custom, and Databricks-managed MCP servers governed under the same permissions, audit, and access controls.</p>
+    </div>
+    <div class="card card-green r">
+      <span class="badge badge-green">Pillar 3</span>
+      <h4 class="mt1">Model Serving Endpoints</h4>
+      <p style="font-size:var(--sm)">Gateway features layered onto existing endpoints &mdash; safety, PII, and keyword guardrails, plus the established system-table observability surface.</p>
+    </div>
+  </div>
+  <div class="card card-ink r mt2" style="text-align:center">
+    <p>One control point: permissions &middot; rate limits &middot; guardrails &middot; usage tracking &middot; inference logging &middot; cost attribution &middot; fallback routing &middot; traffic splitting &mdash; applied consistently across every pillar. Coding-agent calls and deployed-agent calls land in the same <code>system.ai_gateway.usage</code> table.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 11 · WHY IT MATTERS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label r">Why it matters</div>
+  <h2 class="r">Orchestration governance is where cost, risk, and compliance actually get decided.</h2>
+  <div class="three-col mt2">
+    <div class="card card-red r">
+      <h4>Cost control</h4>
+      <p style="font-size:var(--sm)">Rate limits per user, group, or SP cap a runaway agent before it drives an unexpected model bill. <code>system.ai_gateway.usage</code> joined with <code>system.billing.usage</code> attributes spend by team, app, or project.</p>
+    </div>
+    <div class="card card-amber r">
+      <h4>Risk reduction</h4>
+      <p style="font-size:var(--sm)"><code>REVOKE USE CONNECTION</code> is a runtime kill switch &mdash; no redeploy needed to cut off a compromised or misbehaving tool. Guardrails catch PII and unsafe content before it reaches a model or a caller.</p>
+    </div>
+    <div class="card card-green r">
+      <h4>Compliance &amp; velocity</h4>
+      <p style="font-size:var(--sm)">One audit trail across coding agents, deployed agents, and tool calls means one place to answer &ldquo;who called what, and what did it return&rdquo; &mdash; instead of stitching together per-server logs.</p>
+    </div>
+  </div>
+  <div class="card card-blue r mt2" style="text-align:center">
+    <p>Before this unification, MCP governance was ad hoc: UC handled data access, but request-level audit and rate limiting were per-server. Now LLM calls and tool invocations share one permissions model and one configuration surface.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 12 · HOW — TOKEN FEDERATION
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label r">How &mdash; Token federation</div>
+  <h2 class="r">Configuring federation for automation and external callers: four steps, no secrets stored.</h2>
+  <div class="two-col mt1">
+    <div class="card r">
+      <h4>The exchange flow</h4>
+      <table class="mt1">
+        <tr><td style="font-weight:700;color:var(--red);width:26px">1</td><td>App authenticates with your IdP, receives a JWT</td></tr>
+        <tr><td style="font-weight:700;color:var(--red)">2</td><td>POST the JWT to <code>/oidc/v1/token</code> with <code>grant_type=urn:ietf:params:oauth:grant-type:token-exchange</code></td></tr>
+        <tr><td style="font-weight:700;color:var(--red)">3</td><td>Databricks validates the JWT against the federation policy, returns a scoped OAuth token</td></tr>
+        <tr><td style="font-weight:700;color:var(--red)">4</td><td>Use the Databricks token to call APIs: <code>Authorization: Bearer &lt;token&gt;</code></td></tr>
+      </table>
+    </div>
+    <div class="card r">
+      <h4>Two federation types</h4>
+      <table class="mt1">
+        <tr><th>Feature</th><th>Account Federation</th><th>WIF</th></tr>
+        <tr><td>Applies to</td><td>Users &amp; SPs</td><td>Workload &rarr; SP</td></tr>
+        <tr><td>SCIM required</td><td><strong>Yes</strong></td><td>No</td></tr>
+        <tr><td>Issuer limit</td><td>5</td><td><strong>Unlimited</strong></td></tr>
+        <tr><td>Refresh tokens</td><td>Yes (U2M)</td><td>No</td></tr>
+      </table>
+      <p class="mt1" style="font-size:var(--xs);color:var(--muted)">AWS IAM and GitHub Actions OIDC: WIF only. Token TTL copies the IdP's <code>exp</code> claim verbatim &mdash; plan refresh in client code.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 13 · HOW — SCOPE MODEL &amp; GOTCHAS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="13">
+  <div class="label r">How &mdash; Scopes &amp; gotchas</div>
+  <h2 class="r">Least-privilege scopes, plus the failures that don't throw a clear error.</h2>
+  <div class="r flex1" style="overflow-x:auto;margin-top:6px">
+    <table style="min-width:680px">
+      <thead><tr><th>Symptom</th><th>Root cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>Genie returns wrong rows, no error</td><td><code>is_member()</code> in a row filter</td><td>Replace with <code>current_user()</code> &mdash; <code>is_member()</code> evaluates the execution service under Genie/Agent Bricks OBO</td></tr>
+        <tr><td>User identity lost in App A &rarr; App B</td><td>Two-proxy stripping</td><td>Use <code>X-Forwarded-Email</code> (proxy-signed, survives hops) + M2M SQL with an email-based filter</td></tr>
+        <tr><td>Sub-agent 403 on a Genie tool</td><td>Scope not granted on the sub-agent's own SP</td><td>Grant UC permissions and OAuth scopes per sub-agent &mdash; nothing cascades from the supervisor</td></tr>
+        <tr><td>External tool stops working post-deploy</td><td>Connection ownership tied to the old SP</td><td>Set connection ownership to the app SP; re-grant <code>USE CONNECTION</code> after every redeploy</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card card-amber r mt2">
+    <p style="font-size:var(--sm)"><strong>Scope ceiling:</strong> a token without <code>serving</code>, <code>genie</code> + <code>dashboards.genie</code>, or <code>mcp.*</code> cannot call that resource, even if UC grants would otherwise allow it. Request only what the agent needs.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 14 · HOW — PRODUCTION CHECKLIST
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="14">
+  <div class="label r">How &mdash; Production checklist</div>
+  <h2 class="r">Before shipping an orchestrated agent, verify these.</h2>
+  <div class="check-grid mt2 flex1">
+    <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>Agent SP per capability boundary</strong><br><span style="font-size:var(--xs);color:var(--muted)">Not shared &mdash; each agent gets its own SP with scoped permissions</span></div></div>
+    <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>UC grants: least privilege, explicit</strong><br><span style="font-size:var(--xs);color:var(--muted)">GRANT only what's needed, REVOKE everything else</span></div></div>
+    <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>Row filters: current_user() only</strong><br><span style="font-size:var(--xs);color:var(--muted)">Never is_member() in Genie or Agent Bricks OBO paths</span></div></div>
+    <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>USE CONNECTION grants per tool</strong><br><span style="font-size:var(--xs);color:var(--muted)">Every external call governed by GRANT/REVOKE on a connection object</span></div></div>
+    <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>Token federation for CI/CD</strong><br><span style="font-size:var(--xs);color:var(--muted)">No Databricks secrets stored in pipeline config</span></div></div>
+    <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>AI Gateway rate limits + guardrails</strong><br><span style="font-size:var(--xs);color:var(--muted)">QPM/TPM per user or SP; content filtering on input and output</span></div></div>
+    <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>system.access.audit + MLflow tracing enabled</strong><br><span style="font-size:var(--xs);color:var(--muted)">Joinable on request_id for end-to-end agent lineage</span></div></div>
+    <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>Tokens never in logs or error payloads</strong><br><span style="font-size:var(--xs);color:var(--muted)">Bearer tokens excluded from all log output</span></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 15 · CLOSING CALLIGRAM
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide slide-calli" data-slide="15">
+  <div class="calli-hero r">
+    ORCHESTRATION
+    <span class="line2">IS</span>
+    <span class="line3">GOVERNANCE.</span>
+  </div>
+  <div class="calli-rule r"></div>
+  <div class="calli-sub r">Every agent action traces to an identity. Every tool call goes through UC. Every external call goes through a connection.</div>
+  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Databricks Applied AI Governance Series &middot; Orchestration &amp; Tool Governance</div>
+</div>
+
+
+<script>
+/* ── slide engine ─────────────────────────────────────────────────────────── */
+const slides = Array.from(document.querySelectorAll('.slide'));
+const total   = slides.length;
+let current   = 0;
+let touchStartX = 0;
+
+function goTo(n) {
+  if (n < 0 || n >= total) return;
+  const prev = slides[current];
+  prev.classList.remove('active');
+  prev.classList.add('exit-left');
+  setTimeout(() => prev.classList.remove('exit-left'), 420);
+
+  current = n;
+  slides[current].classList.add('active');
+  updateChrome();
+}
+
+function updateChrome() {
+  document.getElementById('counter').textContent =
+    String(current + 1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+  document.getElementById('progressBar').style.width =
+    ((current + 1) / total * 100) + '%';
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === total - 1;
+  document.getElementById('homeBtn').disabled = current === 0;
+
+  document.querySelectorAll('.dot').forEach((d, i) => {
+    d.classList.toggle('active', i === current);
+  });
+}
+
+/* nav dots */
+const dotsEl = document.getElementById('navDots');
+for (let i = 0; i < total; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.addEventListener('click', () => goTo(i));
+  dotsEl.appendChild(d);
+}
+
+/* keyboard */
+document.addEventListener('keydown', e => {
+  const overlay = document.getElementById('kbOverlay');
+  if (overlay.classList.contains('visible')) {
+    if (e.key === 'Escape' || e.key === '?') overlay.classList.remove('visible');
+    return;
+  }
+  if (e.key === 'ArrowRight' || e.key === ' ')  { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft')  goTo(current - 1);
+  if (e.key === 'Home')       goTo(0);
+  if (e.key === 'End')        goTo(total - 1);
+  if (e.key === '?')          overlay.classList.add('visible');
+});
+
+/* touch */
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, {passive:true});
+document.addEventListener('touchend',   e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 45) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+}, {passive:true});
+
+/* help button */
+document.getElementById('helpBtn').addEventListener('click', () =>
+  document.getElementById('kbOverlay').classList.add('visible'));
+document.getElementById('kbOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) document.getElementById('kbOverlay').classList.remove('visible');
+});
+
+/* init */
+updateChrome();
+</script>
+</body>
+</html>

@@ -66,6 +66,7 @@ h1 span { color: var(--red); }
     font-weight: 700;
     font-variant-numeric: tabular-nums;
 }
+.deck-card.entry .deck-num { background: var(--red); }
 .deck-body h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; }
 .deck-body p { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
 .deck-meta { text-align: right; white-space: nowrap; }
@@ -78,7 +79,7 @@ h1 span { color: var(--red); }
     padding: 3px 8px;
     border-radius: 3px;
 }
-.badge-exec { background: var(--red-bg); color: var(--red); }
+.badge-entry { background: var(--red-bg); color: var(--red); }
 .badge-tech { background: rgba(29,78,216,0.08); color: var(--blue); }
 .slide-count { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
 
@@ -116,7 +117,7 @@ h1 span { color: var(--red); }
     <a href="../" class="back">&larr; Back to Applied AI Governance</a>
 
     <h1>Presentation <span>Decks</span></h1>
-    <p class="subtitle">Slide decks covering identity, federation, token exchange, Unity AI Gateway, agent cost governance, and AI governance patterns on Databricks.</p>
+    <p class="subtitle">Slide decks covering identity, federation, authorization, orchestration, Unity Catalog governance, agent cost governance, and AI governance patterns on Databricks.</p>
     <div class="red-line"></div>
 
     <!-- The Challenge -->
@@ -128,198 +129,163 @@ h1 span { color: var(--red); }
             <p style="font-size:1.05rem;line-height:1.7;font-weight:600">Same data. Same AI capabilities. Same governance guarantees. Two completely different identity worlds.</p>
         </div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(1rem,2vw,1.5rem);margin-top:12px;border-left:4px solid var(--ink)">
-            <p style="font-size:0.92rem;line-height:1.7"><strong>On Databricks</strong>, this means <strong>Genie</strong> for natural language analytics, <strong>Vector Search</strong> for knowledge retrieval, <strong>Agent Bricks</strong> for multi-agent orchestration, <strong>MCP servers</strong> for tool governance, <strong>UC HTTP Connections</strong> for governed external service access, <strong>Unity Catalog</strong> for data access control, and <strong>AI Gateway</strong> for model traffic management. The three decks below show you how to govern all of it.</p>
+            <p style="font-size:0.92rem;line-height:1.7"><strong>On Databricks</strong>, this means <strong>Genie</strong> for natural language analytics, <strong>Vector Search</strong> for knowledge retrieval, <strong>Agent Bricks</strong> for multi-agent orchestration, <strong>MCP servers</strong> for tool governance, <strong>UC HTTP Connections</strong> for governed external service access, <strong>Unity Catalog</strong> for data access control, and <strong>AI Gateway</strong> for model traffic management. The decks below show you how to govern all of it.</p>
         </div>
     </div>
 
-    <div class="section-label">Executive</div>
+    <div class="section-label">Start Here</div>
 
     <div class="deck-grid">
-        <a href="01-ai-governance-complete.html" class="deck-card">
+        <a href="01-ai-governance-complete.html" class="deck-card entry">
             <div class="deck-num">01</div>
             <div class="deck-body">
-                <h3>AI Governance — The Complete Picture</h3>
-                <p>One auth layer, three token paths, six enforcement layers, resource auth matrix, decision trees, prerequisites checklists.</p>
+                <h3>AI Governance on Databricks — Overview</h3>
+                <p>The governance model at a glance: one auth layer, three token paths, seven enforcement layers, and a map to the deeper decks below.</p>
             </div>
             <div class="deck-meta">
-                <span class="badge badge-exec">Exec</span>
-                <div class="slide-count">21 slides</div>
+                <span class="badge badge-entry">Entry Point</span>
+                <div class="slide-count">10 slides</div>
             </div>
         </a>
     </div>
 
-    <div class="section-label">Technical</div>
+    <div class="section-label">Identity &amp; Access Foundations</div>
 
     <div class="deck-grid">
-        <a href="02-identity-auth-orchestration.html" class="deck-card">
+        <a href="02-unity-ai-gateway.html" class="deck-card">
             <div class="deck-num">02</div>
             <div class="deck-body">
-                <h3>Identity, Authorization & Orchestration — Technical Reference</h3>
-                <p>Three token paths, auth-by-resource matrix (7 resources), per-resource gotchas, Agent Bricks orchestration, MCP three types, UC HTTP Connections, token federation, end-to-end animated flow, 8 common failure patterns, one rule per resource.</p>
+                <h3>Unity AI Gateway</h3>
+                <p>The single control plane for AI traffic: routing, rate limits, guardrails, spend caps, and MCP Services.</p>
             </div>
             <div class="deck-meta">
                 <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">20 slides</div>
             </div>
         </a>
 
-        <a href="05-cross-idp-token-exchange.html" class="deck-card">
+        <a href="03-identity-auth-foundations.html" class="deck-card">
             <div class="deck-num">03</div>
             <div class="deck-body">
-                <h3>E2E User Identity Propagation — Cross-IdP Token Exchange</h3>
-                <p>External app, customer IdP, Databricks data — one user identity end to end. JWKS decision, two legs, pre-flight checklist, the RFC 8693 POST, UC current_user() enforcement, gotchas, IdP team question list.</p>
+                <h3>Identity &amp; Authentication Foundations</h3>
+                <p>U2M, OBO, and M2M token paths, and how Unity Catalog acts as the single authorization boundary regardless of path.</p>
             </div>
             <div class="deck-meta">
                 <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">15 slides</div>
             </div>
         </a>
 
-        <a href="06-unity-ai-gateway-capabilities.html" class="deck-card">
+        <a href="04-authorization-by-resource.html" class="deck-card">
             <div class="deck-num">04</div>
             <div class="deck-body">
-                <h3>Unity AI Gateway — Capability Deep Dive</h3>
-                <p>Eight capabilities shown through a single user story (Acme Financial: customer chatbot, analyst assistant, compliance agent). Routing, rate limits, guardrails, service policies, spend caps, usage monitoring, MCP Services, prompt registry.</p>
+                <h3>Authorization by Resource Type</h3>
+                <p>How authorization differs across Genie, UC Functions, Vector Search, MCP Services, Tables, and Lakebase.</p>
             </div>
             <div class="deck-meta">
                 <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">15 slides</div>
             </div>
         </a>
 
-        <a href="07-agent-cost-governance.html" class="deck-card">
+        <a href="05-orchestration-tool-governance.html" class="deck-card">
             <div class="deck-num">05</div>
             <div class="deck-body">
-                <h3>AI Agent Cost Control &amp; Governance</h3>
-                <p>Claude Code, Codex, Gemini routed through Unity Gateway. Six governance layers: model allowlisting, rate limits, hard spend caps, guardrails, service policy approval gates, sandbox isolation. Acme Engineering user story throughout.</p>
+                <h3>AI Orchestration &amp; Tool Governance</h3>
+                <p>Agent Bricks orchestration, the three MCP types, and service policies for tool-calling agents.</p>
             </div>
             <div class="deck-meta">
                 <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">15 slides</div>
-            </div>
-        </a>
-
-        <a href="08-sp-m2m-identity.html" class="deck-card">
-            <div class="deck-num">06</div>
-            <div class="deck-body">
-                <h3>Service Principal Identity &amp; M2M Governance</h3>
-                <p>One SP per service, each SP in a purpose-scoped group, groups hold UC GRANTs. Client credentials flow, current_user() UUID behavior, RLS with is_member(), secret management, Unity Gateway SP rate limits, audit trail. Completes the identity story from Deck 03.</p>
-            </div>
-            <div class="deck-meta">
-                <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">15 slides</div>
             </div>
         </a>
     </div>
 
-    <div class="section-label" style="margin-top:3rem">Implementation Guides</div>
+    <div class="section-label">Cross-Boundary Identity</div>
 
     <div class="deck-grid">
-        <a href="federation-implementation-blueprint.html" class="deck-card">
-            <div class="deck-num" style="background:var(--red)">IG</div>
+        <a href="06-cross-idp-federation.html" class="deck-card">
+            <div class="deck-num">06</div>
             <div class="deck-body">
-                <h3>Federation Token Exchange — Implementation Blueprint</h3>
-                <p>12 prerequisites, 7-step flow, Auth0 / Okta / Entra ID walkthroughs, error catalog, smoke tests, decision checklist. Companion to Decks 02 and 03.</p>
+                <h3>Cross-IdP Token Federation</h3>
+                <p>Propagating a real end-user identity from an external app and IdP through to Unity Catalog enforcement.</p>
             </div>
             <div class="deck-meta">
                 <span class="badge badge-tech">Technical</span>
-                <div class="slide-count">15 slides</div>
             </div>
         </a>
-    </div>
 
-    <div class="section-label" style="margin-top:3rem;cursor:pointer;user-select:none" onclick="var el=document.getElementById('archive');var arr=document.getElementById('archive-arrow');if(el.style.display==='none'){el.style.display='flex';arr.textContent='▾'}else{el.style.display='none';arr.textContent='▸'}">
-        <span id="archive-arrow">▸</span> Archive (Previous Versions)
-    </div>
+        <a href="07-sp-m2m-identity.html" class="deck-card">
+            <div class="deck-num">07</div>
+            <div class="deck-body">
+                <h3>Service Principal &amp; M2M Identity Governance</h3>
+                <p>One SP per service, purpose-scoped groups, client-credentials flow, and RLS behavior under M2M.</p>
+            </div>
+            <div class="deck-meta">
+                <span class="badge badge-tech">Technical</span>
+            </div>
+        </a>
 
-    <div id="archive" class="deck-grid" style="opacity:0.5;display:none">
-        <a href="identity-governance-overview.html" class="deck-card">
-            <div class="deck-num" style="background:var(--muted)">—</div>
-            <div class="deck-body">
-                <h3>Identity & Governance Overview</h3>
-                <p>Superseded by Deck 01</p>
-            </div>
-            <div class="deck-meta"><div class="slide-count">18 slides</div></div>
-        </a>
-        <a href="identity-patterns.html" class="deck-card">
-            <div class="deck-num" style="background:var(--muted)">—</div>
-            <div class="deck-body">
-                <h3>Identity Patterns</h3>
-                <p>Superseded by Decks 01 + 02</p>
-            </div>
-            <div class="deck-meta"><div class="slide-count">14 slides</div></div>
-        </a>
-        <a href="federation-deep-dive.html" class="deck-card">
-            <div class="deck-num" style="background:var(--muted)">—</div>
-            <div class="deck-body">
-                <h3>Federation Exchange Deep Dive</h3>
-                <p>Superseded by Deck 03</p>
-            </div>
-            <div class="deck-meta"><div class="slide-count">21 slides</div></div>
-        </a>
-        <a href="uc-governance.html" class="deck-card">
-            <div class="deck-num" style="background:var(--muted)">—</div>
-            <div class="deck-body">
-                <h3>Unity Catalog Governance</h3>
-                <p>Superseded by Deck 02</p>
-            </div>
-            <div class="deck-meta"><div class="slide-count">14 slides</div></div>
-        </a>
-        <a href="orchestration.html" class="deck-card">
-            <div class="deck-num" style="background:var(--muted)">—</div>
-            <div class="deck-body">
-                <h3>AI Orchestration & Governance</h3>
-                <p>Superseded by Deck 03</p>
-            </div>
-            <div class="deck-meta"><div class="slide-count">21 slides</div></div>
-        </a>
-        <a href="ai-gateway-patterns-v2.html" class="deck-card">
-            <div class="deck-num" style="background:var(--muted)">—</div>
-            <div class="deck-body">
-                <h3>AI Gateway Patterns</h3>
-                <p>Superseded by Deck 05</p>
-            </div>
-            <div class="deck-meta"><div class="slide-count">14 slides</div></div>
-        </a>
-        <a href="04-unity-ai-gateway.html" class="deck-card">
-            <div class="deck-num" style="background:var(--muted)">—</div>
-            <div class="deck-body">
-                <h3>Unity AI Gateway — One Surface for AI Traffic</h3>
-                <p>Superseded by Deck 04</p>
-            </div>
-            <div class="deck-meta"><div class="slide-count">20 slides</div></div>
-        </a>
-        <a href="02-identity-authorization-by-resource.html" class="deck-card">
-            <div class="deck-num" style="background:var(--muted)">—</div>
-            <div class="deck-body">
-                <h3>Identity & Authorization by Resource Type</h3>
-                <p>Superseded by Deck 02</p>
-            </div>
-            <div class="deck-meta"><div class="slide-count">23 slides</div></div>
-        </a>
-        <a href="03-ai-orchestration-tool-governance.html" class="deck-card">
-            <div class="deck-num" style="background:var(--muted)">—</div>
-            <div class="deck-body">
-                <h3>AI Orchestration & Tool Governance</h3>
-                <p>Superseded by Deck 02</p>
-            </div>
-            <div class="deck-meta"><div class="slide-count">26 slides</div></div>
-        </a>
-        <a href="federation-animation.html" class="deck-card">
-            <div class="deck-num" style="background:var(--muted)">—</div>
-            <div class="deck-body">
-                <h3>OAuth Federation Exchange — Animated Token Flow</h3>
-                <p>Superseded by Deck 05</p>
-            </div>
-            <div class="deck-meta"><div class="slide-count">interactive</div></div>
-        </a>
-        <a href="uc-connections.html" class="deck-card">
-            <div class="deck-num" style="background:var(--muted)">—</div>
+        <a href="08-uc-connections.html" class="deck-card">
+            <div class="deck-num">08</div>
             <div class="deck-body">
                 <h3>UC HTTP Connections</h3>
-                <p>Superseded by Deck 02</p>
+                <p>Governed access to external services through Unity Catalog connections, without static secrets.</p>
             </div>
-            <div class="deck-meta"><div class="slide-count">15 slides</div></div>
+            <div class="deck-meta">
+                <span class="badge badge-tech">Technical</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="section-label">Data Governance</div>
+
+    <div class="deck-grid">
+        <a href="09-uc-governance.html" class="deck-card">
+            <div class="deck-num">09</div>
+            <div class="deck-body">
+                <h3>Unity Catalog Governance</h3>
+                <p>Row filters, column masks, ABAC, and governed tags as the enforcement layer beneath every access path.</p>
+            </div>
+            <div class="deck-meta">
+                <span class="badge badge-tech">Technical</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="section-label">Applied Patterns</div>
+
+    <div class="deck-grid">
+        <a href="10-agent-cost-governance.html" class="deck-card">
+            <div class="deck-num">10</div>
+            <div class="deck-body">
+                <h3>Agent Cost Governance on Unity AI Gateway</h3>
+                <p>Model routing, per-agent rate limits, hard spend caps, guardrails, approval gates, and sandbox isolation.</p>
+            </div>
+            <div class="deck-meta">
+                <span class="badge badge-tech">Technical</span>
+                <div class="slide-count">17 slides</div>
+            </div>
+        </a>
+
+        <a href="11-aibi-dashboard-embedding.html" class="deck-card">
+            <div class="deck-num">11</div>
+            <div class="deck-body">
+                <h3>AI/BI Dashboard Embedding Behind a Foreign IdP</h3>
+                <p>Embedding a dashboard in an app whose identity provider differs from the Databricks account's, without a second login.</p>
+            </div>
+            <div class="deck-meta">
+                <span class="badge badge-tech">Technical</span>
+                <div class="slide-count">12 slides</div>
+            </div>
+        </a>
+
+        <a href="12-teams-copilot-genie-obo.html" class="deck-card">
+            <div class="deck-num">12</div>
+            <div class="deck-body">
+                <h3>Per-User Identity in Teams &amp; Copilot Studio</h3>
+                <p>Bringing per-user identity into Genie from Microsoft Teams and Copilot Studio, and the publish-mode setting that can quietly override it.</p>
+            </div>
+            <div class="deck-meta">
+                <span class="badge badge-tech">Technical</span>
+                <div class="slide-count">12 slides</div>
+            </div>
         </a>
     </div>
 

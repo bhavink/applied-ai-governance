@@ -342,7 +342,7 @@ tr:hover td{background:var(--surface)}
 
 <div class="topbar">
   <div class="title">Acme Corp &mdash; <span>Service Principal &amp; M2M Identity Governance</span></div>
-  <div class="counter" id="counter">01 / 15</div>
+  <div class="counter" id="counter">01 / 16</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 
@@ -373,22 +373,49 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide slide-title active" data-slide="1">
   <h1 class="r">Service Principal Identity<br>&amp; <em>M2M Governance</em> on Databricks</h1>
-  <div class="sub r">Three Acme services. Three controlled identities. Zero shared credentials. Every action auditable.</div>
+  <div class="sub r">Scoping service-principal credentials to service, group, and Unity Catalog privilege, using the client-credentials (M2M) flow.</div>
   <div class="red-rule r"></div>
   <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:640px">
     Nightly ETL &middot; Customer API Gateway &middot; Compliance Reporting &mdash; each with its own SP, its own group, its own privilege scope
   </p>
   <p class="r" style="margin-top:12px;color:var(--muted);font-size:var(--xs);max-width:640px">
-    Deck 08 &mdash; companion to Deck 05 (Human OBO Identity). Deck 05 = human calls Databricks as themselves. This deck = service calls Databricks as a controlled identity.
+    Deck 07 &mdash; companion to Deck 05 (Human OBO Identity). Deck 05 = human calls Databricks as themselves. This deck = service calls Databricks as a controlled identity.
   </p>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 2 · ANTI-PATTERN: ONE SP FOR EVERYTHING
+     SLIDE 2 · AGENDA
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="2">
-  <div class="label r">The failure mode</div>
+  <div class="label r">Agenda</div>
+  <h2 class="r">What this deck covers</h2>
+  <div class="flex1 mt2" style="display:flex;flex-direction:column;gap:clamp(.6rem,1.2vw,1rem)">
+    <div class="card card-red r">
+      <h4>The problem</h4>
+      <p>One shared service-principal credential used across multiple services &mdash; and the blast-radius, rotation, and audit problems that design creates.</p>
+    </div>
+    <div class="card card-blue r">
+      <h4>What</h4>
+      <p>The SP &rarr; Group &rarr; Unity Catalog privilege chain, and the client-credentials (M2M) token flow that underlies it.</p>
+    </div>
+    <div class="card card-green r">
+      <h4>Why</h4>
+      <p>Blast-radius reduction, clean audit attribution, and independent credential rotation &mdash; concrete risk and cost outcomes.</p>
+    </div>
+    <div class="card card-amber r">
+      <h4>How</h4>
+      <p>Step-by-step setup, secret management, token scopes, and the SP-vs-OBO decision gate for choosing the right identity model.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 3 · THE ISSUE: ONE SP FOR EVERYTHING
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="label r">The issue</div>
   <h2 class="r">One SP for everything is one breach away from everything.</h2>
   <div class="two-col mt2">
     <div style="display:flex;flex-direction:column;gap:12px">
@@ -432,10 +459,10 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 3 · THE PATTERN: SP → GROUP → UC PRIVILEGE
+     SLIDE 4 · WHAT: SP → GROUP → UC PRIVILEGE
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="3">
-  <div class="label r">The right pattern</div>
+<div class="slide" data-slide="4">
+  <div class="label r">What: the pattern</div>
   <h2 class="r">SP &rarr; Group &rarr; UC Privilege chain</h2>
   <p class="r muted" style="max-width:72ch;margin-bottom:clamp(.8rem,1.6vw,1.2rem)">The group&mdash;not the SP directly&mdash;holds the UC GRANTs. Membership is the lever for both granting and cutting access.</p>
 
@@ -482,10 +509,10 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 4 · CLIENT CREDENTIALS FLOW
+     SLIDE 5 · WHAT: CLIENT CREDENTIALS FLOW
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="4">
-  <div class="label r">Token acquisition</div>
+<div class="slide" data-slide="5">
+  <div class="label r">What: token acquisition</div>
   <h2 class="r">The client credentials flow</h2>
   <p class="r muted" style="max-width:72ch;margin-bottom:clamp(.8rem,1.6vw,1.2rem)">An SP gets a token by posting its identity to the Databricks OIDC token endpoint. No human in the loop.</p>
   <div class="two-col">
@@ -540,10 +567,10 @@ Content-Type: application/x-www-form-urlencoded
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 5 · SP SCOPE: ONE SP PER SERVICE
+     SLIDE 6 · WHAT: SP SCOPE — ONE SP PER SERVICE
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="5">
-  <div class="label r">Identity design</div>
+<div class="slide" data-slide="6">
+  <div class="label r">What: identity design</div>
   <h2 class="r">One SP per service. One credential to rotate.</h2>
   <p class="r muted" style="max-width:72ch;margin-bottom:clamp(.8rem,1.6vw,1.2rem)">If two services share a credential, you lose the ability to rotate independently. Scope by function, not by team.</p>
   <div class="r flex1" style="overflow-x:auto">
@@ -591,105 +618,10 @@ Content-Type: application/x-www-form-urlencoded
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 6 · GROUP DESIGN: THE PERMISSION BOUNDARY
-     ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="6">
-  <div class="label r">Permission boundaries</div>
-  <h2 class="r">Groups are the unit of governance&mdash;not SPs.</h2>
-  <div class="two-col mt2">
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="label r" style="margin-bottom:0">Grant to the group, not the SP</div>
-      <pre class="r"><span class="cm">-- Grant privilege to the group</span>
-<span class="kw">GRANT</span> SELECT <span class="kw">ON</span> CATALOG prod
-  <span class="kw">TO</span> GROUP pipeline-readers;
-
-<span class="cm">-- Add the SP to the group (one line)</span>
-<span class="cm">-- Done via Databricks Groups API or UI</span>
-<span class="cm">-- No GRANT statement needed</span>
-
-<span class="cm">-- Remove SP from group = instant cutoff</span>
-<span class="cm">-- No REVOKE statement needed</span>
-<span class="cm">-- No redeployment of the service</span></pre>
-      <div class="card card-green r">
-        <h4>Adding a second pipeline SP</h4>
-        <p>A new batch job needs the same bronze access. Add <code>batch-loader-sp</code> to <code>pipeline-readers</code>. One API call. No new GRANT statements. Audit shows a separate identity.</p>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="label r" style="margin-bottom:0">Audit group membership</div>
-      <pre class="r"><span class="cm">-- Who is in each SP group right now?</span>
-<span class="kw">SELECT</span>
-  group_name,
-  member_name,
-  member_type,
-  change_time
-<span class="kw">FROM</span> system.access.group_membership
-<span class="kw">WHERE</span> group_name <span class="kw">IN</span> (
-  <span class="st">'pipeline-readers'</span>,
-  <span class="st">'api-readers'</span>,
-  <span class="st">'compliance-readers'</span>
-)
-<span class="kw">ORDER BY</span> change_time <span class="kw">DESC</span>;</pre>
-      <div class="card card-ink r">
-        <p>Group membership is a system table&mdash;queryable, joinable, alertable. You can build a Databricks SQL dashboard that shows every SP group and its current members without leaving the platform.</p>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 7 · UC ENFORCEMENT WITH SP IDENTITY
+     SLIDE 7 · WHY: TOKEN SCOPES AND LEAST PRIVILEGE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="7">
-  <div class="label r">Runtime enforcement</div>
-  <h2 class="r">Unity Catalog enforces SP identity the same way it enforces human identity.</h2>
-  <div class="two-col mt2">
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="label r" style="margin-bottom:0">What UC sees when an SP queries</div>
-      <pre class="r"><span class="cm">-- current_user() for a service principal</span>
-<span class="cm">-- returns the SP's application ID (UUID)</span>
-<span class="cm">-- NOT a human email address</span>
-<span class="kw">SELECT</span> current_user();
-<span class="cm">-- returns: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"</span>
-
-<span class="cm">-- is_member() evaluates SP's group membership</span>
-<span class="cm">-- works identically for SPs and humans</span>
-<span class="kw">SELECT</span> is_member(<span class="st">'compliance-readers'</span>);
-<span class="cm">-- returns: true  (if SP is in the group)</span></pre>
-      <div class="card card-amber r">
-        <p><strong>Key call-out:</strong> <code>current_user()</code> returns the SP&rsquo;s UUID-format application ID when called by an SP. Build dashboards and audit queries that handle both email-format and UUID-format identities.</p>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="label r" style="margin-bottom:0">Row-level security using SP group membership</div>
-      <pre class="r"><span class="cm">-- Row filter on audit table: compliance SP</span>
-<span class="cm">-- only sees rows from its own region</span>
-<span class="kw">CREATE</span> <span class="kw">FUNCTION</span> compliance_region_filter(
-  region <span class="kw">STRING</span>
-)
-<span class="kw">RETURNS</span> BOOLEAN
-<span class="kw">RETURN</span>
-  is_member(<span class="st">'compliance-readers'</span>)
-  <span class="kw">AND</span> region = <span class="st">'us-east-1'</span>
-  <span class="kw">OR</span> is_member(<span class="st">'compliance-global'</span>);
-
-<span class="kw">ALTER TABLE</span> system.access.audit
-  <span class="kw">SET</span> ROW FILTER compliance_region_filter
-  <span class="kw">ON</span> (region);</pre>
-      <div class="card card-green r">
-        <p>Column masks apply identically. An SP calling a model endpoint via SQL goes through the same RLS/CLS evaluation path as a human analyst running the same query.</p>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 8 · TOKEN SCOPES AND LEAST PRIVILEGE
-     ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="8">
-  <div class="label r">Token scopes</div>
+  <div class="label r">Why it matters: least privilege</div>
   <h2 class="r">Scope is a second layer of least privilege on top of UC grants.</h2>
   <p class="r muted" style="max-width:72ch;margin-bottom:clamp(.8rem,1.6vw,1.2rem)">A token scope limits what API surface the SP can reach&mdash;even if it has UC grants on a broader set of resources.</p>
   <div class="three-col flex1 mt1">
@@ -721,59 +653,10 @@ Content-Type: application/x-www-form-urlencoded
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 9 · SECRET MANAGEMENT
+     SLIDE 8 · WHY: UNITY AI GATEWAY TRAFFIC GOVERNANCE
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="9">
-  <div class="label r">Credential storage</div>
-  <h2 class="r">Where the secret lives determines your blast radius.</h2>
-  <div class="two-col mt2">
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="label r" style="margin-bottom:0;color:var(--red)">Where NOT to put the client secret</div>
-      <div class="card card-red r">
-        <h4>Plaintext environment variables</h4>
-        <p>Visible in process listings, container environment dumps, and CI logs. One <code>printenv</code> away from a breach.</p>
-      </div>
-      <div class="card card-red r">
-        <h4>Code repositories</h4>
-        <p>Even &ldquo;private&rdquo; repos are scanned by credential detection tools. One accidental fork or public push and the secret is permanently in git history.</p>
-      </div>
-      <div class="card card-red r">
-        <h4>Shared config files</h4>
-        <p>A config file on a shared NFS or S3 bucket grants implicit access to every service and person who can read the bucket. This is a shared credential problem in disguise.</p>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="label r" style="margin-bottom:0">Databricks secret scope (backed by your cloud KMS)</div>
-      <pre class="r"><span class="cm"># Create a secret scope (backed by cloud KMS)</span>
-databricks secrets create-scope \
-  --scope acme-etl-secrets
-
-<span class="cm"># Store the SP client secret</span>
-databricks secrets put-secret \
-  --scope acme-etl-secrets \
-  --key etl-sp-secret \
-  --string-value &lt;secret-value&gt;</pre>
-
-      <div class="label r" style="margin-bottom:0;margin-top:8px">Reference in job config (never the value)</div>
-      <pre class="r">{
-  <span class="st">"env_vars"</span>: {
-    <span class="st">"DATABRICKS_CLIENT_SECRET"</span>:
-      <span class="st">"{{secrets/acme-etl-secrets/etl-sp-secret}}"</span>
-  }
-}</pre>
-      <div class="card card-green r">
-        <p>Secret scope values are <strong>never logged, never returned by the API</strong>. The <code>&#x7b;&#x7b;secrets/...&#x7d;&#x7d;</code> reference is resolved at runtime inside the Databricks execution environment. Backed by Azure Key Vault, AWS Secrets Manager, or GCP Secret Manager.</p>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 10 · UNITY AI GATEWAY: SP IDENTITY IN TRAFFIC GOVERNANCE
-     ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="10">
-  <div class="label r">AI traffic governance</div>
+<div class="slide" data-slide="8">
+  <div class="label r">Why it matters: cost &amp; risk governance</div>
   <h2 class="r">When the API gateway SP calls a model, the SP is the rate-limit subject.</h2>
   <p class="r muted" style="max-width:72ch;margin-bottom:clamp(.8rem,1.6vw,1.2rem)">The same governance machinery from Deck 07 applies to SP callers. The SP&rsquo;s application ID is the identity Unity AI Gateway tracks.</p>
   <div class="two-col">
@@ -820,10 +703,154 @@ databricks secrets put-secret \
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 11 · AUDIT TRAIL: SP ACTIONS IN SYSTEM TABLES
+     SLIDE 9 · HOW: GROUP DESIGN — THE PERMISSION BOUNDARY
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label r">How: permission boundaries</div>
+  <h2 class="r">Groups are the unit of governance&mdash;not SPs.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0">Grant to the group, not the SP</div>
+      <pre class="r"><span class="cm">-- Grant privilege to the group</span>
+<span class="kw">GRANT</span> SELECT <span class="kw">ON</span> CATALOG prod
+  <span class="kw">TO</span> GROUP pipeline-readers;
+
+<span class="cm">-- Add the SP to the group (one line)</span>
+<span class="cm">-- Done via Databricks Groups API or UI</span>
+<span class="cm">-- No GRANT statement needed</span>
+
+<span class="cm">-- Remove SP from group = instant cutoff</span>
+<span class="cm">-- No REVOKE statement needed</span>
+<span class="cm">-- No redeployment of the service</span></pre>
+      <div class="card card-green r">
+        <h4>Adding a second pipeline SP</h4>
+        <p>A new batch job needs the same bronze access. Add <code>batch-loader-sp</code> to <code>pipeline-readers</code>. One API call. No new GRANT statements. Audit shows a separate identity.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0">Audit group membership</div>
+      <pre class="r"><span class="cm">-- Who is in each SP group right now?</span>
+<span class="kw">SELECT</span>
+  group_name,
+  member_name,
+  member_type,
+  change_time
+<span class="kw">FROM</span> system.access.group_membership
+<span class="kw">WHERE</span> group_name <span class="kw">IN</span> (
+  <span class="st">'pipeline-readers'</span>,
+  <span class="st">'api-readers'</span>,
+  <span class="st">'compliance-readers'</span>
+)
+<span class="kw">ORDER BY</span> change_time <span class="kw">DESC</span>;</pre>
+      <div class="card card-ink r">
+        <p>Group membership is a system table&mdash;queryable, joinable, alertable. You can build a Databricks SQL dashboard that shows every SP group and its current members without leaving the platform.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 10 · HOW: UC ENFORCEMENT WITH SP IDENTITY
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label r">How: runtime enforcement</div>
+  <h2 class="r">Unity Catalog enforces SP identity the same way it enforces human identity.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0">What UC sees when an SP queries</div>
+      <pre class="r"><span class="cm">-- current_user() for a service principal</span>
+<span class="cm">-- returns the SP's application ID (UUID)</span>
+<span class="cm">-- NOT a human email address</span>
+<span class="kw">SELECT</span> current_user();
+<span class="cm">-- returns: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"</span>
+
+<span class="cm">-- is_member() evaluates SP's group membership</span>
+<span class="cm">-- works identically for SPs and humans</span>
+<span class="kw">SELECT</span> is_member(<span class="st">'compliance-readers'</span>);
+<span class="cm">-- returns: true  (if SP is in the group)</span></pre>
+      <div class="card card-amber r">
+        <p><strong>Key call-out:</strong> <code>current_user()</code> returns the SP&rsquo;s UUID-format application ID when called by an SP. Build dashboards and audit queries that handle both email-format and UUID-format identities.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0">Row-level security using SP group membership</div>
+      <pre class="r"><span class="cm">-- Row filter on audit table: compliance SP</span>
+<span class="cm">-- only sees rows from its own region</span>
+<span class="kw">CREATE</span> <span class="kw">FUNCTION</span> compliance_region_filter(
+  region <span class="kw">STRING</span>
+)
+<span class="kw">RETURNS</span> BOOLEAN
+<span class="kw">RETURN</span>
+  is_member(<span class="st">'compliance-readers'</span>)
+  <span class="kw">AND</span> region = <span class="st">'us-east-1'</span>
+  <span class="kw">OR</span> is_member(<span class="st">'compliance-global'</span>);
+
+<span class="kw">ALTER TABLE</span> system.access.audit
+  <span class="kw">SET</span> ROW FILTER compliance_region_filter
+  <span class="kw">ON</span> (region);</pre>
+      <div class="card card-green r">
+        <p>Column masks apply identically. An SP calling a model endpoint via SQL goes through the same RLS/CLS evaluation path as a human analyst running the same query.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 11 · HOW: SECRET MANAGEMENT
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="11">
-  <div class="label r">Full audit visibility</div>
+  <div class="label r">How: credential storage</div>
+  <h2 class="r">Where the secret lives determines your blast radius.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0;color:var(--red)">Where NOT to put the client secret</div>
+      <div class="card card-red r">
+        <h4>Plaintext environment variables</h4>
+        <p>Visible in process listings, container environment dumps, and CI logs. One <code>printenv</code> away from a breach.</p>
+      </div>
+      <div class="card card-red r">
+        <h4>Code repositories</h4>
+        <p>Even &ldquo;private&rdquo; repos are scanned by credential detection tools. One accidental fork or public push and the secret is permanently in git history.</p>
+      </div>
+      <div class="card card-red r">
+        <h4>Shared config files</h4>
+        <p>A config file on a shared NFS or S3 bucket grants implicit access to every service and person who can read the bucket. This is a shared credential problem in disguise.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0">Databricks secret scope (backed by your cloud KMS)</div>
+      <pre class="r"><span class="cm"># Create a secret scope (backed by cloud KMS)</span>
+databricks secrets create-scope \
+  --scope acme-etl-secrets
+
+<span class="cm"># Store the SP client secret</span>
+databricks secrets put-secret \
+  --scope acme-etl-secrets \
+  --key etl-sp-secret \
+  --string-value &lt;secret-value&gt;</pre>
+
+      <div class="label r" style="margin-bottom:0;margin-top:8px">Reference in job config (never the value)</div>
+      <pre class="r">{
+  <span class="st">"env_vars"</span>: {
+    <span class="st">"DATABRICKS_CLIENT_SECRET"</span>:
+      <span class="st">"{{secrets/acme-etl-secrets/etl-sp-secret}}"</span>
+  }
+}</pre>
+      <div class="card card-green r">
+        <p>Secret scope values are <strong>never logged, never returned by the API</strong>. The <code>&#x7b;&#x7b;secrets/...&#x7d;&#x7d;</code> reference is resolved at runtime inside the Databricks execution environment. Backed by Azure Key Vault, AWS Secrets Manager, or GCP Secret Manager.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 12 · HOW: AUDIT TRAIL IN SYSTEM TABLES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="label r">How: full audit visibility</div>
   <h2 class="r">Three queries cover the complete SP audit story.</h2>
   <div class="three-col flex1">
     <div style="display:flex;flex-direction:column;gap:8px">
@@ -890,10 +917,10 @@ databricks secrets put-secret \
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 12 · WHEN SP BREAKS DOWN → HAND OFF TO OBO
+     SLIDE 13 · HOW: WHEN SP BREAKS DOWN → HAND OFF TO OBO
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="12">
-  <div class="label r">Decision gate</div>
+<div class="slide" data-slide="13">
+  <div class="label r">How: decision gate</div>
   <h2 class="r">Use SP when no human is in the loop. Use OBO when the human matters.</h2>
   <p class="r muted" style="max-width:72ch;margin-bottom:clamp(.8rem,1.6vw,1.2rem)">The choice is about identity semantics, not convenience. When downstream RLS must enforce per-human access, the SP cannot substitute.</p>
   <div class="gate-grid flex1 mt1">
@@ -922,10 +949,10 @@ databricks secrets put-secret \
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 13 · IMPLEMENTATION CHECKLIST
+     SLIDE 14 · HOW: IMPLEMENTATION CHECKLIST
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="13">
-  <div class="label r">Implementation</div>
+<div class="slide" data-slide="14">
+  <div class="label r">How: implementation</div>
   <h2 class="r">Eight steps from zero to governed M2M identity.</h2>
   <div class="flex1 mt2" style="display:flex;flex-direction:column;gap:clamp(.4rem,.8vw,.6rem);overflow:hidden">
     <div class="seq-step r">
@@ -981,7 +1008,7 @@ databricks secrets put-secret \
       <div class="seq-num">8</div>
       <div class="seq-body">
         <strong>Verify the audit trail in system tables</strong>
-        <p>Run the three queries from Slide 11: SP data access, group membership changes, token issuance events. If all three return expected rows, the identity chain is working end to end.</p>
+        <p>Run the three queries from Slide 12: SP data access, group membership changes, token issuance events. If all three return expected rows, the identity chain is working end to end.</p>
       </div>
     </div>
   </div>
@@ -989,9 +1016,9 @@ databricks secrets put-secret \
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 14 · BEFORE / AFTER
+     SLIDE 15 · BEFORE / AFTER
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="14">
+<div class="slide" data-slide="15">
   <div class="label r">Transformation</div>
   <h2 class="r">Before and after: Acme&rsquo;s M2M identity posture.</h2>
   <div class="two-col mt3">
@@ -1038,9 +1065,9 @@ databricks secrets put-secret \
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 15 · CLOSING CALLIGRAM
+     SLIDE 16 · CLOSING CALLIGRAM
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide slide-calli" data-slide="15">
+<div class="slide slide-calli" data-slide="16">
   <div class="calli-hero r">
     ONE SERVICE.
     <span class="line2">ONE IDENTITY.</span>
@@ -1048,7 +1075,7 @@ databricks secrets put-secret \
   </div>
   <div class="calli-rule r"></div>
   <div class="calli-sub r">SP &rarr; Group &rarr; UC Privilege &middot; The chain that makes M2M governance auditable, rotatable, and atomic</div>
-  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Acme Corp &middot; Databricks Applied AI Governance Series &middot; Deck 08</div>
+  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Acme Corp &middot; Databricks Applied AI Governance Series &middot; Deck 07</div>
 </div>
 
 
