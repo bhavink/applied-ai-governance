@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-15
   Sources: ai/ucode.md
   Public docs grounding:
     - https://github.com/databricks/ucode
@@ -55,10 +55,14 @@ ucode pi           # Pi
 First launch prompts for the workspace URL and authenticates via browser SSO, writing each agent's config automatically. Subsequent launches go straight to the agent.
 
 ```bash
-ucode configure        # configure multiple agents
+ucode configure        # configure multiple agents (interactive picker)
 ucode configure mcp    # register Databricks MCP servers
 ucode usage             # last 7 days of AI Gateway usage
+ucode status            # current workspace, base URLs, managed config files, selected models
+ucode revert            # clear saved state and restore backed-up config files
 ```
+
+Non-interactive setup is also available via `configure` flags: `--agents`, `--workspaces`, `--profiles` (use existing Databricks CLI profiles), `--use-pat` (authenticate with a PAT instead of OAuth), `--skip-validate`, and `--dry-run`.
 
 ### Per-harness model routing
 

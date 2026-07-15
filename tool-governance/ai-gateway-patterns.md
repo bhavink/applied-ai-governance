@@ -1,10 +1,11 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-15
   Sources: ai/ai-gateway.md, mcp/mcp-services.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/ai-gateway/
     - https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/overview-beta
     - https://docs.databricks.com/aws/en/ai-gateway/budgets
+    - https://docs.databricks.com/aws/en/ai-gateway/ai-governance
     - https://learn.microsoft.com/en-us/azure/databricks/machine-learning/foundation-model-apis/model-uc-permissions
   This file is auto-prepared and human-reviewed before publish.
 -->
@@ -524,3 +525,5 @@ Patterns 2 and 4 are additive: an external gateway can sit in front of a Databri
 - [Manage budgets](https://docs.databricks.com/aws/en/ai-gateway/budgets)
 - [Foundation model permissions](https://learn.microsoft.com/en-us/azure/databricks/machine-learning/foundation-model-apis/model-uc-permissions)
 - [Tutorial: Govern a coding agent's GitHub MCP access](https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/govern-coding-agent-tutorial)
+- [AI governance overview](https://docs.databricks.com/aws/en/ai-gateway/ai-governance) — asset / traffic / behavior governance framing, plus the enablement rollout referenced above
+- [Tutorial: Implement guardrails on a model service with service policies](https://docs.databricks.com/aws/en/ai-gateway/moderate-tutorial)
