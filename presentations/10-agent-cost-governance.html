@@ -691,6 +691,10 @@ tr:hover td{background:var(--surface)}
           <tr><td><span class="badge badge-blue">TRANSFORM</span></td><td>Rewrite the action, then proceed</td></tr>
         </tbody>
       </table>
+      <div class="card card-ink r" style="margin-top:6px">
+        <h4>Why four verdicts: policies remember the session</h4>
+        <p>A contextual policy listens to every tool call and model response in a session and accumulates state &mdash; it isn&rsquo;t just evaluating one action in isolation. For cost, that means a running spend total: a soft threshold triggers <span class="badge badge-amber" style="font-size:var(--xs)">ASK</span> for confirmation, and a hard cap triggers <span class="badge badge-blue" style="font-size:var(--xs)">TRANSFORM</span> &mdash; the agent switches to a cheaper model rather than stopping outright. The same session-state mechanism also backs non-cost policies, like scoping an agent&rsquo;s tools to its stated intent for the session.</p>
+      </div>
       <div class="label r" style="margin-top:6px">Sandbox isolation (Omnigent)</div>
       <div class="card card-ink r">
         <p>Each coding-agent session gets its own isolated Databricks Sandbox &mdash; filesystem and network scoped to that session, credentials injected at session start. A session is shareable by URL for full review.</p>
