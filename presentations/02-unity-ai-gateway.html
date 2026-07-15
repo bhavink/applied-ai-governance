@@ -733,40 +733,16 @@ client.messages.create(...)</pre>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 15 · HOW — WHERE NOT TO PUT THE GATEWAY (OBO PITFALL)
+     SLIDE 15 · HOW — GOTCHAS (Things to know)
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="15">
-  <div class="label r">How &middot; The pitfall that matters most</div>
-  <h2 class="r">Don&rsquo;t put a gateway in the OBO path. It breaks per-user data access.</h2>
-  <div class="two-col mt1">
-    <div class="card r" style="border-top:3px solid var(--red);display:flex;flex-direction:column;gap:6px">
-      <div class="gate-label" style="color:var(--red)">Gateway intercepts</div>
-      <p style="font-size:var(--sm)">1. App sends the user&rsquo;s token to a gateway in the path.<br>2. <strong>The gateway re-issues its own token</strong> &mdash; the original user identity is lost.<br>3. Genie or UC calls execute with the <em>gateway&rsquo;s</em> identity.</p>
-      <div class="card card-red" style="margin-top:4px"><p style="font-size:var(--sm)"><strong>Result:</strong> <code>current_user()</code> resolves to the gateway service. Row filters evaluate the wrong identity &mdash; silently.</p></div>
-    </div>
-    <div class="card r" style="border-top:3px solid var(--green);display:flex;flex-direction:column;gap:6px">
-      <div class="gate-label" style="color:var(--green)">Direct OBO</div>
-      <p style="font-size:var(--sm)">1. User token flows unchanged: App &rarr; Genie.<br>2. Genie calls UC with the <em>user&rsquo;s</em> identity.<br>3. Row filter: <code>rep_email = current_user()</code>.</p>
-      <div class="card card-green" style="margin-top:4px"><p style="font-size:var(--sm)"><strong>Result:</strong> <code>current_user()</code> resolves to the human. Per-user data access enforced correctly.</p></div>
-    </div>
-  </div>
-  <div class="callout r mt2">
-    UC enforcement happens at query execution, inside the compute layer. A gateway only observes HTTP traffic &mdash; it cannot see which rows were filtered or what <code>current_user()</code> returned. Keep internal Databricks-to-Databricks traffic direct.
-  </div>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 16 · HOW — GOTCHAS
-     ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="16">
-  <div class="label r">Gotchas</div>
+  <div class="label r">Things to know</div>
   <h2 class="r">What breaks quietly if you skip the fine print.</h2>
   <div class="r flex1" style="overflow-x:auto">
     <table style="min-width:700px">
       <thead><tr><th>Issue</th><th>Detail</th></tr></thead>
       <tbody>
-        <tr><td><strong>Gateway inserted into internal OBO traffic</strong></td><td>Breaks per-user row filtering silently &mdash; see previous slide. The most consequential mistake on this list.</td></tr>
+        <tr><td><strong>Gateway placed in the OBO path</strong></td><td>Don&rsquo;t put a gateway in the OBO path. It breaks per-user data access &mdash; the gateway re-issues its own token, so <code>current_user()</code> resolves to the gateway&rsquo;s identity instead of the human&rsquo;s, and row filters evaluate silently wrong. Keep internal Databricks-to-Databricks traffic direct.</td></tr>
         <tr><td><strong>Evaluator timeout treated as pass-through</strong></td><td>It isn&rsquo;t. Guardrails fail closed &mdash; a timeout or parse error blocks the request.</td></tr>
         <tr><td><strong>Spend cap assumed to be a soft alert</strong></td><td>It&rsquo;s a hard block. Calls return 429 once the budget is hit, with no manual override until the period resets.</td></tr>
         <tr><td><strong>External gateway and AI Gateway treated as either/or</strong></td><td>They&rsquo;re additive. External gateway handles boundary crossing (external identity &rarr; Databricks token); AI Gateway handles LLM governance at the endpoint; UC handles data access.</td></tr>
@@ -778,9 +754,9 @@ client.messages.create(...)</pre>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 17 · HOW — PRODUCTION CHECKLIST
+     SLIDE 16 · HOW — PRODUCTION CHECKLIST
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="17">
+<div class="slide" data-slide="16">
   <div class="label r">Production checklist</div>
   <h2 class="r">Before this goes live.</h2>
   <div class="gate-grid flex1 mt1">
@@ -795,9 +771,9 @@ client.messages.create(...)</pre>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 18 · CLOSING CALLIGRAM
+     SLIDE 17 · CLOSING CALLIGRAM
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide slide-calli" data-slide="18">
+<div class="slide slide-calli" data-slide="17">
   <div class="calli-hero r">
     ONE GATEWAY.
     <span class="line2">EVERY CALL.</span>
