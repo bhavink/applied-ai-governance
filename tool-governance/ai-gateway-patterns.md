@@ -1,9 +1,11 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-07
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: ai/ai-gateway.md, mcp/mcp-services.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/ai-gateway/
     - https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/overview-beta
+    - https://docs.databricks.com/aws/en/ai-gateway/budgets
+    - https://learn.microsoft.com/en-us/azure/databricks/machine-learning/foundation-model-apis/model-uc-permissions
   This file is auto-prepared and human-reviewed before publish.
 -->
 
@@ -178,6 +180,22 @@ flowchart LR
 | **Fallback routing** | Route to a backup model if the primary is unavailable or exceeds latency thresholds. Supports traffic splitting across model versions. |
 | **UC-aware** | Rate limit policies reference Databricks users and groups — the same identity model as row filters and column masks. |
 | **Service policies** | ABAC layer governing who can call which tools, with optional approval gates. Distinct from guardrails — see below. |
+| **Budgets** | Dollar-denominated spend thresholds that can alert or stop traffic once exhausted — see below. |
+| **Model access permissions** | Account- or group-level control over which foundation models can be used at all — the "who can reach this model" gate, upstream of rate limits. |
+
+### Budgets — Spend Caps Across Every API Surface
+
+Budgets are configured at the account level (`Usage > Budgets` in the account console) and track spend against the underlying Unity Catalog model-service object, not against a single workspace, endpoint, or API surface. That means a budget on a model rolls up spend consistently whether the traffic arrived through the OpenAI-compatible `mlflow/v1/chat/completions` route or a native provider API — the same model, the same dollar total, one place to manage the threshold.
+
+Each budget defines a monthly (or custom-period) dollar threshold and a "when exhausted" action. Set the scope (workspaces, resource types, tags) at creation time, then manage thresholds and actions from the budget's detail page.
+
+> See [Manage budgets](https://docs.databricks.com/aws/en/ai-gateway/budgets) for the full configuration walkthrough and available exhaustion actions.
+
+### Foundation Model Permissions — Who Can Use Which Model at All
+
+Distinct from rate limits (how much a principal can call) and budgets (how much a principal can spend), Foundation Model Permissions govern **whether** a principal can use a given Databricks-hosted foundation model in the first place — account-wide or scoped to a group. This is the answer to "can this team touch this model" before rate limits or cost controls ever come into play.
+
+> See [Foundation model permissions](https://learn.microsoft.com/en-us/azure/databricks/machine-learning/foundation-model-apis/model-uc-permissions) for setup.
 
 ### Guardrails vs Service Policies — Two Distinct Governance Layers
 
@@ -488,6 +506,11 @@ Patterns 2 and 4 are additive: an external gateway can sit in front of a Databri
 
 ---
 
+## Related
+
+- [Omnigent Governance](omnigent-governance.md): the governed harness that runs coding-agent sessions (Claude Code, Codex, custom) and routes their model calls through this same gateway, adding session-level spend caps and contextual policies on top
+- [ucode Governance](ucode-governance.md): a lighter coding-agent launcher with the same per-harness AI Gateway routing, without the session/sandbox/policy layer
+
 ## References
 
 - [Databricks AI Gateway](https://docs.databricks.com/en/ai-gateway/index.html)
@@ -498,3 +521,6 @@ Patterns 2 and 4 are additive: an external gateway can sit in front of a Databri
 - [MLflow Tracing — Agent Observability](https://mlflow.org/docs/latest/llms/tracing/index.html)
 - [Databricks Foundation Model APIs](https://docs.databricks.com/en/machine-learning/foundation-models/index.html)
 - [Genie Conversation API](https://docs.databricks.com/en/ai-bi/genie.html)
+- [Manage budgets](https://docs.databricks.com/aws/en/ai-gateway/budgets)
+- [Foundation model permissions](https://learn.microsoft.com/en-us/azure/databricks/machine-learning/foundation-model-apis/model-uc-permissions)
+- [Tutorial: Govern a coding agent's GitHub MCP access](https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/govern-coding-agent-tutorial)

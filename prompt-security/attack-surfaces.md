@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: security/prompt-attack-surfaces.md
   Public docs grounding:
     - https://owasp.org/www-project-top-10-for-large-language-model-applications/
@@ -26,6 +26,8 @@ Before mapping surfaces, here are the attack classes referenced throughout this 
 | **Return value injection** | Data returned by tools or functions contains text that the LLM interprets as instructions |
 | **Guardrail bypass** | Techniques that evade safety, PII, or keyword filters — including encoding tricks and semantic rephrasing |
 | **Embedding collision** | Adversarial text designed to be semantically similar to target queries, ensuring retrieval from vector indexes regardless of topical relevance |
+| **Tool confusion** | A query is phrased to route to a different sub-agent or tool than the one intended for that question type |
+| **Server impersonation** | An attacker-controlled or typosquatted server is registered as a tool source, most relevant to externally-connected integrations |
 
 ---
 
@@ -96,11 +98,11 @@ Before mapping surfaces, here are the attack classes referenced throughout this 
 | Sub-agent responses | Semi-trusted — each sub-agent has its own trust model, but responses flow into the supervisor's context |
 | Routing logic | Trusted — configured by admin |
 
-**Attack classes that apply**: All classes from sub-agent surfaces, plus cross-agent injection and return value injection.
+**Attack classes that apply**: All classes from sub-agent surfaces, plus cross-agent injection, return value injection, and tool confusion.
 
-**Why this matters**: The supervisor LLM processes sub-agent responses as context. A data value returned by Genie (e.g., a free-text `notes` column) flows into the supervisor and can influence its reasoning or routing decisions.
+**Why this matters**: The supervisor LLM processes sub-agent responses as context. A data value returned by Genie (e.g., a free-text `notes` column) flows into the supervisor and can influence its reasoning or routing decisions. Separately, a question can be phrased to make the supervisor route to a sub-agent other than the one an admin intended for that question type (for example, steering a data question toward the Vector Search agent instead of Genie).
 
-**Builder action**: Sanitize free-text columns in Genie source tables and test cross-agent scenarios with adversarial data values. The supervisor's routing logic is admin-configured, but data flowing through sub-agents should be treated as context that needs validation. See [Hardening Patterns](hardening-patterns.md#agent-bricks-ka-and-mas).
+**Builder action**: Sanitize free-text columns in Genie source tables and test cross-agent scenarios with adversarial data values. Include routing-confusion test cases in evaluation so misrouted queries surface before production. The supervisor's routing logic is admin-configured, but data flowing through sub-agents should be treated as context that needs validation. See [Hardening Patterns](hardening-patterns.md#agent-bricks-ka-and-mas).
 
 ---
 
@@ -114,9 +116,11 @@ Before mapping surfaces, here are the attack classes referenced throughout this 
 | Tool arguments | LLM-generated (influenced by user prompt) | Same | Same |
 | Tool responses | Data (from Databricks services) | Data (from developer code) | Data (from external services) |
 
-**Attack classes that apply**: Tool description poisoning (Custom, External), tool response injection (all types), argument manipulation (all types).
+**Attack classes that apply**: Tool description poisoning (Custom, External), tool response injection (all types), argument manipulation (all types), server impersonation (External).
 
 **Why tool descriptions matter**: Agent frameworks pass tool descriptions into the LLM context to guide tool selection and argument construction. If a Custom or External description contains hidden instructions (e.g., via [invisible Unicode characters](https://github.com/invariantlabs-ai/mcp-scan)), the LLM may follow them. Managed MCP descriptions are Databricks-authored and curated. For Custom and External servers, validate descriptions as part of your registration workflow.
+
+**Server impersonation (External MCP)**: Because External MCP servers are registered via UC HTTP Connections and can point at any endpoint, verify server identity and provenance before granting `USE CONNECTION` — treat a typosquatted server name or a compromised third-party endpoint the same as any other supply-chain risk.
 
 **Platform defense**: UC `GRANT USE CONNECTION` governs who can use External MCP servers. UC permissions enforce data access regardless of tool behavior.
 
@@ -124,21 +128,31 @@ Before mapping surfaces, here are the attack classes referenced throughout this 
 
 ### 6. AI Gateway
 
-**What it does**: Control plane for model traffic — rate limiting, guardrails (safety, PII, keywords), usage tracking, fallbacks.
+**What it does**: Control plane for model traffic — rate limiting, guardrails, usage tracking, fallbacks. Two guardrail paths are available: a pattern-based path on Serving Endpoints, and Unity AI Gateway guardrails (Preview), which add LLM-based detection.
 
 | Trust boundary | Detail |
 |---|---|
 | Prompts | Pass through to the model — gateway inspects but does not generate |
-| Guardrail filters | Pattern-based detection (Llama Guard, Presidio, keyword lists) |
+| Legacy guardrails (Serving Endpoints) | Pattern-based detection (Llama Guard 2-8b safety filter, Presidio PII detection, keyword blocklists) |
+| Unity AI Gateway guardrails (Preview) | LLM-based evaluator (recommended `databricks-gpt-5-nano`) across six guardrail templates, including a dedicated **Jailbreak** guardrail and a **Custom** guardrail for org-specific policy prompts up to 5,000 characters |
 
 **Attack classes that apply**: Guardrail bypass (via Unicode obfuscation, semantic rephrasing, encoding tricks).
 
-**What guardrails do and don't do**: Guardrails detect specific content patterns. They do not detect prompt injection as a class. A prompt that says "ignore your instructions" will pass through if those words are not on the keyword blocklist. [RSAC researchers (2026)](https://www.rsaconference.com/library/blog/rotten-apples-the-technical-details-of-rsacs-successful-apple-intelligence-prompt-injection-attack) demonstrated that Unicode bidi tricks can cause harmful text to evade keyword filters that operate on raw byte sequences.
+**What guardrails do and don't do**: Pattern-based filters detect specific content patterns rather than prompt injection as a general class — a prompt that says "ignore your instructions" passes through if those words aren't on the keyword blocklist. [RSAC researchers (2026)](https://www.rsaconference.com/library/blog/rotten-apples-the-technical-details-of-rsacs-successful-apple-intelligence-prompt-injection-attack) demonstrated that Unicode bidi tricks can cause harmful text to evade keyword filters that operate on raw byte sequences. Unity AI Gateway's LLM-based evaluator is semantic rather than pattern-based, so it generalizes better to novel injection phrasing — apply it where injection resistance matters most.
 
-**Limitations**:
-- Output guardrails do not apply to streaming responses or embeddings
-- PII detection covers US formats only (Presidio)
-- Max batch size of 16 when guardrails are enabled
+**Unity AI Gateway guardrails (Preview) — what's available**:
+- Dedicated **Jailbreak** guardrail (input phase) — targets instruction overrides, role-play exploits, prompt extraction, and obfuscated payloads
+- Dedicated **Hallucination** guardrail (output phase)
+- **Custom** guardrail (up to 5,000-char prompt) for organization-specific policies — competitor mentions, off-topic content, tone violations
+- Up to 3 blocking guardrails + 1 sanitizing guardrail per phase (input/output)
+- `LOG` mode for dry-run testing without enforcement, useful for tuning before turning a guardrail to blocking mode
+
+**Builder action**: Because guardrails evaluate a single message at a time, pair them with session-level or multi-turn evaluation (see [production monitoring's multi-turn judges](../observability/agent-tracing.md)) for attacks that build up across a conversation rather than appearing in one message. Output guardrails don't apply to streaming responses or `n > 1` completions, so budget for output-side validation in your own code when using those modes. The evaluator call has a bounded timeout (15s, retried once) and fails closed on timeout — treat evaluator latency as part of your endpoint's overall latency budget.
+
+**Limitations to plan around**:
+- Legacy PII detection covers US formats only (Presidio)
+- Max batch size of 16 when legacy guardrails are enabled
+- Unity AI Gateway guardrails evaluate per-message, not per-conversation
 
 ---
 
@@ -198,17 +212,17 @@ Before mapping surfaces, here are the attack classes referenced throughout this 
 
 ## Summary Matrix
 
-| Surface | Direct injection | Indirect injection | Unicode obfuscation | Tool poisoning | Cross-agent | Guardrail bypass | Embedding collision |
-|---|---|---|---|---|---|---|---|
-| Genie Spaces | Yes | — | Yes | — | — | — | — |
-| Genie Code | Yes | Yes | Yes | — | — | — | — |
-| Agent Bricks KA | — | **Yes** | **Yes** | — | — | — | — |
-| Agent Bricks MAS | — | **Yes** | **Yes** | — | **Yes** | — | — |
-| MCP (Custom/External) | — | Yes | **Yes** | **Yes** | — | — | — |
-| AI Gateway | — | — | **Yes** | — | — | **Yes** | — |
-| UC Functions | — | Yes | — | — | — | — | — |
-| Vector Search | — | **Yes** | **Yes** | — | — | — | **Yes** |
-| Model Serving | **Yes** | Yes | Yes | Yes | — | Yes | — |
+| Surface | Direct injection | Indirect injection | Unicode obfuscation | Tool poisoning | Cross-agent | Guardrail bypass | Embedding collision | Tool confusion | Server impersonation |
+|---|---|---|---|---|---|---|---|---|---|
+| Genie Spaces | Yes | — | Yes | — | — | — | — | — | — |
+| Genie Code | Yes | Yes | Yes | — | — | — | — | — | — |
+| Agent Bricks KA | — | **Yes** | **Yes** | — | — | — | — | — | — |
+| Agent Bricks MAS | — | **Yes** | **Yes** | — | **Yes** | — | — | **Yes** | — |
+| MCP (Custom/External) | — | Yes | **Yes** | **Yes** | — | — | — | — | Yes |
+| AI Gateway | — | — | **Yes** | — | — | **Yes** | — | — | — |
+| UC Functions | — | Yes | — | — | — | — | — | — | — |
+| Vector Search | — | **Yes** | **Yes** | — | — | — | **Yes** | — | — |
+| Model Serving | **Yes** | Yes | Yes | Yes | — | Yes | — | — | — |
 
 **Bold** = primary attack vector for that surface.
 
@@ -221,6 +235,7 @@ Before mapping surfaces, here are the attack classes referenced throughout this 
 - RSAC Conference (2026): [Technical details of Unicode RTLO filter bypass](https://www.rsaconference.com/library/blog/rotten-apples-the-technical-details-of-rsacs-successful-apple-intelligence-prompt-injection-attack)
 - Invariant Labs: [mcp-scan — MCP server security scanner](https://github.com/invariantlabs-ai/mcp-scan)
 - Databricks: [AI Gateway guardrails](https://docs.databricks.com/aws/en/generative-ai/guard-rails/index.html)
+- Databricks: [Unity AI Gateway guardrails (Preview)](https://docs.databricks.com/aws/en/ai-gateway/guardrails)
 - Databricks: [Agent authentication](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication)
 - Databricks: [Unity Catalog access control](https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control)
 - Databricks: [Genie Spaces](https://docs.databricks.com/aws/en/genie/)

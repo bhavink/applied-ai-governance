@@ -1,6 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
-  Refreshed: 2026-07-07
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: ai/endpoint-telemetry.md
   Public docs grounding:
     - https://learn.microsoft.com/en-us/azure/databricks/machine-learning/model-serving/custom-model-serving-uc-logs
@@ -44,6 +43,15 @@ Agent Serving Endpoint         ─┤ OTel SDK (custom: TracerProvider, MeterPro
 ```
 
 The telemetry path is independent of MLflow Tracing. Use **MLflow Tracing** for application-plane span structure across the agent stack; use **endpoint telemetry** for OTel-standard signals from inside the model code that downstream OTel-aware tooling can consume.
+
+---
+
+## Prerequisites
+
+- Unity Catalog-enabled workspace
+- `USE CATALOG`, `USE SCHEMA`, `CREATE TABLE`, `MODIFY` on the destination schema — the platform creates the `otel_logs`, `otel_spans`, and `otel_metrics` tables automatically if they don't already exist, so no manual `CREATE TABLE` is required
+- An existing (or new) custom model serving endpoint or agent serving endpoint
+- On Azure, telemetry is available in a defined set of regions; check current availability against [Features with limited regional availability](https://learn.microsoft.com/en-us/azure/databricks/resources/feature-region-support) before planning a rollout
 
 ---
 
@@ -146,17 +154,24 @@ class MyModel(mlflow.pyfunc.PythonModel):
             return self._infer(model_input)
 ```
 
-Add OTel deps when logging the model:
+Add OTel deps when logging the model, and register with `env_pack="databricks_model_serving"` for a serverless-optimized deployment package:
 
 ```python
-mlflow.pyfunc.log_model(
-    name="model",
-    python_model="return_input_model.py",
-    pip_requirements=[
-        "mlflow==3.1",
-        "opentelemetry-sdk",
-        "opentelemetry-exporter-otlp-proto-http",
-    ],
+with mlflow.start_run():
+    model_info = mlflow.pyfunc.log_model(
+        name="model",
+        python_model="return_input_model.py",
+        pip_requirements=[
+            "mlflow==3.1",
+            "opentelemetry-sdk",
+            "opentelemetry-exporter-otlp-proto-http",
+        ],
+    )
+
+registered = mlflow.register_model(
+    model_info.model_uri,
+    "main.models.claims",
+    env_pack="databricks_model_serving",
 )
 ```
 

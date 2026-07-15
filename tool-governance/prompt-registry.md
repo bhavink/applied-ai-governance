@@ -1,9 +1,7 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-07
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: ai/prompt-registry.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/mlflow3/genai/prompt-version-mgmt/prompt-registry/
-    - https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/create-and-edit-prompts
+  Public docs grounding: https://docs.databricks.com/aws/en/mlflow3/genai/prompt-version-mgmt/prompt-registry/
   This file is auto-prepared and human-reviewed before publish.
 -->
 
@@ -15,7 +13,7 @@
 
 ## Why Prompts Are a Governance Surface
 
-A production prompt is part of the agent's behavior. A change to "you are a helpful assistant" can flip safety posture, change tool selection, or shift the answer distribution. Without versioning and access control, prompt changes are undetected, unattributed, and unrollback-able.
+A production prompt is part of the agent's behavior. A change to "you are a helpful assistant" can flip safety posture, change tool selection, or shift the answer distribution. Versioning and access control make prompt changes detected, attributed, and reversible.
 
 The Prompt Registry treats a prompt as a UC object so that:
 
@@ -148,6 +146,56 @@ prompt = mlflow.genai.load_prompt(
 formatted = prompt.format(content="...", num_sentences=3)
 ```
 
+### Use a registered prompt when calling a model
+
+A registered prompt formats the same way regardless of which model serves the request. Point `mlflow.trace` at the call so the trace records which prompt version produced the output:
+
+```python
+from databricks_openai import DatabricksOpenAI
+import mlflow
+
+mlflow.openai.autolog()
+mlflow.set_tracking_uri("databricks")
+mlflow.set_experiment("/Shared/my-experiment")
+
+client = DatabricksOpenAI()
+
+@mlflow.trace
+def summarize(content: str, num_sentences: int):
+    formatted_prompt = prompt.format(content=content, num_sentences=num_sentences)
+    response = client.chat.completions.create(
+        model="databricks-claude-sonnet-4",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": formatted_prompt},
+        ],
+    )
+    return response.choices[0].message.content
+```
+
+The same registered prompt and tracing pattern works against any OpenAI-compatible client, which keeps prompt governance consistent even when a team calls out to a different model provider for a specific workload:
+
+```python
+import openai, mlflow
+
+mlflow.openai.autolog()
+mlflow.set_tracking_uri("databricks")
+
+client = openai.OpenAI()  # uses OPENAI_API_KEY env var
+
+@mlflow.trace
+def summarize(content: str, num_sentences: int):
+    formatted_prompt = prompt.format(content=content, num_sentences=num_sentences)
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": formatted_prompt},
+        ],
+    )
+    return response.choices[0].message.content
+```
+
 ### Create a new version (edit)
 
 ```python
@@ -165,6 +213,19 @@ results = mlflow.genai.search_prompts(
     "catalog = 'main' AND schema = 'prompts'"
 )
 ```
+
+Specify both `catalog` and `schema` in the filter string — the search API requires both to scope results in Unity Catalog.
+
+---
+
+## UI Workflow
+
+The registry is also usable directly from the MLflow experiment UI, without writing registration code:
+
+1. Navigate to the MLflow experiment's **Prompts** tab
+2. Click **New Prompt**, select the target UC schema, and name the prompt
+3. Click **Create new version**, enter the template with `{{variables}}`, and **Save**
+4. Compare versions by opening the prompt and selecting **Compare** across two version numbers
 
 ---
 
@@ -213,6 +274,7 @@ Grant `EXECUTE` on shared schemas to the agent service principals that need to l
 | Editing a prompt template in place | Register a new version; immutability is the audit guarantee |
 | Single brace variable syntax `{var}` | Double brace `{{var}}` — required by the registry's templating (both Text and Chat formats) |
 | Spaces or special characters in prompt names | Only letters, numbers, hyphens, underscores, and dots are allowed |
+| Filtering search by `catalog` alone | Include both `catalog` and `schema` in the filter string |
 | Granting `MANAGE` broadly | Reserve `MANAGE` to a small review group; broad `EXECUTE` is usually fine |
 | Storing prompts in app config without versioning | Move to the registry — version, audit, and lineage come for free |
 
@@ -230,4 +292,7 @@ Grant `EXECUTE` on shared schemas to the agent service principals that need to l
 
 - [Prompt Registry overview](https://docs.databricks.com/aws/en/mlflow3/genai/prompt-version-mgmt/prompt-registry/)
 - [Create and edit prompts](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/create-and-edit-prompts)
+- [Evaluate prompt versions](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/evaluate-prompts)
+- [Track prompts with app versions](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/track-prompts-app-versions)
+- [Use prompts in deployed apps](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/use-prompts-in-deployed-apps)
 - [MLflow `genai` API reference](https://mlflow.org/docs/latest/python_api/mlflow.genai.html)

@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: ai/lakebase.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/oltp/
@@ -104,7 +104,59 @@ Lakebase ↔ Delta synced tables let agent memory share the lakehouse:
 
 Pair the two for a complete pattern: agent reads reference tables from Postgres (fast), writes new conversation rows to Postgres, and a sync job archives those rows to Delta where production monitoring scorers and audit dashboards can reach them.
 
+### Registering Lakebase in Unity Catalog
+
+Registering a Lakebase database in Unity Catalog creates a **read-only catalog** mirroring the Postgres schema, queryable from a serverless SQL warehouse alongside Delta tables:
+
+```python
+from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.postgres import Catalog, CatalogCatalogSpec
+
+w = WorkspaceClient()
+catalog = w.postgres.create_catalog(
+    catalog=Catalog(spec=CatalogCatalogSpec(
+        postgres_database="agent_memory_db",
+        branch="projects/agent-memory/branches/production",
+    )),
+    catalog_id="agent_memory_catalog",
+).wait()
+```
+
+This is what makes "reference data shared with the agent" and "long-term retention" work as UC-governed patterns: once registered, the agent's conversation tables get UC permissions, lineage tracking, and audit logging, and can be joined against Delta tables in the same query (`SELECT ... FROM agent_memory_catalog.public.conversations JOIN main.analytics.events ON ...`). Registration is one catalog per database, bound to a specific branch; the UC catalog is read-only, so writes go directly to Postgres and reads flow through UC.
+
+### Change Data Capture — Full History to Delta
+
+Beyond point-in-time synced tables, Lakebase also supports continuous change data capture from Postgres to Delta, preserving every insert/update/delete as history (SCD Type 2). For agent memory this is the pattern to reach for when you need a complete audit trail of conversation edits and tool-call state changes, not just current-state snapshots.
+
+```sql
+-- Set replica identity before the table receives writes
+ALTER TABLE agent_conversations REPLICA IDENTITY FULL;
+```
+
+CDC writes to a `lb_<table_name>_history` Delta table with `_change_type`, `_timestamp`, `_lsn`, and `_xid` system columns. Build a current-state view with a window function over `_lsn` when you need to query the latest row per key from the history table.
+
 ---
+
+## Data API — HTTP Access Without a Postgres Driver
+
+For agent runtimes that can't hold a Postgres connection (browser-side tools, lightweight serverless functions, external integrations), Lakebase exposes a PostgREST-compatible **Data API**: a single `authenticator` role fronts the HTTP layer, an OAuth token authenticates the caller, and PostgREST switches to a per-user Postgres role before evaluating RLS.
+
+```bash
+# GET with filter — open tasks assigned to the agent's session
+curl -s "$BASE_URL/tasks?status=eq.open&limit=10" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+
+# POST insert — record a new agent action
+curl -s "$BASE_URL/tasks" \
+  -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Prefer: return=representation" \
+  -d '{"title": "Review PR", "status": "open", "assigned_to": "user@company.com"}'
+```
+
+Row-level security policies enforce access the same way as a direct Postgres connection — the Data API is a transport, not a separate authorization model.
 
 ## Governance Levers
 
@@ -145,6 +197,21 @@ Pair the two for a complete pattern: agent reads reference tables from Postgres 
 
 ---
 
+## Capacity Planning
+
+Plan agent memory schemas against Lakebase's per-project limits so scratchpad/session tables don't collide with other quotas on a shared instance:
+
+| Limit | Value |
+|---|---|
+| Concurrent computes per project | 20 |
+| Read replicas per branch | 6 |
+| Branches per project | 500 |
+| Logical data per project | 8 TB |
+| History (point-in-time restore) retention | 30 days |
+| Min scale-to-zero interval | 60 seconds |
+
+---
+
 ## Related
 
 - [`uc-governance.md`](uc-governance.md) — UC registration and grants on Lakebase databases
@@ -159,4 +226,3 @@ Pair the two for a complete pattern: agent reads reference tables from Postgres 
 - [Lakebase overview](https://docs.databricks.com/aws/en/oltp/)
 - [Lakebase authentication](https://learn.microsoft.com/en-us/azure/databricks/oltp/projects/authentication)
 - [Synced tables (Delta ↔ Postgres)](https://docs.databricks.com/aws/en/oltp/sync-data/)
-- [Postgres RLS](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)

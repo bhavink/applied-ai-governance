@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: ai/endpoint-telemetry.md, ai/mlflow-tracing.md, ai/production-monitoring.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/admin/account-settings/audit-logs
@@ -11,9 +11,9 @@
 
 > **Purpose**: Canonical reference for the two-layer observability model in Databricks AI applications: app-level traces (MLflow) and platform-level audit (`system.access.audit`).
 >
-> **Audience**: Field Engineers building production observability for Databricks AI apps. Security reviewers assessing audit posture.
+> **Audience**: Builders implementing production observability for Databricks AI apps. Security reviewers assessing audit posture.
 >
-> **Last updated**: 2026-03-12
+> **Last updated**: 2026-07-14
 
 ---
 
@@ -43,9 +43,26 @@ Databricks AI applications generate audit data in two separate planes. Neither a
 
 ### Persisting Traces to Delta
 
-The MLflow experiment UI trace viewer is not SQL-queryable. To enable SQL queries, call `enable_databricks_trace_archival()` programmatically. The resulting Delta table syncs every 15-20 minutes.
+By default, traces live in the MLflow tracking server, which is not directly SQL-queryable. To enable SQL queries against archived traces, call `enable_databricks_trace_archival()` programmatically (or use the **Delta sync** toggle on the Experiments page). The resulting Delta table syncs every 15-20 minutes.
 
-**Important**: The UI "Enable Monitoring" toggle does NOT create a queryable Delta table. You must call the API.
+### UC OTel Tracing — Traces Stored Directly in Unity Catalog (Public Preview)
+
+As an alternative to the default control-plane storage, MLflow (>= 3.11.0) can write traces directly into Unity Catalog Delta tables in OpenTelemetry format — this is primary storage, not a periodic copy, so there is no archival lag. Set a UC trace location when creating the experiment:
+
+```python
+from mlflow.entities.trace_location import UnityCatalog
+
+experiment = mlflow.set_experiment(
+    experiment_name="/Users/me@company.com/my-agent-traces",
+    trace_location=UnityCatalog(
+        catalog_name="main",
+        schema_name="mlflow_traces",
+        table_prefix="my_otel",
+    ),
+)
+```
+
+This creates four tables per experiment (`<prefix>_otel_spans`, `_otel_annotations`, `_otel_logs`, `_otel_metrics`) governed by standard UC grants (`USE_CATALOG`, `USE_SCHEMA`, `MODIFY`, `SELECT` — `ALL_PRIVILEGES` does not cover these). Benefits for audit and observability posture: span-level SQL queries (not just trace-level), UC-governed access control, unlimited retention, and support for third-party OTLP clients (Langfuse, Jaeger) writing into the same governed tables. The experiment's binding to a UC trace location is set at creation time; plan the catalog/schema/prefix before creating the experiment. See [Store MLflow traces in Unity Catalog](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/tracing/trace-unity-catalog).
 
 ### Automated Quality Scoring
 
@@ -62,15 +79,19 @@ Scorers run asynchronously on production traces with zero impact on application 
 
 ### Multi-Turn Conversation Judges
 
-For agents with multi-turn conversations, single-trace quality is insufficient. Session-level judges evaluate conversation quality:
+For agents with multi-turn conversations, single-trace quality is insufficient. Session-level judges group traces by session tag and evaluate the conversation arc, not individual responses:
 
 | Judge | What it evaluates |
 |---|---|
 | `UserFrustration` | Signs of user frustration across the conversation (repeated questions, escalation language) |
 | `ConversationCompleteness` | Whether the user's goal was achieved by conversation end |
 | `ConversationalSafety` | Safety across the full conversation (not just individual turns) |
+| `KnowledgeRetention` | Whether the agent correctly retains information from earlier turns |
+| `ConversationalGuidelines` | Whether responses comply with provided guidelines throughout the conversation |
+| `ConversationalRoleAdherence` | Whether the agent maintains its assigned role throughout |
+| `ConversationalToolCallEfficiency` | Whether tool usage across the conversation is efficient and appropriate |
 
-These judges group traces by session ID and evaluate the conversation arc, not individual responses. Register them the same way as single-turn scorers.
+Register these the same way as single-turn scorers, then start them with a sampling config.
 
 ### Scorer Governance
 
@@ -231,7 +252,7 @@ Genie conversations are captured in `system.access.audit` under the `aibiGenie` 
 | Consideration | Detail |
 |---|---|
 | **W3C Trace Context** | Not propagated with `mlflow-tracing`. Multi-service apps emit independent traces correlated via shared experiment and tags, not parent-child spans. |
-| **Trace Archival Lag** | Delta table syncs every 15-20 minutes. Dashboards are not real-time. For live debugging, use the MLflow experiment UI. |
+| **Trace Archival Lag** | With the default control-plane storage plus `enable_databricks_trace_archival()`, the Delta table syncs every 15-20 minutes, so dashboards are not real-time — use the MLflow experiment UI for live debugging. UC OTel Tracing (Public Preview) removes this lag by writing traces directly to UC Delta tables as primary storage. |
 | **mlflow-tracing vs mlflow** | Production apps use `mlflow-tracing` (~5 MB). Scorer registration and trace archival setup require `mlflow[databricks]>=3.1` (~150 MB), run from a notebook. |
 | **Scorer Scope** | Scorers are registered per MLflow experiment, not per serving endpoint. New experiment = re-register scorers. |
 | **startup.sh conflicts** | Databricks Apps pre-installs `mlflow-skinny`, which conflicts with `mlflow-tracing`. Use a startup script to uninstall and force-reinstall. |

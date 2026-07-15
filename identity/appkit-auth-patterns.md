@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: apps/appkit.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/databricks-apps/
@@ -256,6 +256,69 @@ Bearer Token is appropriate when: the external service doesn't support per-user 
 
 ---
 
+### Provider-Agnostic External Service Pattern
+
+The external-service plugin pattern generalizes beyond Salesforce — swap the connection name and API path, and the same proxy code works for any OAuth-enabled provider:
+
+```javascript
+// Generic external-service route: works for any UC HTTP connection
+app.get("/api/external/:connectionName/*", async (req, res) => {
+  const token = req.headers["x-forwarded-access-token"];
+  const host = process.env.DATABRICKS_HOST?.startsWith("https://")
+    ? process.env.DATABRICKS_HOST
+    : `https://${process.env.DATABRICKS_HOST}`;
+  const connectionName = req.params.connectionName;
+  const apiPath = "/" + req.params[0];
+
+  const response = await fetch(
+    `${host}/api/2.0/external-function?connection_name=${connectionName}&path=${encodeURIComponent(apiPath)}`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ method: "GET", headers: {}, body: "" }),
+    }
+  );
+  res.json(await response.json());
+});
+```
+
+| Service | Connection name (example) | API path (example) |
+|---|---|---|
+| Salesforce | `salesforce_prod` | `/services/data/v59.0/sobjects/Account` |
+| Jira | `jira_cloud` | `/rest/api/3/search?jql=assignee=currentUser()` |
+| GitHub | `github_org` | `/repos/{org}/{repo}/issues` |
+| Slack | `slack_workspace` | `/api/conversations.list` |
+| ServiceNow | `snow_prod` | `/api/now/table/{table_name}?sysparm_limit=10` |
+
+### Connection Governance as a Live UI Control
+
+Exposing `GRANT`/`REVOKE` through the app itself (rather than only via a SQL client) turns UC connection governance into a control a non-SQL user can operate:
+
+```javascript
+// List connections visible to the calling user — respects USE CONNECTION per-user
+app.get("/api/connections", async (req, res) => {
+  const result = await asUser(req).query("SHOW CONNECTIONS");
+  res.json(result);
+});
+
+// Grant/revoke run as the app SP (requires connection-owner or metastore-admin privilege)
+app.post("/api/connections/grant", async (req, res) => {
+  const { connectionName, principal } = req.body;
+  await query(`GRANT USE CONNECTION ON CONNECTION ${connectionName} TO \`${principal}\``);
+  res.json({ ok: true });
+});
+
+app.post("/api/connections/revoke", async (req, res) => {
+  const { connectionName, principal } = req.body;
+  await query(`REVOKE USE CONNECTION ON CONNECTION ${connectionName} FROM \`${principal}\``);
+  res.json({ ok: true });
+});
+```
+
+`SHOW CONNECTIONS` running `asUser(req)` means each viewer only ever sees the connections they personally have `USE CONNECTION` on — the UI can't accidentally reveal a connection's existence to someone without access to it. `GRANT`/`REVOKE` run under the app's own SP, which must itself be a connection owner or metastore admin.
+
+---
+
 ## UC Governance Layers
 
 UC provides multiple enforcement points that work together regardless of which auth pattern is active.
@@ -316,26 +379,43 @@ Without `USE CONNECTION`, calls to `external-function` return 403 immediately, r
 
 ## Scope Configuration
 
-Databricks OAuth scopes control what APIs a token can call. Each service requires specific scopes added to the app's OAuth integration.
+Databricks Apps supports explicit **user authorization scope** declarations, letting builders control precisely which APIs a user's forwarded OBO token can call. Configure these from the app's OAuth integration in the workspace UI.
+
+### Default Scopes
+
+By default, an app's user token carries only two identity scopes — no data-plane access:
+
+| Scope | Grants access to |
+|---|---|
+| `iam.current-user:read` | Basic user identity (default) |
+| `iam.access-control:read` | Access control read (default) |
+
+Add scopes explicitly for anything beyond identity lookups — SQL, Genie, Files, Vector Search, and Model Serving each require declaring the corresponding scope.
 
 ### Required Scopes by Service
 
 | Service | Required Scopes | Notes |
 |---|---|---|
-| SQL Warehouse (OBO) | `sql` | Included in default app integration |
-| Genie (OBO) | `genie`, `dashboards.genie` | **Both required** — platform checks for `genie` scope even when the UI only shows `dashboards.genie` |
+| SQL Warehouse (OBO) | `sql` | Add explicitly — not included by default |
+| Genie (OBO) | `genie`, `dashboards.genie` | **Both required** — the OAuth consent screen only shows `dashboards.genie` as a user-facing label, but the token validator checks for the `genie` scope claim |
+| Files / Volumes | `files.files` | Required for Files plugin OBO operations |
 | Vector Search | `vector-search` | Add explicitly if using embedding lookups |
 | MCP Servers (external) | `all-apis` or specific endpoint scopes | Depends on MCP server's auth requirements |
 | MLflow / Model Serving | `serving-endpoints` | Add if app queries serving endpoints directly |
-| Files / Volumes | `files` | Required for Files plugin |
 
 ### How to Add Scopes
 
 Navigate to: **Workspace Settings → Developer → App Integrations → [your app's integration] → Scopes**
 
-Add each required scope. Changes take effect immediately for new user authorizations. Existing sessions may need to re-authorize if the scope was previously absent.
+Add each required scope. Changes take effect immediately for new user authorizations.
 
-For the Genie pattern specifically, add both `genie` and `dashboards.genie`. The OAuth consent screen only shows `dashboards.genie` as a user-facing label, but the platform token validator checks for the `genie` scope claim.
+**User consent**: The first time a user reaches a scope-gated capability, Databricks prompts them to authorize. Workspace admins can pre-consent on users' behalf from **Workspace Settings → Development → Apps**, removing the interactive consent step.
+
+**Restricting available scopes**: Workspace admins can limit which scopes app developers are allowed to request, from **Workspace Settings → Development → Apps → Restrict OAuth scopes for apps to selected values**. The default is "All APIs"; setting it to "None" turns off user authorization for the workspace.
+
+Narrowing the allowlist is worth planning for: apps already running keep their existing scopes, but any app that references a scope no longer on the allowlist cannot be started, deployed, or updated until that reference is removed. Audit which scopes each app uses before tightening this setting.
+
+For the Genie pattern specifically, add both `genie` and `dashboards.genie` together.
 
 ---
 
@@ -494,10 +574,11 @@ UC connections are governed via GRANT/REVOKE, not declared in `app.yaml`.
 
 ### Scope Configuration
 
-- [ ] App OAuth integration has `sql` scope
+- [ ] App OAuth integration has `sql` scope (not granted by default)
 - [ ] If using Genie: add both `genie` AND `dashboards.genie` to app integration scopes
 - [ ] If using Vector Search: add `vector-search`
-- [ ] If using Files plugin: add `files`
+- [ ] If using Files plugin: add `files.files`
+- [ ] Confirm the workspace's scope allowlist (Restrict OAuth scopes for apps) includes every scope this app requests
 
 ### Post-Deploy
 
@@ -530,6 +611,12 @@ SELECT current_user();
 **Symptom**: Genie calls return 403 with "required scopes" in the message.
 **Cause**: App OAuth integration is missing the `genie` scope.
 **Resolution**: Add `genie` AND `dashboards.genie` to the app integration's scope list in Workspace Settings → Developer → App Integrations.
+
+### SQL OBO queries return 403
+
+**Symptom**: An `.obo.sql` query (e.g. `useAnalyticsQuery("my_pipeline", params)`) fails with 403 even though the row filter and warehouse permissions are configured correctly.
+**Cause**: The `sql` user-authorization scope isn't on the app's OAuth integration — it is not included by default.
+**Resolution**: Add `sql` to the app integration's scope list (Workspace Settings → Developer → App Integrations), then have the user re-authorize.
 
 ### SP results showing instead of OBO results
 

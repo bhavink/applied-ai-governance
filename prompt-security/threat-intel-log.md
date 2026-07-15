@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: security/threat-intel-log.md
   Public docs grounding:
     - https://owasp.org/www-project-top-10-for-large-language-model-applications/
@@ -73,7 +73,7 @@ See [hardening-patterns.md](hardening-patterns.md) → Unicode normalization sec
 | Field | Detail |
 |---|---|
 | **Date disclosed** | Apr 6, 2026 |
-| **Source** | Community research — [Reddit post](https://www.reddit.com/r/pwnhub/comments/1sedi0o/we_tested_invisible_unicode_smuggling-against/) citing a scan of 3,471 MCP servers. Related tooling: [Invariant Labs mcp-scan](https://github.com/invariantlabs-ai/mcp-scan) |
+| **Source** | Community research — [Reddit post](https://www.reddit.com/r/pwnhub/comments/1sedi0o/we_tested_invisible_unicode_smuggling_against/) citing a scan of 3,471 MCP servers. Related tooling: [Invariant Labs mcp-scan](https://github.com/invariantlabs-ai/mcp-scan) |
 | **Target** | MCP servers across multiple agent frameworks |
 | **Technique** | Invisible Unicode characters — zero-width spaces (U+200B), zero-width non-joiner (U+200C), zero-width joiner (U+200D), bidi isolates (U+2066/U+2069) — embedded in MCP tool descriptions. These characters are invisible in UIs and code review but are tokenized by the LLM, allowing hidden instructions to influence tool selection and argument construction. |
 | **Affected Databricks surfaces** | Custom MCP servers (developer-authored), External MCP servers (third-party-authored). Tool descriptions are passed into LLM context as part of tool selection. Managed MCP descriptions are Databricks-authored and not affected by this attack vector. |

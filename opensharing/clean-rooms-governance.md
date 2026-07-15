@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-09
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: sharing/clean-rooms.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/clean-rooms/
@@ -42,6 +42,16 @@ Approved notebook runs produce read-only, temporary output tables that land in e
 
 ---
 
+## Prerequisites
+
+Setting up a clean room requires a workspace with serverless compute and Unity Catalog enabled, plus OpenSharing enabled on the metastore — the same underlying sharing mechanism a clean room uses to move contributed assets into the central environment.
+
+## Supported Workloads
+
+Notebooks are the primary execution method and go through the full multi-party approval flow described above. JAR workloads are also supported for teams that need to run compiled Scala/Java logic rather than notebook code.
+
+---
+
 ## Packaged Clean Rooms — the provider-consumer exception
 
 Packaged Clean Rooms depart from the equal-privilege, no-trust default by design: they use a provider-consumer model where the provider controls the environment and consumers do not hold equal privileges. This pattern fits scenarios like distributing a pre-built analytics package to multiple customers, where the provider's code and logic should not be alterable by consumers.
@@ -67,6 +77,33 @@ ORDER BY event_time DESC;
 ```
 
 Permission changes within a metastore are captured separately under the `unityCatalog` service.
+
+---
+
+## Cloud Availability
+
+The clean room creator chooses the cloud and region for the central clean room; collaborators can join from any cloud that supports the OpenSharing contribution path.
+
+| Cloud | Creator | Collaborator |
+|---|---|---|
+| AWS | Yes | Yes |
+| Azure | Yes | Yes |
+| GCP | Yes | Yes |
+
+GCP support was added as of Summer 2025, so all three major clouds now support the full creator/collaborator lifecycle.
+
+---
+
+## Operational Notes
+
+| Situation | What to know |
+|---|---|
+| Naming a clean room | The name cannot be changed after creation and must be unique across every collaborator's metastore — choose it deliberately upfront |
+| Communicating context to collaborators | Comments added to a clean room securable don't propagate to other parties' views of it — coordinate context out-of-band |
+| Sharing tables from default storage | This path currently requires enabling a Beta feature ("OpenSharing for Default Storage – Expanded Access"); use external storage tables if you'd rather stay off Beta features |
+| Scaling to many assets | Clean room securables are subject to account-level resource quotas — plan asset counts ahead of a large collaboration and engage your account team if you expect to scale significantly |
+| Referencing the sharing identifier | The identifier is the full string (global metastore ID + workspace ID + user email) — use it in full from the UI rather than a partial value |
+| Applying ABAC to contributed tables | Apply row filters, column masks, and tags to a table before contributing it to a clean room, and verify the policy behaves as expected on the underlying table first |
 
 ---
 

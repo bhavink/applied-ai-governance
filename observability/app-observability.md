@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: apps/observability.md
   Public docs grounding:
     - https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/observability
@@ -22,6 +22,26 @@
 | **Endpoint telemetry** | OTel signals from inside model code on a serving endpoint | Per-prediction, per-model worker |
 
 A complete agent app instruments all three. Tags like `trace_id` and `session.id` propagated end-to-end let you join across them.
+
+---
+
+## Prerequisites
+
+- Workspace in a supported region — check current availability, since regional rollout expands over time
+- `CAN MANAGE` on the target UC catalog/schema, plus `CREATE TABLE` on the schema (the platform creates the three `otel_*` tables automatically)
+- Target tables must be managed Delta tables in the same region as the workspace
+- Enable predictive optimization on the telemetry tables for steady-state query performance
+
+## Runtime Environment
+
+App telemetry runs inside the standard Databricks Apps runtime:
+
+| Property | Value |
+|---|---|
+| OS | Ubuntu 22.04 LTS |
+| Python | 3.11 (dedicated venv; `uv` apps can specify a different version) |
+| Node.js | 22.16 (no pre-installed libraries — declare all dependencies in `package.json`) |
+| Compute | 2 vCPUs, 6 GB memory by default (configurable) |
 
 ---
 
@@ -202,19 +222,119 @@ When the app's HTTP handler propagates the same `trace_id` into the agent's MLfl
 
 ---
 
+## Security Monitoring via System Tables
+
+Pair app-level telemetry with `system.access.audit` for governance and security review workflows.
+
+### App permission changes
+
+```sql
+WITH permission_changes AS (
+  SELECT
+    event_date,
+    workspace_id,
+    request_params.request_object_id AS app_name,
+    user_identity.email AS modified_by,
+    explode(from_json(
+      request_params.access_control_list,
+      'array<struct<user_name:string,group_name:string,permission_level:string>>'
+    )) AS permission
+  FROM system.access.audit
+  WHERE action_name = 'changeAppsAcl'
+    AND event_date >= current_date() - 30
+)
+SELECT event_date, app_name, modified_by,
+  permission.user_name, permission.group_name, permission.permission_level
+FROM permission_changes
+ORDER BY event_date DESC;
+```
+
+### Apps configured with user API scopes (OBO)
+
+```sql
+SELECT
+  event_date,
+  get_json_object(request_params.app, '$.name') AS app_name,
+  user_identity.email AS creator_email,
+  get_json_object(request_params.app, '$.user_api_scopes') AS user_api_scopes
+FROM system.access.audit
+WHERE action_name IN ('createApp', 'updateApp')
+  AND get_json_object(request_params.app, '$.user_api_scopes') IS NOT NULL
+  AND event_date >= current_date() - INTERVAL 30 DAYS;
+```
+
+### On-behalf-of action volume by app
+
+```sql
+WITH obo_events AS (
+  SELECT
+    event_date, workspace_id, audit_level,
+    identity_metadata.acting_resource AS app_id,
+    user_identity.email AS user_email,
+    service_name, action_name
+  FROM system.access.audit
+  WHERE event_date >= current_date() - 30
+    AND identity_metadata.acting_resource IS NOT NULL
+)
+SELECT event_date, app_id, user_email, service_name, action_name,
+  audit_level, COUNT(*) AS event_count
+FROM obo_events
+GROUP BY event_date, app_id, user_email, service_name, action_name, audit_level
+ORDER BY event_date DESC;
+```
+
+---
+
+## Cost Monitoring
+
+```sql
+SELECT
+  us.usage_date,
+  us.usage_metadata.app_id,
+  us.usage_metadata.app_name,
+  SUM(us.usage_quantity) AS dbus,
+  SUM(us.usage_quantity * lp.pricing.effective_list.default) AS dollars
+FROM system.billing.usage us
+LEFT JOIN system.billing.list_prices lp
+  ON lp.sku_name = us.sku_name
+  AND us.usage_start_time BETWEEN lp.price_start_time AND COALESCE(lp.price_end_time, NOW())
+WHERE billing_origin_product = 'APPS'
+  AND us.usage_unit = 'DBU'
+  AND us.usage_date >= DATE_SUB(NOW(), 30)
+GROUP BY ALL;
+```
+
+Budget policies apply to app cost tracking the same way they do for other billed usage.
+
+---
+
+## App Insights
+
+The **Insights** tab on the app details page provides two additional views without any custom instrumentation:
+
+- **Viewer tracking** — which users accessed the app and when, aligned to OAuth refresh cycles
+- **Uptime and health** — platform availability (service health) and application availability (request serving)
+
+---
+
 ## Limits to Plan Around
 
 | Limit | Value |
 |---|---|
 | Max log line size | 1 MB |
-| Max record size | 10 MB |
+| Max record size | 10 MB (10,485,760 bytes) |
 | Max request size | 30 MB |
-| Throughput before latency degrades | ~2,500 QPS |
+| Throughput per stream | 100 MB/s (benchmarked at 1 KB messages) |
+| Throughput per target table | 10 GB/s |
+| Records per second per stream | 15,000 |
 | Delivery semantics | At-least-once |
 | Table type | Managed Delta only, same region |
 | Schema | Treat target tables as immutable — design names up front |
+| Compliance workspaces | Not currently available on FedRAMP, HIPAA, or PCI-DSS workspaces |
 
-> Enable predictive optimization on the telemetry tables for better query performance under steady write load.
+**Latency**: time to durability P50 ≤ 200ms / P95 ≤ 500ms; time to table P50 ≤ 5s / P95 ≤ 30s.
+
+> Enable predictive optimization on the telemetry tables for better query performance under steady write load — Zerobus writes are async relative to clustering.
 
 ---
 

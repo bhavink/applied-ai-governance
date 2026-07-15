@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: ai/mlflow-tracing.md, ai/production-monitoring.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/mlflow3/genai/tracing/
@@ -96,6 +96,34 @@ Tag conventions worth standardizing across an organization:
 
 ---
 
+## UC OTel Tracing — Traces Directly in Unity Catalog (Public Preview)
+
+MLflow (>= 3.11.0) supports writing traces directly into Unity Catalog Delta tables in OpenTelemetry format, as an alternative to the default MLflow control-plane storage. This is primary storage rather than a periodic copy, so there's no archival lag between when a span completes and when it's queryable.
+
+```python
+from mlflow.entities.trace_location import UnityCatalog
+
+experiment = mlflow.set_experiment(
+    experiment_name="/Users/me@company.com/my-agent-traces",
+    trace_location=UnityCatalog(
+        catalog_name="main",
+        schema_name="mlflow_traces",
+        table_prefix="my_otel",
+    ),
+)
+```
+
+Each experiment gets four governed tables: `<prefix>_otel_spans`, `_otel_annotations`, `_otel_logs`, `_otel_metrics`. Grant `USE_CATALOG`, `USE_SCHEMA`, `MODIFY`, and `SELECT` explicitly — `ALL_PRIVILEGES` does not cover these tables. What this unlocks for tracing patterns:
+
+- **Span-level SQL queries** against governed Delta tables, not just trace-level lookups via `mlflow.search_traces()`
+- **Unlimited retention** under standard Delta lifecycle management, instead of platform-managed limits
+- **Third-party OTLP client support** — Langfuse, Jaeger, or any OTLP-compatible exporter can write into the same governed tables via the Databricks OTLP endpoint
+- Production Monitoring on UC-stored traces requires an explicit SQL warehouse ID: `set_databricks_monitoring_sql_warehouse_id()` or the `MLFLOW_TRACING_SQL_WAREHOUSE_ID` env var
+
+The UC trace location binding is set at experiment creation and cannot be changed afterward — plan catalog/schema/table-prefix naming before creating the experiment. Multiple experiments can share the same UC trace location. See [Store MLflow traces in Unity Catalog](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/tracing/trace-unity-catalog).
+
+---
+
 ## Production Monitoring — Scorers on Live Traces
 
 Production Monitoring runs scorers on sampled production traces and attaches the assessments back to the traces as feedback. The same scorers used in development (`mlflow.genai.evaluate()`) work in production.
@@ -107,7 +135,7 @@ Production Monitoring runs scorers on sampled production traces and attaches the
 | **Built-in LLM judges** (`Safety`, `Guidelines`) | Off-the-shelf safety and policy checks |
 | **Custom judges** (`make_judge`) | Domain-specific assessment with multi-level outcomes |
 | **Custom code scorers** (`@scorer` decorator) | Programmatic checks (regex, length, schema validity) |
-| **Multi-turn conversation judges** (`ConversationCompleteness`, `UserFrustration`, `ConversationalSafety`) | Whole-conversation assessment, grouped by session tag |
+| **Multi-turn conversation judges** (`ConversationCompleteness`, `UserFrustration`, `ConversationalSafety`, `KnowledgeRetention`, `ConversationalGuidelines`, `ConversationalRoleAdherence`, `ConversationalToolCallEfficiency`) | Whole-conversation assessment, grouped by session tag |
 
 ### Lifecycle
 
@@ -133,7 +161,59 @@ Scorers are immutable — `.start()`, `.update()`, `.stop()` each return a new i
 
 ### Multi-turn judges
 
-Multi-turn judges aggregate traces by the `mlflow.trace.session` tag, considering a conversation complete after a configurable inactivity window. Use these for chat agents to detect frustration, abandonment, or incomplete resolution patterns that single-trace scorers miss.
+Multi-turn judges aggregate traces by the `mlflow.trace.session` tag, considering a conversation complete after a configurable inactivity window (default 5 minutes, tunable via `MLFLOW_ONLINE_SCORING_DEFAULT_SESSION_COMPLETION_BUFFER_SECONDS`). Use these for chat agents to detect frustration, abandonment, incomplete resolution, or role drift across a full conversation — patterns single-trace scorers miss.
+
+### Judge alignment
+
+Custom LLM judges can be trained to match an organization's own evaluation standards: provide ratings against a judge's past assessments from the **Judges** tab in the MLflow Experiment UI, and the judge incorporates that feedback going forward. Built-in judges can also be created directly from the UI without writing code — select scope (traces or sessions), judge type, and sampling configuration.
+
+Judge models can be overridden per scorer when a workspace needs a specific model for evaluation, for example `Correctness(model="databricks:/databricks-gpt-5-mini")`.
+
+### Querying traces with natural language
+
+Two assistants can query MLflow traces conversationally instead of writing `search_traces()` calls by hand: **Genie Code** (the Databricks DS Agent, available from the MLflow Experiment UI or notebook panel) for ad hoc trace and evaluation analysis, and the **MLflow MCP server** for AI coding assistants (VS Code, Cursor, Claude Desktop) that need programmatic trace access during development.
+
+The MLflow MCP server (`mlflow[databricks,mcp]>=3.5.1`) exposes trace search, retrieval, annotation, and tag management as MCP tools, authenticated with a workspace PAT (`DATABRICKS_TOKEN`) or, for CI/CD, a service principal's client ID/secret. It's an interactive dev-time tool — not a substitute for the production monitoring lifecycle below.
+
+```json
+// .vscode/mcp.json (same pattern for Cursor's .cursor/mcp.json)
+{
+  "servers": {
+    "mlflow-mcp": {
+      "command": "uv",
+      "args": ["run", "--with", "mlflow[databricks,mcp]>=3.5.1", "mlflow", "mcp", "run"],
+      "env": {
+        "MLFLOW_TRACKING_URI": "databricks",
+        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+        "DATABRICKS_TOKEN": "<your-pat>"
+      }
+    }
+  }
+}
+```
+
+Once running, an assistant can answer questions like "show me the last 10 traces with errors" or "add feedback to trace tr-abc123" directly against the workspace's MLflow trace store.
+
+### Third-Party Evaluation Scorers
+
+Alongside the built-in judges above, MLflow (>= 3.1.0) wraps five third-party evaluation frameworks as scorers that plug into the same `mlflow.genai.evaluate()` call: **DeepEval** (broadest coverage — RAG, agentic, conversational, safety metrics), **RAGAS** (deep RAG context metrics), **Arize Phoenix** (lightweight hallucination/relevance/toxicity), **TruLens** (agent trace analysis — goal/plan/action alignment), and **Guardrails AI** (rule-based, zero-LLM-cost checks: PII, jailbreak detection, secrets scanning).
+
+```python
+from mlflow.genai.scorers.deepeval import AnswerRelevancy
+from mlflow.genai.scorers.ragas import Faithfulness
+from mlflow.genai.scorers.guardrails import DetectPII
+
+results = mlflow.genai.evaluate(
+    data=eval_dataset,
+    scorers=[
+        AnswerRelevancy(threshold=0.7, model="databricks:/databricks-gpt-5-mini"),
+        Faithfulness(model="databricks:/databricks-gpt-5-mini"),
+        DetectPII(pii_entities=["CREDIT_CARD", "SSN", "EMAIL_ADDRESS"]),
+    ],
+)
+```
+
+Start with built-in judges for common needs; reach for a third-party scorer when you need a specialized metric a built-in judge doesn't cover (agent plan quality, BLEU/ROUGE, deterministic jailbreak/PII detection without an LLM call). Before adopting any third-party evaluation package, audit its transitive dependencies as you would any new package — some evaluation-framework integrations pull in additional third-party SDKs with their own dependency chains and known supply-chain advisories; pin exact versions and run a dependency audit before deploying.
 
 ---
 
@@ -188,7 +268,8 @@ Wrap initialization defensively so a tracing failure does not crash the app — 
 | An app that needs caller attribution under M2M | Tag every trace with `caller` (human email from OBO) and `session.id` |
 | Continuous safety checks on live traffic | `Safety` scorer at `sample_rate=1.0` |
 | Quality regression detection | `Guidelines` or custom judges at moderate sampling, dashboarded on the experiment |
-| Chat agent quality | Multi-turn judges (`UserFrustration`, `ConversationCompleteness`) keyed on session ID |
+| Chat agent quality | Multi-turn judges (`UserFrustration`, `ConversationCompleteness`, `KnowledgeRetention`, and related) keyed on session ID |
+| Governed, span-level trace storage with unlimited retention | UC OTel Tracing with a UC trace location set at experiment creation |
 | Long-term audit retention | UC Delta archival of traces and assessments |
 | Cross-plane audit reconciliation | Same trace ID or request ID propagated to data-plane tables when possible |
 

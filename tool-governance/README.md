@@ -7,7 +7,9 @@ UC Connections govern external service access. `GRANT USE CONNECTION` is the on/
 ## Reading Order
 
 1. [AI Gateway Patterns](ai-gateway-patterns.md): Four traffic patterns (internal, LLM governance, outbound external, inbound external) and when to use each
-2. [UC Connections](uc-connections.md): Four authentication methods (Bearer, M2M, U2M Shared, U2M Per User), setup walkthrough, governance model
+2. [Omnigent Governance](omnigent-governance.md): the governed harness for coding agents — sits on top of AI Gateway, adds session-level spend caps and contextual policies
+3. [ucode Governance](ucode-governance.md): Databricks' lighter, session-less coding-agent launcher — same per-harness AI Gateway routing as Omnigent, without the session/sandbox/policy layer
+4. [UC Connections](uc-connections.md): Four authentication methods (Bearer, M2M, U2M Shared, U2M Per User), setup walkthrough, governance model
 
 ## Key Concepts
 
@@ -16,6 +18,8 @@ UC Connections govern external service access. `GRANT USE CONNECTION` is the on/
 - **Four Auth Methods**: Bearer Token (static, shared), OAuth M2M (auto-refresh, shared), U2M Shared (one user authorizes for all), U2M Per User (true per-user identity at external service).
 - **Confused Deputy Defense**: A privileged MCP server cannot be tricked into calling external APIs on behalf of an unauthorized user. USE CONNECTION checks the calling identity, not the server's identity.
 - **Defense-in-Depth**: Serverless Network Policies (network layer) + UC Connections (credential layer). Neither alone is sufficient.
+- **Omnigent + AI Gateway**: Omnigent is the harness that runs coding-agent sessions (Claude Code, Codex, custom); on the managed deployment its model calls route through AI Gateway automatically, and its contextual policies add a dollar-denominated spend cap on top of gateway-level rate limits.
+- **ucode**: a lighter alternative to Omnigent — same per-harness AI Gateway routing (Claude Code, Codex, Gemini CLI, and more), automatic OAuth, no session sharing/sandboxing/policy engine.
 
 ## Related Pillars
 

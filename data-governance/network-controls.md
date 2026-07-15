@@ -1,6 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
-  Refreshed: 2026-07-07
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: governance/context-based-ingress.md, apps/_azure/context-based-policies.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/security/network/front-end/context-based-ingress
@@ -12,6 +11,8 @@
 # Network Controls — Ingress Governance for AI Workloads
 
 > **TL;DR**: When AI agents and apps run on Databricks, ingress governance answers three questions in layers: *who* is calling, *from where*, and *which surface* (Workspace UI, API, Apps, Lakebase Compute). The primary control is **account-level context-based ingress** — one policy can govern multiple workspaces and combines identity × network source × access type. Per-cloud primitives (Private Link, Azure Firewall, NSG, Conditional Access) sit underneath as additional layers. AI workload owners should configure both: the account policy as the ceiling, the cloud primitives for refinement.
+>
+> Account-level context-based ingress and workspace-level ingress are rolling out progressively across clouds; egress (serverless network policies) is generally available on the Premium tier. Check the current rollout stage for your workspace before planning a migration timeline.
 
 ---
 
@@ -105,6 +106,45 @@ Context-based ingress has two policy types with different lifecycle rules:
 
 For `Apps` and `Lakebase Compute`, identity-level filtering happens in the application layer (OBO claims, UC grants, Postgres roles), not in the ingress policy.
 
+For `API` access type, Allow rules can scope further to a sub-surface instead of all API traffic: `All APIs`, `Apps` (Databricks Apps API endpoints), `Dashboard` (dashboard API endpoints), or `Model serving` (serving API endpoints). This lets a policy allow model-serving traffic from a broader range while keeping general API access on the tighter corporate-range rule.
+
+### Private Access Network Sources
+
+Beyond public CIDR ranges, network source rules also match on registered private endpoints — useful for restricting a surface to traffic that arrived over Private Link/PSC rather than the public internet:
+
+| Network source type | Description |
+|---|---|
+| `All public IPs` | Any public internet IP |
+| `Selected IPs` | Specific IPv4 / CIDR ranges |
+| `All registered private endpoints` | Any Private Link / PSC endpoint attached to the workspace |
+| `Selected private endpoints` | Specific named private endpoints |
+
+This supports rules like "API access only from the corporate Private Link endpoint" — network-layer isolation without maintaining an IP allowlist.
+
+### Configuring via API and Terraform
+
+Policies can be managed the same way as any other Databricks resource, not just through the Account Console:
+
+```bash
+curl -X POST "https://accounts.cloud.databricks.com/api/2.0/network/network-policies" \
+  -H "Authorization: Bearer $ACCOUNT_TOKEN" \
+  -d '{
+    "policy_type": "WORKSPACE",
+    "name": "corp-vpn-only",
+    "ingress_config": {
+      "allow_rules": [
+        {
+          "access_type": "WORKSPACE_ACCESS",
+          "identity_match": {"type": "ALL_USERS"},
+          "network_access": {"ip_access_list": "203.0.113.0/24"}
+        }
+      ]
+    }
+  }'
+```
+
+The Terraform provider exposes the same model via the `databricks_network_policy` resource, so ingress policy can live in version control alongside the rest of the workspace configuration.
+
 ### Enforcement modes
 
 | Mode | Behavior |
@@ -184,6 +224,21 @@ Workspaces with no explicit policy use the default. Editing the default propagat
 
 ---
 
+## Operational Notes
+
+| Situation | What to do |
+|---|---|
+| Apps stop loading after switching to Restrict mode | Add an explicit `Apps` Allow rule — the Apps access type defaults to deny under restrict mode, same as UI/API |
+| A CI/CD runner's automation starts failing from a new cloud range | Add the new range to the identity's Allow rule, or scope that identity type to `All service principals` + `All public IPs` if the SP is trusted to authenticate from anywhere |
+| Need to split human vs. service-principal access for `Apps` or `Lakebase Compute` | Do the split at the application layer (OBO claims, UC grants, Postgres roles) — these two access types only take one combined identity rule |
+| Investigating a denial from a few minutes ago | `inbound_network` can lag several minutes; check the request directly against the workspace API for live triage |
+| An IP access list change doesn't seem to take effect | Confirm the source IP passes the account-level policy first — the account policy is evaluated before workspace IP access lists |
+| Piloting a policy change | Create a named policy and attach it to one workspace rather than editing the default policy, which applies to every unassigned workspace |
+| Deciding between Allow + Deny on the same rule | Deny always wins over a matching Allow — use `NOT IN` on the Deny rule if the intent is closer to "allow only these" |
+| A SaaS client's IPs change frequently | Use an identity-based rule (`All service principals`) instead of tracking IP ranges |
+
+---
+
 ## Per-Cloud Network Primitives
 
 The account policy sits on top of cloud-native primitives. Configure both for defense in depth.
@@ -210,6 +265,8 @@ Application Rules (FQDN-based):
 ```
 
 FQDN-based allowlists are more durable than IP-based rules when SaaS providers rotate addresses.
+
+When operating under a restricted egress policy, allowlist the domains an app build itself needs, not just the domains its runtime calls out to: `*.databricksapps.com` (app serving), `pypi.org` / `files.pythonhosted.org` (Python builds), `registry.npmjs.org` (Node builds), and the relevant cloud storage endpoints (`*.blob.core.windows.net`, `*.dfs.core.windows.net`) if the app reads from Azure storage. Query `system.access.outbound_network` to find denied domains during a failed build, and redeploy the app after updating the policy — running apps don't pick up egress changes automatically.
 
 ### AWS
 

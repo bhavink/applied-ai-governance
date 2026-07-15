@@ -1,6 +1,6 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-07
-  Sources: auth/peruser-byoidp-federation.md (composes auth/token-federation.md, auth/obo-passthrough.md, governance/row-filters.md)
+  Synced from databricks-fieldkit on 2026-07-14
+  Sources: auth/peruser-byoidp-federation.md, auth/token-federation.md, auth/obo-passthrough.md, governance/row-filters.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy
@@ -123,6 +123,28 @@ Because the federated token *is* the user, Genie/SQL row filters fire automatica
 
 ---
 
+## How the identity propagates: token, OBO call, row filter
+
+Three layers have to line up for per-user access to hold end to end. Each is independently correct on its own; the composition is what delivers per-user row-level security:
+
+1. **Federation** (this doc) turns the IdP JWT into a per-user Databricks OAuth token. Everything downstream depends on that token actually being used — not silently swapped for a service-principal credential.
+2. **On-behalf-of (OBO) propagation** carries the per-user token into the API call itself:
+   - Direct SDK/REST calls: pass the exchanged token explicitly — e.g. `WorkspaceClient(host=host, token=databricks_token)`. A no-args `WorkspaceClient()` authenticates as the calling app's own credentials, not the user.
+   - The Genie Conversation API, SQL Statement Execution API, Vector Search, and Model Serving all accept the per-user token as a Bearer token and evaluate Unity Catalog as that user.
+   - If the token is later handed off through a Databricks App or an app-to-app hop, see [Databricks Apps Proxy Architecture](proxy-architecture.md) for how the proxy's `X-Forwarded-*` headers carry that identity across the hop, and [OAuth Scopes](oauth-scopes-reference.md) for which scopes need to be on the token for each downstream API.
+3. **Row-level enforcement** happens in Unity Catalog, not in the token or the API. A row filter or column mask function runs **as the calling user**, so which function it calls matters:
+
+   | Function | Evaluates | For federated per-user identity |
+   |---|---|---|
+   | `current_user()` | The actual OBO/federated caller | Correct choice — always reflects the token's identity |
+   | `is_member('group')` | **Workspace-level** group membership only | Returns FALSE whenever groups are managed at the account level (the recommended, SCIM-synced setup) — use a lookup table keyed on `current_user()` instead |
+
+   Row filter and column mask recipes: [Data Governance](../data-governance/uc-governance.md) and the Databricks docs on [row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/).
+
+Skip any one of these three layers and access degrades quietly instead of failing loudly: a dropped token falls back to the calling app's own identity, and an `is_member()` filter against account-level groups returns no rows for anyone.
+
+---
+
 ## Questions for the IdP team
 
 The most important answer is #1 — it decides token-exchange vs SSO-fallback.
@@ -196,6 +218,8 @@ Thanks! :pray: #1 alone unblocks most of the design.
 | Can't register the issuer for exchange | IdP has no JWKS / signs HS256 | Use the SSO fallback above |
 | 6th IdP won't federate | Account limit is 5 federated token issuers | Consolidate issuers or use SSO login for the extra IdP |
 | Token expires mid-request | Databricks copies the JWT `exp` verbatim | Always exchange a **fresh** IdP token |
+| Row filter using `is_member()` always evaluates FALSE | Groups are account-level (SCIM-synced), and `is_member()` only checks workspace-level groups | Use a lookup table keyed on `current_user()`, or mirror the groups at the workspace level |
+| API call returns the app's own data instead of the user's | Downstream code used a no-args client instead of passing the exchanged per-user token explicitly | Pass the token explicitly to the SDK/REST call; see [Databricks Apps Proxy Architecture](proxy-architecture.md) for the proxy-mediated case |
 
 ---
 
@@ -203,6 +227,8 @@ Thanks! :pray: #1 alone unblocks most of the design.
 
 - [Federation blueprint](federation-implementation-blueprint.md) — RFC 8693 exchange recipe, error catalog, IdP supplements
 - [U2M from external apps](u2m-external-obo.md) — the no-JWKS / U2M-OAuth fallback path
+- [Databricks Apps Proxy Architecture](proxy-architecture.md) — how a per-user token propagates (or is lost) across an app-to-app hop
+- [OAuth Scopes](oauth-scopes-reference.md) — scopes required on the federated/OBO token per downstream API
 - [Authorization](authorization.md) — the three token patterns overview
 - [Federation](federation.md) — bridging external IdPs to Databricks
 - [Data Governance](../data-governance/uc-governance.md) — defining the RLS that actually fires

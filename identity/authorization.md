@@ -1,9 +1,10 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: auth/oauth-scopes.md, governance/unity-catalog.md
   Public docs grounding:
-    - https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/
     - https://docs.databricks.com/api/workspace/api/scopes
+    - https://docs.databricks.com/api/account/api/scopes
+    - https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/
   This file is auto-prepared and human-reviewed before publish.
 -->
 
@@ -24,7 +25,7 @@ The app forwards the user's own token. Databricks sees the human.
 - Audit trail records the human's identity
 - **When to use**: Internal apps where users have Databricks workspace accounts. Streamlit dashboards, interactive analytics, agent tools.
 
-The Databricks Apps proxy handles this automatically. When a user accesses a Databricks App, the proxy authenticates them via the workspace IdP and injects identity headers including `X-Forwarded-Email` and `X-Forwarded-Access-Token`. **Important**: `X-Forwarded-Access-Token` is a minimal OIDC identity token — it does NOT carry `sql` scope, regardless of the OAuth integration's `user_authorized_scopes` configuration. Use it for Genie and Model Serving OBO calls; use M2M (`WorkspaceClient()`) for SQL operations with identity from `X-Forwarded-Email`. See [Proxy Architecture](proxy-architecture.md) for the complete header reference.
+The Databricks Apps proxy handles this automatically. When a user accesses a Databricks App, the proxy authenticates them via the workspace IdP and injects identity headers including `X-Forwarded-Email` and `X-Forwarded-Access-Token`. By default, `X-Forwarded-Access-Token` is a minimal OIDC identity token — enough for identity verification, Genie OBO, and Model Serving OBO calls. To get a token whose scope claim includes `sql` — so a SQL warehouse's `current_user()` resolves to the human's email — configure the `sql` scope through the Account Console's **User Authorization** picker (Public Preview). Adding `sql` only through the CLI (`custom-app-integration update`) does not propagate it into the token's scope claim; use the UI picker for OBO SQL, or use M2M (`WorkspaceClient()`) for SQL operations with identity taken from `X-Forwarded-Email` instead. See [OAuth Scopes Reference](oauth-scopes-reference.md) for the complete gotcha and the [Proxy Architecture](proxy-architecture.md) page for the full header reference.
 
 Reference: [Databricks Apps authentication](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth), [App key concepts](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/key-concepts)
 
@@ -71,19 +72,36 @@ Most production apps combine OBO + M2M: user-facing calls use OBO (identity prop
 
 ## OAuth Scopes
 
-Scopes control what the **token** can do. They are a capability ceiling, not an authorization system.
+Scopes control what the **token** can do. They are a capability ceiling, not an authorization system — a token can be scoped to call an API and still return zero rows if the identity behind it has no UC grant.
 
 | Scope | What it gates |
 |-------|--------------|
-| `sql` | SQL warehouse access |
-| `genie` | Genie Conversation API |
-| `serving` | Model Serving endpoints |
-| `files.files` | File and directory access |
-| `apps` | Calling other Databricks Apps |
+| `sql` | Statement Execution API / SQL warehouse access |
+| `genie` | Genie Conversation API (pairs with `dashboards.genie` for Genie space access in the UI) |
+| `model-serving` | Model Serving endpoints and Agent Bricks OBO (Account Console picker name: `serving.serving-endpoints`) |
+| `files` | File and directory access (Account Console picker name: `files.files`) |
+| `unity-catalog` | Unity Catalog governance operations, including the privilege check behind External MCP connections |
+| `apps` | Build and manage Databricks Apps |
 
-**The principle**: request only what the app needs. Never use `all-apis` in production.
+There are 36 workspace-level and 9 account-level granular scopes in total, each gating one product area. The scope string is the same whether the token is issued at the account or workspace OAuth endpoint.
 
-**Scopes vs. UC grants**: Scopes limit which API endpoints a token can reach. UC grants limit which data a given identity can access within those endpoints. Both are required. Neither replaces the other.
+**The principle**: request only what the app needs. Treat `all-apis` as a development convenience, not a production default.
+
+**Scopes vs. UC grants — the two-layer model**: scopes limit which API endpoints a token can reach; UC grants limit which data a given identity can access within those endpoints. Neither replaces the other. A token with `sql` scope but no `GRANT SELECT` calls the API successfully and gets an empty result; a token without `sql` scope never reaches the API at all, regardless of grants. Least-privilege access for an AI app requires configuring both layers together.
+
+### Least-Privilege Scopes for AI App Service Principals
+
+Because almost every scope permits create/update/delete operations (there is no read-only variant of a scope like `sql`), the scope set itself is a meaningful blast-radius control for a service principal — a second fence behind UC grants, not a replacement for them.
+
+| App component | Typical purpose | Scopes to grant | What staying off `all-apis` blocks |
+|---|---|---|---|
+| Frontend app (Streamlit/Dash, OBO) | Genie OBO, model serving calls | `genie`, `dashboards.genie`, `model-serving` | Creating clusters or jobs, modifying UC objects, reading secrets, deploying apps |
+| Custom MCP server | SQL reads/writes, UC queries | `sql` | Managing clusters or pipelines, exporting notebooks, changing auth settings |
+| External MCP client | UC HTTP connections | `unity-catalog` | Running SQL directly, managing clusters, deploying apps |
+| Agent Bricks agent | Model serving, MLflow tracking | `model-serving`, `mlflow` | Direct SQL access, cluster or workspace management |
+| Platform automation | Billing, provisioning, workspace settings | `billing`, `provisioning`, `settings` | Any access to data or compute workloads |
+
+**Principle**: build each service principal's scope set as the union of only what that component needs, rather than granting `all-apis` and relying on UC grants alone. The scopes left out are what keep a compromised token from reaching endpoints outside its intended job; UC grants then control what data it can touch within the endpoints it can reach.
 
 Configure scopes via the Databricks Apps UI "User authorization" panel for OBO tokens.
 
@@ -119,7 +137,7 @@ Every SP has:
 
 This is the single most common silent failure in row filters and column masks: the SP is in the right account-level group, but `is_member()` returns false because it only checks workspace groups.
 
-**Second consideration (Genie OBO)**: Even when groups live at the workspace level, `is_member()` under Genie OBO evaluates the session user's group membership, which resolves to the Genie service context — not the human's workspace groups. This means `is_member('executives')` in a row filter returns false under Genie OBO even if the human is in the `executives` group. **Recommended pattern**: use `current_user()` with an allowlist table lookup instead of `is_member()` for any row filter or column mask that will be hit under Genie OBO:
+**Second consideration (Genie OBO)**: Even when groups live at the workspace level, `is_member()` under Genie OBO evaluates the session identity's group membership, which resolves to the Genie service context — not the human's workspace groups. This means `is_member('executives')` in a row filter returns false under Genie OBO even if the human is in the `executives` group. **Recommended pattern**: use `current_user()` with an allowlist table lookup instead of `is_member()` for any row filter or column mask that will be hit under Genie OBO:
 
 ```sql
 -- Pattern that does not work under Genie OBO:
@@ -139,7 +157,7 @@ Unity Catalog is the single authorization engine for all Databricks services. It
 |------|-----|
 | Data access | `GRANT SELECT/MODIFY` on tables, views, volumes |
 | Function execution | `GRANT EXECUTE` on UC functions |
-| External connections | `GRANT USE CONNECTION` on UC connections |
+| External connections | `GRANT USE CONNECTION` on UC connections, including Lakehouse Federation to external databases |
 | Row-level security | Row filter functions (transparent WHERE injection) |
 | Column-level security | Column mask functions (transparent value transformation) |
 | Data classification | Governed tags + ABAC policies |
@@ -164,7 +182,7 @@ If you're building apps on Databricks (Streamlit, Dash, Flask, or custom MCP ser
 |---------|-----|
 | Get the user's identity | Read `X-Forwarded-Access-Token` from the Apps proxy (OBO) |
 | Get the app's SP credentials | `WorkspaceClient()` with no arguments (M2M) |
-| Execute SQL as the user | Use the OBO token with `sql` scope configured via UI |
+| Execute SQL as the user | Use the OBO token with `sql` scope configured via the Account Console's User Authorization UI |
 | Execute SQL as the app | Use the SP credentials (M2M path) |
 | Call Genie as the user | Use the OBO token with `genie` scope |
 | Call external APIs | Use UC connections with `GRANT USE CONNECTION` |

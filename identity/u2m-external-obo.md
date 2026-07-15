@@ -1,9 +1,7 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-07
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: auth/obo-passthrough.md, apps/proxy-architecture.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-u2m
-    - https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth
+  Public docs grounding: https://docs.databricks.com/aws/en/dev-tools/auth/oauth-u2m
   This file is auto-prepared and human-reviewed before publish.
 -->
 
@@ -143,9 +141,9 @@ Same code, two deployments, different proxy behavior.
 
 ## The X-Databricks-Token Header Pattern
 
-The Databricks Apps proxy mints an OBO token on each request, available to the app code as `x-forwarded-access-token`. For browser-driven interactive sessions, this token carries the scopes configured in `user_api_scopes` and is the right token to use.
+The Databricks Apps proxy mints an OBO token on each request, available to the app code as `x-forwarded-access-token`. By default this token carries a minimal identity scope set (`openid`, `email`, `profile`, `iam.current-user:read`, and similar) — enough for the Genie Conversation API and Model Serving calls, but not for the Statement Execution API or other UC-scoped calls. Extending what this token carries requires configuring the App Integration's scopes through the console's User Authorization step (see Prerequisites below) rather than through CLI updates alone.
 
-For programmatic callers (server-to-server flows like a CORS proxy invoking the MCP app), an additional pattern is useful: send the user's original Databricks OAuth token (the one issued in Step 3 above) in a custom header, and have the MCP server use that token directly for downstream SQL or Genie calls. The header name `X-Databricks-Token` is a common convention.
+For programmatic callers (server-to-server flows like a CORS proxy invoking the MCP app), a more direct pattern is often simpler: send the user's original Databricks OAuth token — the one issued in Step 3 above, requested with the scopes the SPA needs at the App Integration level — in a custom header, and have the MCP server use that token directly for downstream SQL or Genie calls. The header name `X-Databricks-Token` is a common convention.
 
 ```python
 # In the MCP server code
@@ -169,29 +167,30 @@ This keeps `current_user()` = the human's email for both interactive and program
 |---|---|---|
 | 1 | **App Integration** (public client) | Registered in Account Console → App Connections. PKCE enabled, no client secret. Redirect URL set to the SPA origin + `/callback`. |
 | 2 | **Token TTL** | Configurable from 5 to 1440 minutes in the app integration settings. Default is 60 minutes. |
+| 3 | **Scopes via User Authorization** | Configure requested scopes through the App Integration's **User Authorization** step in the console, not through CLI updates alone. The console flow is what puts the scopes into the issued token's `scope` claim; a CLI-only update records the scopes on the integration but the token used downstream won't reflect them. |
 
 ### Databricks MCP App
 
 | # | What | Why |
 |---|---|---|
-| 3 | **`authorization: enabled`** in `app.yaml` | Proxy validates external callers' tokens |
-| 4 | **`user_api_scopes`** configured | Must include `sql`, `dashboards.genie`, `files.files` (whatever the MCP tools need) |
-| 5 | **SQL Warehouse resource** | App needs `CAN_USE` on the warehouse |
+| 4 | **`authorization: enabled`** in `app.yaml` | Proxy validates external callers' tokens |
+| 5 | **`user_api_scopes`** configured | Set the full list up front rather than adding scopes one at a time as calls fail: `sql` for Statement Execution, `dashboards.genie` and `genie` together for the Genie Conversation API (both are required on Azure), `unity-catalog` for calls through the External MCP connection proxy, `files.files` for Volumes access — whatever the MCP tools need. |
+| 6 | **SQL Warehouse resource** | App needs `CAN_USE` on the warehouse |
 
 ### External App (SPA)
 
 | # | What | Why |
 |---|---|---|
-| 6 | **CORS proxy** (CF Worker, Lambda, etc.) | Browsers cannot call Databricks token endpoint or MCP app directly due to CORS |
-| 7 | **Client ID** in SPA config | The app integration's public client ID (safe to embed in browser code) |
-| 8 | **MCP URL** in proxy config | The Databricks App URL for the `authorization: enabled` deployment |
+| 7 | **CORS proxy** (CF Worker, Lambda, etc.) | Browsers cannot call Databricks token endpoint or MCP app directly due to CORS |
+| 8 | **Client ID** in SPA config | The app integration's public client ID (safe to embed in browser code) |
+| 9 | **MCP URL** in proxy config | The Databricks App URL for the `authorization: enabled` deployment |
 
 ### User Grants
 
 | # | What | Why |
 |---|---|---|
-| 9 | **UC grants** on the target data | Users need `SELECT` on tables, `EXECUTE` on functions, `USE CONNECTION` on connections |
-| 10 | **Warehouse access** | Users need `CAN_USE` on the SQL warehouse |
+| 10 | **UC grants** on the target data | Users need `SELECT` on tables, `EXECUTE` on functions, `USE CONNECTION` on connections |
+| 11 | **Warehouse access** | Users need `CAN_USE` on the SQL warehouse |
 
 ---
 
@@ -204,6 +203,7 @@ This keeps `current_user()` = the human's email for both interactive and program
 | Programmatic callers needing user-level SQL | `X-Databricks-Token` header read by MCP server for downstream calls |
 | Long-lived browser sessions | App integration TTL up to 1440 minutes; combine with refresh tokens server-side |
 | Audit trail to human email | UC grants + row filters per individual; `current_user()` resolves to the human |
+| Effective scopes on the OAuth token (sql, genie, unity-catalog) | Configure via the App Integration's console User Authorization step, not CLI updates alone |
 
 ---
 
@@ -228,6 +228,16 @@ When App A calls App B and both have `authorization: enabled`, App B's proxy int
 - Set `authorization: disabled` on App B when it is called only from other apps (never from a browser or external client).
 - If App B must serve both app-to-app and external callers, use two deployments (one with `auth: disabled`, one with `auth: enabled`) — same code, different proxy settings.
 - When you need the user identity inside App B for SQL but cannot disable auth, read `X-Forwarded-Email` from the header for identity, then use M2M (`WorkspaceClient()`) for the SQL call with user impersonation enforced at the UC layer via row filters on `current_user()`.
+
+---
+
+## Gotchas
+
+| Issue | Detail |
+|---|---|
+| Scope changes need re-consent | Adding scopes to the App Integration doesn't apply to tokens already issued to a user. The user needs to complete the OAuth flow again (or an admin can pre-authorize on the user's behalf) before the new scopes take effect in their token. |
+| CLI-only scope configuration is incomplete | Setting scopes only through the CLI records them on the integration, but the console's User Authorization step is what puts them into the issued token's `scope` claim. Use the console flow when the token needs to carry effective scopes for downstream calls. |
+| Use `httpx`/`requests` directly for the forwarded token | The Databricks SDK reads `DATABRICKS_HOST`/`DATABRICKS_TOKEN` from the environment, which on a Databricks App points at the app's own SP credentials. Making the SQL/Genie call with a plain HTTP client and an explicit `Authorization: Bearer {token}` header avoids that conflict. |
 
 ---
 

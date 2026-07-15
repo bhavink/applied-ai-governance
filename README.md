@@ -32,24 +32,22 @@ Network, developer guardrails, and policy/compliance pillars are defined in the 
 
 ## Presentations
 
-| # | Deck | Audience | Topic |
-|---|------|----------|-------|
-| 01 | [AI Governance — The Complete Picture](https://bhavink.github.io/applied-ai-governance/presentations/01-ai-governance-complete.html) | Exec | Three token paths, seven enforcement layers (incl. Service Policies + MCP Services), resource auth matrix, BROWSE privilege, decision trees |
-| 02 | [Identity, Authorization & Orchestration — Technical Reference](https://bhavink.github.io/applied-ai-governance/presentations/02-identity-auth-orchestration.html) | Technical | Three token paths, auth-by-resource matrix (7 resources), per-resource gotchas, Agent Bricks orchestration, MCP three types, UC HTTP Connections, end-to-end animated flow, 8 failure patterns |
-| 03 | [E2E User Identity Propagation — Cross-IdP Token Exchange](https://bhavink.github.io/applied-ai-governance/presentations/05-cross-idp-token-exchange.html) | Technical | External app + customer IdP + Databricks data as one identity chain. JWKS decision gate, RFC 8693 POST, UC current_user() enforcement, gotchas, IdP team checklist |
-| 04 | [Unity AI Gateway — Capability Deep Dive](https://bhavink.github.io/applied-ai-governance/presentations/06-unity-ai-gateway-capabilities.html) | Technical | Eight capabilities via Acme Financial user story. Routing, rate limits, guardrails, service policies, spend caps, MCP Services, prompt registry |
-| 05 | [AI Agent Cost Control & Governance](https://bhavink.github.io/applied-ai-governance/presentations/07-agent-cost-governance.html) | Technical | Claude Code, Codex, Gemini routed through Unity Gateway. Six governance layers: model allowlisting, rate limits, hard spend caps, guardrails, service policies, sandbox isolation |
-| 06 | [Service Principal Identity & M2M Governance](https://bhavink.github.io/applied-ai-governance/presentations/08-sp-m2m-identity.html) | Technical | One SP per service, SP→Group→UC GRANT chain, client credentials flow, current_user() UUID behavior, secret scope management, audit trail. Completes the identity story from Deck 03 |
-| 07 | [AI/BI Dashboard Embedding Without a Second Login](https://bhavink.github.io/applied-ai-governance/presentations/09-aibi-dashboard-embedding.html) | Technical | Embedding a dashboard behind a foreign IdP without a second login prompt: two embedding models compared, SP-based 3-step token mint, `__aibi_external_value` scoping (app-enforced, not UC row filters), decision gate vs Deck 03's cross-IdP exchange |
-| 08 | [Answers Scoped to the Person Asking — Teams & Copilot Studio](https://bhavink.github.io/applied-ai-governance/presentations/10-teams-copilot-genie-obo.html) | Technical | Per-user identity into Genie/Agent Bricks from Microsoft Teams and Copilot Studio: 4 integration paths mapped, confirmed OAuth-federation path code-traced, the "two gates" insight (token-layer OBO + Genie space publish mode — `VIEWER` vs `EMBEDDED_CREDENTIALS`), native marketplace apps flagged as open question |
+| # | Deck | Topic |
+|---|------|-------|
+| 01 | [AI Governance — Complete Picture](https://bhavink.github.io/applied-ai-governance/presentations/01-ai-governance-complete.html) | Entry point: the overall governance model, linking out to every deeper deck below |
+| 02 | [Unity AI Gateway](https://bhavink.github.io/applied-ai-governance/presentations/02-unity-ai-gateway.html) | Identity, runtime, and observability for every LLM, MCP, and API call. Guardrail templates, rate limits, spend caps, service policies, native provider APIs, and where a gateway should never sit — the OBO request path |
+| 03 | [Identity & Auth Foundations](https://bhavink.github.io/applied-ai-governance/presentations/03-identity-auth-foundations.html) | One IdP layer, U2M/OBO/M2M token paths, auth vs authz, decision guide |
+| 04 | [Authorization by Resource Type](https://bhavink.github.io/applied-ai-governance/presentations/04-authorization-by-resource.html) | Auth mechanics per resource: serving endpoints, Genie, Vector Search, UC Functions, UC HTTP Connections, Lakebase |
+| 05 | [Orchestration & Tool Governance](https://bhavink.github.io/applied-ai-governance/presentations/05-orchestration-tool-governance.html) | Agent Bricks supervisor/sub-agent identity, agent auth methods, MCP three types, UC Connections as the governance primitive |
+| 06 | [Cross-IdP Federation](https://bhavink.github.io/applied-ai-governance/presentations/06-cross-idp-federation.html) | External, foreign-IdP users into Databricks-governed apps without a second login or losing per-user governance. Two-leg token exchange, per-user OBO vs. role-based SP, federation policy config, current_user() vs. is_member(), prerequisites and go/no-go checklist |
+| 07 | [Service Principal Identity & M2M Governance](https://bhavink.github.io/applied-ai-governance/presentations/07-sp-m2m-identity.html) | One SP per service, SP→Group→UC GRANT chain, client credentials flow, current_user() UUID behavior, secret scope management, audit trail |
+| 08 | [UC HTTP Connections](https://bhavink.github.io/applied-ai-governance/presentations/08-uc-connections.html) | Bearer token, OAuth M2M, U2M shared/per-user, GRANT/REVOKE USE CONNECTION as the governance switch |
+| 09 | [Unity Catalog Governance](https://bhavink.github.io/applied-ai-governance/presentations/09-uc-governance.html) | Four-layer access control, row filters, column masks, ABAC |
+| 10 | [AI Agent Cost Control & Governance](https://bhavink.github.io/applied-ai-governance/presentations/10-agent-cost-governance.html) | Claude Code, Codex, Gemini routed through Unity Gateway. Model allowlisting, rate limits, hard spend caps, guardrails, service policies, sandbox isolation |
+| 11 | [AI/BI Dashboard Embedding Without a Second Login](https://bhavink.github.io/applied-ai-governance/presentations/11-aibi-dashboard-embedding.html) | Embedding a dashboard behind a foreign IdP without a second login prompt: two embedding models compared, SP-based 3-step token mint, `__aibi_external_value` scoping (app-enforced, not UC row filters) |
+| 12 | [Answers Scoped to the Person Asking — Teams & Copilot Studio](https://bhavink.github.io/applied-ai-governance/presentations/12-teams-copilot-genie-obo.html) | Per-user identity into Genie/Agent Bricks from Microsoft Teams and Copilot Studio: integration paths mapped, the "two gates" insight (token-layer OBO + Genie space publish mode) |
 
-**Implementation Guides:**
-
-| # | Guide | Topic |
-|---|-------|-------|
-| IG | [Federation Token Exchange — Implementation Blueprint](https://bhavink.github.io/applied-ai-governance/presentations/federation-implementation-blueprint.html) | 12 prerequisites, 7-step flow, Auth0 / Okta / Entra ID walkthroughs, error catalog, smoke tests. Companion to Decks 02 and 03 |
-
-Browse all decks (including archived previous versions): [Presentations](https://bhavink.github.io/applied-ai-governance/presentations/)
+Browse all decks: [Presentations](https://bhavink.github.io/applied-ai-governance/presentations/)
 
 ---
 
@@ -69,6 +67,9 @@ A: This is the two-proxy problem. See [Authorization](identity/authorization.md#
 
 **Q: How do I give external users governed access to Databricks AI tools?**
 A: Use Federation Exchange. See [Federation](identity/federation.md).
+
+**Q: My host app's IdP is different from the Databricks account's IdP. How do I embed a dashboard without a second login?**
+A: Use Embedding for External Users (SP-based token mint), not Basic Embedding. Migrating the account's IdP (Automatic Identity Management) doesn't solve this for external viewers. See [Deck 11](https://bhavink.github.io/applied-ai-governance/presentations/11-aibi-dashboard-embedding.html).
 
 **Q: How do I govern which agents can call external APIs?**
 A: Use UC HTTP Connections with `GRANT USE CONNECTION`. See [UC Connections](tool-governance/uc-connections.md).
@@ -91,5 +92,5 @@ A: Yes, using OAuth U2M Per User connections. Each user authenticates separately
 
 ---
 
-*Last updated: 2026-07-10*
+*Last updated: 2026-07-14*
 

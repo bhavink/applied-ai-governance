@@ -1,14 +1,15 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: auth/gcp-wif-databricks.md
   Public docs grounding:
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
+    - https://docs.databricks.com/gcp/en/dev-tools/auth/oauth-federation
+    - https://docs.databricks.com/gcp/en/dev-tools/auth/oauth-federation-policy
   This file is auto-prepared and human-reviewed before publish.
 -->
 
 # GCP Workload Identity Federation → Databricks (RFC 8693)
 
-> **TL;DR**: Any GCP workload with a Google Service Account can authenticate to Databricks APIs without storing Databricks secrets. Exchange a Google ID token for a Databricks SP token via RFC 8693. Works from GKE, Cloud Run, Compute Engine, Cloud Functions, Composer, or a developer laptop.
+> **TL;DR**: Any GCP workload with a Google Service Account can authenticate to Databricks APIs without storing Databricks secrets. Exchange a Google ID token for a Databricks service principal token via RFC 8693 token exchange. Works from GKE, Cloud Run, Compute Engine, Cloud Functions, Composer, or a developer laptop.
 
 ---
 
@@ -193,31 +194,33 @@ Response:
 
 ---
 
-## Gotchas (Battle-Tested)
+## Configuration Notes
 
-### 1. Token exchange REQUIRES `client_id`
+### 1. Token exchange requires `client_id`
 
-The exchange **must** include `client_id=<SP UUID>`. Without it, Databricks cannot match the federation policy to the SP, even if issuer/subject/audience all match. You'll get:
+The exchange must include `client_id=<SP UUID>`. Databricks uses it to match the federation policy to the service principal, even when issuer, subject, and audience all match. Omitting it returns:
 
 ```
 ERROR: TOKEN_INVALID (Ensure a valid federation policy has been configured)
 ```
 
+Always include `client_id` in the token-exchange request.
+
 ### 2. Subject is the numeric ID, not the email
 
-Google ID tokens use the GSA's **numeric unique ID** as the `sub` claim, not the email. The federation policy must match this exactly.
+Google ID tokens use the GSA's **numeric unique ID** as the `sub` claim, not the email. Configure the federation policy's Subject field with this numeric ID so it matches exactly.
 
-### 3. Federation policy propagation
+### 3. Allow time for federation policy propagation
 
-Allow 1-2 minutes after creating/updating a federation policy before testing.
+After creating or updating a federation policy, allow 1-2 minutes before testing the exchange.
 
-### 4. Account-level SP required
+### 4. Create the service principal at the account level
 
-The SP must be created at the **account level**, not as a workspace-local SP. Workspace-local SPs do not support federation policies.
+Federation policies are configured on account-level service principals. Create the SP through **Account console → Identity & access → Service principals** rather than as a workspace-local principal.
 
-### 5. AI Gateway needs `model` in request body
+### 5. AI Gateway expects the route name in `model`
 
-The AI Gateway `/mlflow/v1/chat/completions` endpoint requires a `model` field containing the **route name**, not the underlying model name.
+The AI Gateway `/mlflow/v1/chat/completions` endpoint expects the `model` field in the request body to contain the **route name**, not the underlying model name.
 
 ---
 

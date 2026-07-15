@@ -1,6 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-04-27
-  Refreshed: 2026-07-07
+  Synced from databricks-fieldkit on 2026-07-14
   Sources: governance/unity-catalog.md, governance/abac.md, governance/row-filters.md, governance/column-masks.md, governance/governed-tags.md, governance/data-classification.md, governance/best-practices.md, governance/metastore-management.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/data-governance/unity-catalog/
@@ -26,7 +25,7 @@ Reference: [Access Control in UC](https://docs.databricks.com/aws/en/data-govern
 
 ## UC Hierarchy
 
-Metastore > Catalog > Schema > Table > Column/Row. Permissions cascade downward.
+Metastore > Catalog > Schema > Table > Column/Row. Permissions cascade downward. A single metastore is scoped per cloud region and can be shared by multiple workspaces.
 
 ```sql
 -- Three grants required for table access
@@ -52,7 +51,7 @@ GRANT BROWSE ON CATALOG my_catalog TO `account users`;
 | Inspect table metadata (column names, data types) | Execute functions |
 | Discover available objects for self-service | Access external locations or volumes |
 
-**Governance pattern:** Grant `BROWSE` on shared catalogs to `account users` as the discovery floor. Then layer `SELECT` grants on specific schemas or tables to the groups that need data access. This prevents the alternative: users creating shadow copies of data because they cannot find the governed source.
+**Governance pattern:** Grant `BROWSE` on shared catalogs to `account users` as the discovery floor. Then layer `SELECT` grants on specific schemas or tables to the groups that need data access. Pair this with an access-request destination — an email address, chat channel, or webhook configured on the catalog — so a user who finds a table they can't read has a direct path to request access instead of creating a shadow copy of the data.
 
 ## Row Filters
 
@@ -72,6 +71,8 @@ ALTER TABLE schema.deals SET ROW FILTER schema.region_filter ON (region);
 | Group-based | `is_member(col)` | Regional/team access |
 | Hierarchical | `owner = current_user() OR is_member('managers')` | Manager visibility |
 | Multi-tenant | `tenant_id = extract_tenant(current_user())` | SaaS isolation |
+
+A table can carry multiple row filter policies at once — all of them must evaluate to TRUE for a row to be visible (AND logic). Prefer one filter function with multiple conditions over stacking several filters, since each one adds evaluation overhead.
 
 ### Row Filter Patterns by Execution Context
 
@@ -113,11 +114,11 @@ SELECT COUNT(*) FROM my_catalog.sales.opportunities WITH (NO ROW FILTER);
 
 ### Row Filter Gotchas
 
-> **#1 silent RLS failure:** `is_member()` in OBO paths (Genie, Agent Bricks) evaluates the execution service identity, not the calling user. Users see 0 rows with no error. Replace with `current_user()` + allowlist table.
+> **Key nuance:** `is_member()` in OBO paths (Genie, Agent Bricks) evaluates the execution service identity, not the calling user. Design for it upfront by using `current_user()` + an allowlist table for any policy that needs group-style logic in those contexts.
 
 | Issue | Impact | Fix |
 |---|---|---|
-| `is_member()` evaluates the execution service identity in OBO paths | **Silent data denial.** Group-based row filters do not match the human caller's groups when Genie or Agent Bricks executes the query. Users see 0 rows; no error is surfaced. This is the #1 silent RLS failure in OBO deployments. | Use `current_user()` + allowlist table lookup. `current_user()` always resolves to the human caller's email in OBO chains. |
+| `is_member()` evaluates the execution service identity in OBO paths | Group-based row filters can miss the human caller's groups when Genie or Agent Bricks executes the query, with no error surfaced. | Use `current_user()` + allowlist table lookup. `current_user()` always resolves to the human caller's email in OBO chains. |
 | `is_member()` only checks workspace-level groups | Account-level groups return false | Use `is_account_group_member()` or lookup table |
 | Row filter on a view is not inherited from base table | View needs its own filter | Apply filters to both table and view |
 | Filter function references deleted group | `is_member('gone')` returns false for everyone | Monitor for 0-row results |
@@ -174,6 +175,8 @@ RETURNS STRING
 AS (CASE WHEN current_user() IN (SELECT email FROM authorized_viewers) THEN phone ELSE NULL END);
 ```
 
+A mask function can call another mask function to chain transformations — keep the chain shallow, since each hop adds evaluation cost. Row filters and column masks compose freely: a user can be row-filtered and column-masked on the same query.
+
 ## ABAC (Attribute-Based Access Control)
 
 > Databricks recommends ABAC for governance at scale.
@@ -189,20 +192,51 @@ ABAC uses governed tags to drive centralized policies. Instead of configuring fi
 
 How it works: define governed tags (e.g., `sensitivity: [low, high, critical]`), apply to objects, create UDFs for logic, create ABAC policies referencing tags and UDFs.
 
-Reference: [ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac), [ABAC Tutorial](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/tutorial), [Governed Tags](https://docs.databricks.com/aws/en/admin/governed-tags/)
+### Policy Attachment Levels
+
+An ABAC policy (row filter, column mask, or GRANT policy) can attach at the level that matches the scope of the rule:
+
+| Level | Behavior |
+|---|---|
+| Table | Applies to that specific table, materialized view, or streaming table |
+| Schema | Attaches once and evaluates automatically for every matching object in the schema |
+| Catalog | Attaches once and evaluates for every matching object across the whole catalog |
+
+A single schema- or catalog-level policy expression can govern an entire catalog of tables without per-table DDL — the policy fires whenever an object carries the targeted governed tag, including tables created after the policy was defined.
+
+### GRANT Policies
+
+ABAC also supports **GRANT policies**, which dynamically grant `EXECUTE` privileges (for example, on models) based on tag attributes rather than a static per-principal GRANT. This extends the same tag-driven model from row/column security into privilege delegation. Syntax is evolving — check current docs for the latest DDL.
+
+### Runtime Requirements
+
+- Requires Databricks Runtime 15.4 LTS+ or serverless compute
+- Requires **Standard** or **Dedicated** access mode compute (no-isolation/legacy single-user clusters bypass UC enforcement entirely)
+- Classify and protect the underlying base tables rather than views or metric views — ABAC policies attach to tables, so views should inherit protection by querying protected tables underneath
+- Time travel (`AS OF`) and cloning on ABAC-protected tables require the caller to be explicitly excluded from the policy
+- Design Vector Search indexing around non-ABAC-protected source tables, or apply governance at the point where the index is queried
 
 ### Data Classification — The ABAC Input
 
-Auto-classification scans table samples and detects PII/PHI/PCI patterns using built-in semantic detectors (email, SSN, credit card, DoB, passport, IBAN, phone, IP address, street address). Results are written as `databricks:classifier:*` governed tags on columns.
+Auto-classification uses an agentic scanning system to sample table columns and detect PII/PHI/PCI patterns using built-in semantic detectors (email, SSN, credit card, DoB, passport, IBAN, phone, IP address, street address). Results are written as `databricks:classifier:*` tags, or as `class.*` system-governed tags depending on configuration — check both namespaces when writing ABAC policies.
+
+Classification is enabled per catalog (Default / Active / Inactive, overriding the metastore-level setting) or, for broad coverage, at the workspace level so every eligible catalog is scanned without per-catalog opt-in.
+
+Two modes control how results become tags:
+
+| Mode | Behavior |
+|---|---|
+| Manual review (default) | Classification runs; a data steward reviews and confirms results in Catalog Explorer before tags are applied |
+| Automatic tagging | Tags are applied without manual review as new columns are scanned (typically within 24 hours of table creation) |
 
 **Governance workflow:**
-1. **Enable** classification at metastore level (metastore admin)
+1. **Enable** classification at the metastore or catalog level
 2. **Scan** runs automatically on new and existing tables
-3. **Review** results via `system.information_schema.column_tags`
+3. **Review** results via `system.information_schema.column_tags`, or monitor scan activity via `system.data_classification.results`
 4. **Apply** column masks to classified columns
-5. **Alert** on unmasked PII columns (classification without mask = gap)
+5. **Alert** on classified columns that have no mask applied yet
 
-Classification does NOT automatically apply masks — it identifies; you enforce.
+Classification does NOT automatically apply masks — it identifies; you enforce. The classification UI also surfaces **User Access (last 7 days)** metrics — distinct users touching masked vs. unmasked data by classification type — to help prioritize which columns to mask first. Individual detections can be dismissed from Catalog Explorer to correct false positives; a dismissed detection is excluded from future scans.
 
 ```sql
 -- Find all PII columns without masks
@@ -217,22 +251,27 @@ WHERE t.tag_name = 'databricks:classifier:pii_type'
   AND m.mask_function IS NULL;
 ```
 
+Reference: [ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac), [ABAC Tutorial](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/tutorial), [Data Classification](https://docs.databricks.com/aws/en/data-governance/unity-catalog/data-classification), [Governed Tags](https://docs.databricks.com/aws/en/admin/governed-tags/)
+
 ### Governed Tags — The ABAC Primitive
 
-Tags are key-value metadata on UC securables (catalogs, schemas, tables, columns). They propagate hierarchically and are the foundation of ABAC.
+Tags are key-value metadata on UC securables (catalogs, schemas, tables, columns, volumes). Governed tags add administrator-defined policy on top of plain tags: who can assign a tag, and what values are permitted.
 
 | Behavior | Detail |
 |---|---|
-| Propagation | Parent tags inherit downward (catalog → schema → table → column) |
-| Override | Child can override inherited tag value; cannot remove inherited tag |
+| Propagation | Parent tags inherit downward (catalog → schema → table) as read-only copies |
+| Column tags | Columns do **not** inherit tags from parent objects — set column-level tags directly with `ALTER TABLE ... ALTER COLUMN ... SET TAGS` |
+| Override | Child can override an inherited tag value; it cannot remove an inherited tag — unset it at the parent to remove it everywhere |
 | Privilege | `APPLY TAG` is separate from data access — data stewards tag, analysts query |
 | Queryable | `system.information_schema.column_tags`, `table_tags`, `schema_tags`, `catalog_tags` |
+| System tags | Databricks maintains reserved, write-protected tags such as `system.certification_status` (certified/deprecated) and the `class.*` PII family — only Databricks systems or account admins can write these |
+| Account limits | Up to 1,000 governed tags per account; up to 50 allowed values per tag |
 
 ```sql
 -- Tag a table
 ALTER TABLE catalog.schema.employees SET TAGS ('sensitivity' = 'pii', 'domain' = 'hr');
 
--- Tag a column
+-- Tag a column directly (does not inherit from the table)
 ALTER TABLE catalog.schema.employees ALTER COLUMN ssn SET TAGS ('pii_type' = 'ssn');
 
 -- Query all tags with inheritance
@@ -253,7 +292,7 @@ Three distinct failures when groups are misconfigured:
 | Account-level group invisible to `is_account_group_member()` when group not assigned to workspace | Group exists at account level but not assigned to workspace | Same as above |
 | Genie OBO evaluates service context | `is_member()` checks session_user's groups, which is Genie's identity | Even workspace-level groups fail |
 
-### Three Workarounds
+### Alternative Patterns
 
 **1. Lookup table (recommended)**
 ```sql
@@ -264,7 +303,7 @@ AS (current_user() IN (SELECT email FROM region_access WHERE access_region = reg
 ```
 
 **2. Workspace group mirroring**
-Sync account-level groups to workspace-level via SCIM or IdP sync. Adds operational overhead.
+Sync account-level groups to workspace-level via SCIM or IdP sync. Adds operational overhead — prefer account-level SCIM as the primary provisioning path and keep workspace-level group sync as a narrow bridge, not a parallel system.
 
 **3. Explicit email allowlist**
 Hardcode emails in the filter function. Does not scale but works for small, stable groups.
@@ -388,11 +427,97 @@ Provide role descriptions, common business term definitions, and column/table re
 
 Reference: [Genie Space](https://docs.databricks.com/aws/en/genie/)
 
+## Metastore Management
+
+A Unity Catalog metastore is the top-level container for all data assets in a cloud region — one metastore typically covers a region, and multiple workspaces can share it.
+
+```
+Databricks Account
+└── Metastore (1 per region, usually)
+    ├── External Locations (cloud storage mounts)
+    ├── Storage Credentials (cloud auth for storage)
+    ├── Connections (federated external systems)
+    ├── Catalogs
+    │   └── Schemas → Tables, Views, Functions, Volumes
+    └── Workspace Bindings (which workspaces see this metastore)
+```
+
+### Admin Roles Are Distinct
+
+| Role | Scope | What They Can Do |
+|---|---|---|
+| Account Admin | Databricks account | Create/delete metastores, assign metastore admins, manage users |
+| Metastore Admin | Metastore | Manage external locations, storage credentials, connections; assign catalog ownership; view system tables |
+| Workspace Admin | Single workspace | Assign metastore to workspace, manage workspace-level settings |
+| Data/Catalog Owner | Specific object | GRANT/REVOKE on objects they own |
+
+Account admin and metastore admin are separate roles — being one does not automatically grant the other. Assign metastore admin explicitly to the team that owns UC governance day to day.
+
+### Storage Root and Workspace Bindings
+
+The storage root is a cloud storage path set at metastore creation for managed table data and metastore metadata — plan it carefully, since it cannot be changed after creation (only removed and re-added, with existing catalogs falling back to an auto-created external location pointing at the prior path).
+
+Workspace bindings control which workspaces can see a metastore; catalog-level bindings narrow this further to specific catalogs per workspace. Account admins can turn on **automatic metastore assignment** so new workspaces in a region attach to the metastore automatically — this also auto-creates a workspace catalog with default object-creation privileges for all workspace users, so review and tighten those defaults before enabling it in a production account.
+
+### Metastore Strategy
+
+| Pattern | Description | Tradeoffs |
+|---|---|---|
+| One metastore, multiple catalogs | `dev`, `staging`, `prod` catalogs in one metastore | Simple; strict workspace binding keeps prod isolated |
+| One metastore per environment | Separate metastores per environment | Stronger isolation; more admin overhead, needs cross-metastore sharing for any shared data |
+| One metastore per business unit | Each BU has its own metastore | Maximum isolation; best reserved for regulated environments |
+
+**Recommendation for most teams**: one metastore, multiple catalogs, with strict workspace binding so a production workspace only sees the production catalog. For data that needs to move between metastores or regions, use Delta Sharing / OpenSharing rather than registering the same external table in more than one metastore — cross-metastore external table registration causes schema drift, since a change in one metastore's copy does not propagate to the other.
+
+Reference: [Manage Your Metastore](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-metastore)
+
+## Business Semantics — Governed Metric Views
+
+Unity Catalog Business Semantics lets you define a business metric once, as a versioned UC object called a **metric view**, and query it at any grouping or filter without locking in aggregations at creation time — the query engine computes the correct result on the fly. Metric views integrate with Genie Spaces, AI/BI dashboards, and external BI tools, and carry **agent metadata** (synonyms, display names, format specs) that improves natural-language query accuracy for Genie.
+
+```sql
+CREATE OR REPLACE VIEW catalog.schema.orders_kpis WITH METRICS LANGUAGE YAML AS$$
+  version: 1.1
+  source: samples.tpch.orders
+  fields:
+    - name: Order Month
+      expr: DATE_TRUNC('MONTH', o_orderdate)
+  measures:
+    - name: Total Revenue
+      expr: SUM(o_totalprice)
+      synonyms: ['revenue', 'total sales']
+      format:
+        type: currency
+        currency_code: USD
+$$
+
+-- Query with MEASURE()
+SELECT `Order Month`, MEASURE(`Total Revenue`)
+FROM catalog.schema.orders_kpis
+GROUP BY ALL;
+```
+
+### Auth model
+
+Metric views use the standard UC privilege hierarchy — `SELECT` on the view for query access, ownership transfer to a group for collaborative editing. `SELECT` on the metric view does not itself grant `SELECT` on the underlying source tables: source access is checked at the metric view owner's identity (definer security), not the caller's — so a metric view can expose a governed aggregate without granting broad table access to every consumer.
+
+### Materialization and per-user policies are mutually exclusive
+
+Metric views support optional materialization (pre-computed aggregations) for dashboard performance. Row filters, column masks, and ABAC policies on the source tables (or the metric view itself) block materialization by design — pre-computed results would bypass per-user access controls evaluated at query time. Apply RLS/CLM/ABAC to base tables as usual; just plan whether a given metric view needs materialization or per-user filtering, since a single view can't have both.
+
+### Gotchas
+
+- **`current_user()` / `is_member()` in a metric view expression** also blocks materialization for the same reason — move identity-dependent logic to the source table's row filter instead.
+- **No direct joins to other tables at query time** — wrap the metric view in a CTE first.
+- **Materialized metric views cannot transfer group ownership** — plan editor access before enabling materialization if collaborative editing matters.
+
+Reference: [Business Semantics](https://docs.databricks.com/aws/en/business-semantics/)
+
 ## Best Practices
 
 ### Identity and Group Design
 - Grant to groups, never to individual users
-- Use account-level groups for cross-workspace consistency
+- Use account-level groups for cross-workspace consistency; prefer account-level SCIM provisioning as the primary path and avoid running workspace-level SCIM in parallel once account-level SCIM is active, since both active together can produce duplicate groups and inconsistent row-filter evaluation
 - Create a standard group taxonomy: `<catalog>_readers`, `<catalog>_writers`, `pii_readers`, `data_stewards`
 
 ### Managed vs External Tables
@@ -403,6 +528,7 @@ Use **external tables** only when the underlying storage must be shared with non
 
 - Do not register the same external location across multiple metastores. If two metastores point to the same location, UC governance applies only to the metastore that manages the external table — the other metastore has unmediated access to the storage.
 - Drop of an external table does NOT delete the underlying data. Ensure this is intentional; orphaned external data is a common source of ungoverned copies.
+- For raw-data landing zones, prefer external volumes (finer-grained, FUSE-mountable, individually governed) over granting broad access to an external location.
 
 | | Managed | External |
 |---|---|---|
@@ -418,7 +544,7 @@ Use **external tables** only when the underlying storage must be shared with non
 
 ### Compute Policy Enforcement
 
-UC features (row filters, column masks, ABAC, data lineage) require compute in **Standard** or **Dedicated** access mode. Single-user clusters in legacy "No Isolation Shared" mode bypass UC enforcement.
+UC features (row filters, column masks, ABAC, data lineage) require compute in **Standard** or **Dedicated** access mode. Legacy no-isolation clusters bypass UC enforcement.
 
 Enforce access mode via compute policies so users cannot create non-compliant clusters:
 
@@ -454,6 +580,8 @@ Attach this policy to user groups that should not be able to create legacy compu
 | Shared SP for all services | Lateral movement on compromise | One SP per capability boundary |
 | `GRANT ... TO account users` | Everyone in the account gets access | Use named groups |
 | Credentials in agent code | Exfiltration risk | Use UC Connections or Databricks Secrets |
+| Registering an external table in more than one metastore | Schema drift between metastores | Use Delta Sharing / OpenSharing for cross-metastore access |
+| Running workspace-level SCIM alongside account-level SCIM | Duplicate groups, inconsistent row-filter evaluation | Migrate fully to account-level SCIM, then disable workspace-level sync |
 
 ---
 
@@ -463,5 +591,8 @@ Attach this policy to user groups that should not be able to create legacy compu
 - [Access Control](https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control)
 - [Row Filters & Column Masks](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-row-filter-column-mask.html)
 - [ABAC Tutorial](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/tutorial)
+- [Data Classification](https://docs.databricks.com/aws/en/data-governance/unity-catalog/data-classification)
 - [Governed Tags](https://docs.databricks.com/aws/en/admin/governed-tags/)
 - [UC Privileges](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/index.html)
+- [Manage Your Metastore](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-metastore)
+- [Unity Catalog Best Practices](https://docs.databricks.com/aws/en/data-governance/unity-catalog/best-practices)
