@@ -740,7 +740,7 @@ tr:hover td{background:var(--surface)}
     <div style="display:flex;flex-direction:column;gap:10px">
       <div class="card card-ink r">
         <h4>Rate limits catch loops in real time</h4>
-        <p>A 60 RPM per-engineer coding-agent limit stops a runaway loop within the first minute &mdash; the class of incident that produced the $400 overnight bill. Engineer sees a 429, investigates, fixes the loop.</p>
+        <p>A 60 RPM per-engineer coding-agent limit stops a runaway loop within the first minute, well before an unattended loop could run up hundreds of dollars in overnight spend. Engineer sees a 429, investigates, fixes the loop.</p>
       </div>
       <div class="card card-red r">
         <h4>Model allowlisting is the cheapest, highest-impact control</h4>
@@ -798,7 +798,7 @@ tr:hover td{background:var(--surface)}
       <div class="label r">Outcome after six layers were live</div>
       <div class="ba-col r">
         <div class="ba-item"><span class="ba-icon" style="color:var(--green)">&#10003;</span><span>Per-engineer, per-team, per-day spend visible in real time via <code>system.ai_gateway.usage</code>. Chargebacks automated.</span></div>
-        <div class="ba-item"><span class="ba-icon" style="color:var(--green)">&#10003;</span><span>Zero runaway-loop incidents after rate limits were configured &mdash; the $400 incident class was eliminated.</span></div>
+        <div class="ba-item"><span class="ba-icon" style="color:var(--green)">&#10003;</span><span>Zero runaway-loop cost events since rate limits were configured, unbounded overnight spend from a stuck loop is no longer possible.</span></div>
         <div class="ba-item"><span class="ba-icon" style="color:var(--green)">&#10003;</span><span>Zero unauthorized deploys &mdash; every <code>git push main</code> and <code>terraform apply</code> now requires team-lead approval.</span></div>
         <div class="ba-item"><span class="ba-icon" style="color:var(--green)">&#10003;</span><span>Budget forecast accuracy rose from roughly 40% to over 90%.</span></div>
       </div>

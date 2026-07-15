@@ -7,8 +7,7 @@
     - https://www.databricks.com/blog/access-genie-everywhere
     - https://docs.databricks.com/aws/en/integrations/msft-teams
     - https://docs.databricks.com/aws/en/integrations/msft-m365-copilot
-  One section (Genie space publish mode) is sourced from internal field guidance, not an independently fetched
-  citation — the named Confluence source was inaccessible at write time. Flagged inline; re-verify when possible.
+  One section (Genie space publish mode) needs re-verification against a public source; flagged inline for follow-up.
   This file is auto-prepared and human-reviewed before publish.
 -->
 
@@ -48,7 +47,7 @@ This setting lives on the **space**, independent of the client integration. Veri
 | Path | Token-layer identity | Confidence | Still gated by publish mode |
 |---|---|---|---|
 | Custom AI agent + Azure Bot Service + OAuth federation | Per-user OBO — `current_user()` = human | Confirmed, code-traced against the official reference implementation | Yes |
-| Copilot Studio via MCP, "End user credentials" | Per-user (U2M) | Confirmed to exist (Databricks blog + internal field guidance) | Yes |
+| Copilot Studio via MCP, "End user credentials" | Per-user (U2M) | Confirmed to exist (Databricks blog) | Yes |
 | Copilot Studio via MCP, "Maker credentials" | Shared — everyone runs as the maker's identity | Confirmed M2M by design, not a degraded OBO mode | N/A — already shared |
 | Native "Databricks Genie" app (Teams marketplace) | Verify directly | Confirm with a live test before rollout | Yes |
 | Native "Databricks Genie on Microsoft 365 Copilot" | Verify directly | Confirm with a live test before rollout | Yes |
@@ -121,7 +120,7 @@ Per [Use Genie Everywhere with Enterprise OAuth](https://www.databricks.com/blog
 | `client_id` in the token exchange | Omit it. Including it selects a service principal and collapses RLS to the SP. |
 | `preferred_username` vs other claims | The federation policy's subject claim must match what the exchanged JWT actually carries in your tenant. |
 | Two unrelated things named "Genie + Teams" | The native marketplace app and the custom Azure Bot Service pattern are different integrations with different, differently-documented identity models. Confirm which one is in play before answering an RLS question. |
-| "Maker credentials" in Copilot Studio | Intentionally shared/M2M by design — not a degraded or broken OBO mode. |
+| "Maker credentials" in Copilot Studio | Intentionally shared/M2M by design — a deliberate mode choice, not per-user OBO. |
 
 ---
 
