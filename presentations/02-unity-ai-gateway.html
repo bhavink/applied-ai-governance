@@ -733,9 +733,42 @@ client.messages.create(...)</pre>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 15 · HOW — GOTCHAS (Things to know)
+     SLIDE 15 · HOW — SESSION-AWARE POLICIES (OMNIGENT)
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="15">
+  <div class="label r">How &middot; Beyond per-call rules</div>
+  <h2 class="r">A session-aware policy layer on top of the gateway.</h2>
+  <div class="two-col mt1">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r">Why a fifth lever</div>
+      <p style="font-size:var(--sm)">Rate limits, spend caps, and service policies each evaluate one call at a time. Omnigent, the coding-agent harness, adds a policy layer that <strong>remembers the session</strong> &mdash; it accumulates state across every tool call and model response, so a decision can depend on what already happened, not just the current request.</p>
+      <table class="r mt1">
+        <tbody>
+          <tr><td><span class="badge badge-green">ALLOW</span></td><td>Proceed as requested</td></tr>
+          <tr><td><span class="badge badge-red">DENY</span></td><td>Block the action outright</td></tr>
+          <tr><td><span class="badge badge-amber">ASK</span></td><td>Pause for human approval</td></tr>
+          <tr><td><span class="badge badge-blue">TRANSFORM</span></td><td>Rewrite the action, then proceed</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="card card-ink r">
+        <h4>Intent-based authorization</h4>
+        <p style="font-size:var(--sm)">The policy remembers the user&rsquo;s stated task for the session and scopes which tools the agent may call to what that task actually needs &mdash; tightening further as the session accumulates risk, rather than granting the agent&rsquo;s full permission set up front.</p>
+      </div>
+      <div class="card r">
+        <h4>Cost as a session-state policy</h4>
+        <p style="font-size:var(--sm)">A running spend total is the same mechanism applied to dollars: a soft threshold triggers <span class="badge badge-amber" style="font-size:var(--xs)">ASK</span>, a hard cap triggers <span class="badge badge-blue" style="font-size:var(--xs)">TRANSFORM</span> to a cheaper model. Full depth in the agent cost governance deck.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 16 · HOW — GOTCHAS (Things to know)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="16">
   <div class="label r">Things to know</div>
   <h2 class="r">What breaks quietly if you skip the fine print.</h2>
   <div class="r flex1" style="overflow-x:auto">
@@ -754,9 +787,9 @@ client.messages.create(...)</pre>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 16 · HOW — PRODUCTION CHECKLIST
+     SLIDE 17 · HOW — PRODUCTION CHECKLIST
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="16">
+<div class="slide" data-slide="17">
   <div class="label r">Production checklist</div>
   <h2 class="r">Before this goes live.</h2>
   <div class="gate-grid flex1 mt1">
@@ -771,9 +804,9 @@ client.messages.create(...)</pre>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 17 · CLOSING CALLIGRAM
+     SLIDE 18 · CLOSING CALLIGRAM
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide slide-calli" data-slide="17">
+<div class="slide slide-calli" data-slide="18">
   <div class="calli-hero r">
     ONE GATEWAY.
     <span class="line2">EVERY CALL.</span>
