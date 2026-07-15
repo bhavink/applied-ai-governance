@@ -575,13 +575,13 @@ tr:hover td{background:var(--surface)}
   <div class="two-col mt2">
     <div class="card card-red r">
       <h4>Hard spend caps</h4>
-      <p>Configured per serving endpoint, per user, or at account level. When the budget threshold is hit, the gateway <strong>blocks</strong> further calls &mdash; it does not alert and continue. Subsequent calls return HTTP 429 until the period resets.</p>
+      <p>Unity AI Gateway supports spend budgets with shared and per-user thresholds. Thresholds can be configured either to alert or, when block usage is enabled, to stop further requests until the budget resets or an admin raises the threshold. Enforcement is near real time, so a small amount of overspend may still occur.</p>
       <pre class="mt1"><span class="cm"># budget config shape</span>
 <span class="kw">budgets</span>:
-  - scope: <span class="st">endpoint</span>
+  - scope: <span class="st">shared | per_user</span>
     period: <span class="st">monthly</span>
     limit_usd: <span class="st">500</span>
-    action: <span class="st">block</span>  <span class="cm"># not alert</span></pre>
+    action: <span class="st">alert | block</span></pre>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <div class="card r" style="text-align:center;padding:14px 10px">
