@@ -518,6 +518,7 @@ tr:hover td{background:var(--surface)}
 <div class="slide" data-slide="7">
   <div class="label r">What it is &middot; Token anatomy</div>
   <h2 class="r">What&rsquo;s inside the token at each stage.</h2>
+  <p class="r muted" style="max-width:80ch">Claims below are Auth0-shaped, for illustration. The exchange itself is IdP-agnostic &mdash; Okta, Entra, or any OIDC-compliant provider slots into the same three federation-policy fields. Only the claim names and formats shift per provider (see Gotchas).</p>
   <div class="three-col mt1">
     <div class="card card-red r">
       <h4>1. IdP JWT</h4>
@@ -529,6 +530,7 @@ tr:hover td{background:var(--surface)}
   <span class="st">"email"</span>: <span class="st">"sarah@partner.com"</span>
 }</pre>
       <p>Signed RS256/ES256, verifiable via the IdP&rsquo;s JWKS. HS256 blocks this pattern entirely &mdash; no shared-secret verification path.</p>
+      <p style="font-size:var(--xs);color:var(--muted);margin-top:6px"><code>iss</code>&nbsp;&rarr;&nbsp;issuer &middot; <code>aud</code>&nbsp;&rarr;&nbsp;audience &middot; <code>sub</code>&nbsp;&rarr;&nbsp;subject &mdash; the same three federation-policy fields as slide 12, whichever IdP is on the other end.</p>
     </div>
     <div class="card card-ink r">
       <h4>2. Databricks token</h4>
