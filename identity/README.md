@@ -14,6 +14,7 @@ Two distinct concepts, often conflated:
 3. [U2M from External Apps](u2m-external-obo.md): OBO from a non-Databricks app when users are already provisioned in the workspace
 4. [Per-User BYO-IdP Federation](byoidp-peruser-federation.md): External app + customer-owned IdP → per-user identity and row-level security via account-wide token exchange (with the no-JWKS fallback)
 4a. [Teams / Copilot Studio → Genie & Agent Bricks OBO](teams-copilot-genie-obo.md): Per-user identity into Genie from Microsoft Teams and Copilot Studio — and the second, independent gate (Genie space publish mode) that OBO alone doesn't satisfy
+4b. [Cross-Tenant Entra + Embedded AI/BI](cross-tenant-entra-embedding.md): Single Microsoft identity, no second login on an embedded dashboard, across two Entra tenants — the account SSO swap, the cross-tenant issuer choice, the B2B guest posture, and which embedding model to pick
 5. [Federation Exchange](federation.md): Bridging external identity providers to Databricks for users who don't have workspace accounts
 6. [GCP Workload Identity Federation](gcp-workload-identity-federation.md): Any GCP workload (GKE, Cloud Run, Compute Engine, etc.) to Databricks via RFC 8693, no secrets required
 
