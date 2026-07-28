@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-15
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: ai/ucode.md
   Public docs grounding:
     - https://github.com/databricks/ucode
@@ -63,6 +63,25 @@ ucode revert            # clear saved state and restore backed-up config files
 ```
 
 Non-interactive setup is also available via `configure` flags: `--agents`, `--workspaces`, `--profiles` (use existing Databricks CLI profiles), `--use-pat` (authenticate with a PAT instead of OAuth), `--skip-validate`, and `--dry-run`.
+
+### Registering UC functions as agent skills
+
+`ucode configure skills` exposes Unity Catalog functions as agent skills, so governed UC functions become callable tools inside a coding agent. Because the functions live in Unity Catalog, the same `EXECUTE` grants and audit trail govern who can invoke them.
+
+```bash
+# Interactive: pick from UC functions to expose as skills
+ucode configure skills
+
+# Register skills from a specific UC schema into a local directory
+ucode configure skills --location main.default --path /local/dir
+
+# Expose UC functions as skills through MCP (adds them to the MCP config)
+ucode configure skills --location main.default --mcp
+```
+
+- `--location <catalog.schema>` selects the Unity Catalog schema whose functions become skills.
+- `--path <dir>` writes the skill definitions to a local directory.
+- `--mcp` registers the functions through MCP instead of writing local skill files, so they are surfaced to any MCP-capable tool.
 
 ### Per-harness model routing
 

@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: mcp/overview.md, mcp/managed-mcp.md, mcp/custom-mcp.md, mcp/external-mcp.md, mcp/external-connection-tools.md
   Public docs grounding: https://docs.databricks.com/aws/en/generative-ai/mcp/
   This file is auto-prepared and human-reviewed before publish.
@@ -17,7 +17,7 @@ See also: [MCP overview](https://docs.databricks.com/aws/en/generative-ai/mcp/).
 
 | Type | What it is | Auth model | Use when |
 |---|---|---|---|
-| **Managed** | Databricks-hosted MCP wrapping built-in data services | OBO or M2M via `DatabricksMCPClient` | Agent needs Genie, Vector Search, UC Functions, or DBSQL |
+| **Managed** | Databricks-hosted MCP wrapping built-in data services | OBO or M2M via `DatabricksMCPClient` | Agent needs Genie (Genie One or a Genie Agent), AI Search, UC Functions, or DBSQL |
 | **Custom** | Your own MCP server hosted as a Databricks App | OAuth only (OBO or M2M); PATs are not applicable | Custom business logic to expose as tools |
 | **External** | Third-party MCP servers as UC MCP Services, or proxied through a UC HTTP connection (legacy) | Managed OAuth (UC MCP Service) or Custom HTTP / DCR (connection proxy) | External services; UC governs access |
 
@@ -27,8 +27,10 @@ All Databricks MCP servers communicate over Streamable HTTP transport, so client
 
 ```
 # Managed MCP — Databricks-hosted servers
-Genie:          {host}/api/2.0/mcp/genie/{genie_space_id}
-Vector Search:  {host}/api/2.0/mcp/vector-search/{catalog}/{schema}/{index_name}
+Genie One:      {host}/api/2.0/mcp/genie                              (scope: genie)
+Genie Agent:    {host}/api/2.0/mcp/genie/{genie_space_id}            (scope: genie)
+AI Search:      {host}/api/2.0/mcp/ai-search/{catalog}/{schema}/{index_name}   (scope: ai-search)
+              legacy alias: {host}/api/2.0/mcp/vector-search/{catalog}/{schema}/{index_name}  (scope: vector-search — still works)
 UC Functions:   {host}/api/2.0/mcp/functions/{catalog}/{schema}/{function_name}
               OR {host}/api/2.0/mcp/functions/{catalog}/{schema}   ← entire schema
 DBSQL:          {host}/api/2.0/mcp/sql
@@ -42,6 +44,20 @@ Connection proxy: {host}/api/2.0/mcp/external/{uc_connection_name}
 # Custom MCP — your server hosted on Databricks Apps
 Custom:         https://{app-url}/mcp
 ```
+
+### Managed MCP server surfaces
+
+Managed MCP exposes several Databricks-hosted surfaces, each with its own OAuth scope:
+
+| Surface | URL | Scope | Notes |
+|---|---|---|---|
+| **Genie One** | `{host}/api/2.0/mcp/genie` | `genie` | Workspace-wide agentic analytics over the Genie Ontology; read-only. Requires access to the workspace's Genie Ontology resources. |
+| **Genie Agent** | `{host}/api/2.0/mcp/genie/{genie_space_id}` | `genie` | Exposes a single Genie space as a tool; read-only. Requires `CAN_USE` on the space; underlying row filters and column masks apply per `current_user()`. |
+| **AI Search** | `{host}/api/2.0/mcp/ai-search/{catalog}/{schema}/{index}` | `ai-search` | Query an AI Search index (formerly Vector Search). The legacy `/api/2.0/mcp/vector-search/...` URL and `vector-search` scope still work; use the `ai-search` URL and scope for new integrations. Requires `CAN_SELECT` on the index. |
+| **UC Functions** | `{host}/api/2.0/mcp/functions/{catalog}/{schema}` | — | Whole schema or a single function; `EXECUTE` per function. |
+| **DBSQL** | `{host}/api/2.0/mcp/sql` | — | Generates and runs SQL under full UC privileges. |
+
+The AI Search rename is a naming and recommended-URL change; existing `vector-search` URLs and scopes remain functional, so migrations can happen on your own schedule.
 
 ### Standard client pattern (same shape for all server types)
 
@@ -70,7 +86,7 @@ pip install "mcp>=1.9" "databricks-sdk[openai]" "mlflow>=3.1.0" \
 
 ```
 Agent needs to call a tool
-  ├─ Data in Databricks? → MANAGED MCP (Genie, Vector Search, UC Functions, DBSQL)
+  ├─ Data in Databricks? → MANAGED MCP (Genie One / Genie Agent, AI Search, UC Functions, DBSQL)
   ├─ Custom business logic YOU own? → CUSTOM MCP (Databricks Apps)
   └─ External service?
         ├─ Slack, GitHub, Atlassian, Google, SharePoint? → system.ai.* MCP Service (GRANT EXECUTE)
@@ -209,7 +225,7 @@ MCP Service names (`catalog.schema.service`) are immutable once created — choo
 | 3 | **External MCP server via UC connection** (legacy) | `USE CONNECTION` + stored creds | `USE CONNECTION` privilege | Existing integrations not yet migrated to MCP Services |
 | 4 | **Custom MCP server** | Custom (your server's auth) | Code-level + connection | Internal APIs, custom integrations |
 | 5 | **UC Function** | Caller's identity (OBO) or SP | `EXECUTE` privilege | Deterministic computations, data lookups |
-| 6 | **Retriever tool (Vector Search)** | SP (M2M) or OBO | `SELECT` on VS index | Document Q&A, semantic search |
+| 6 | **Retriever tool (AI Search)** | SP (M2M) or OBO | `SELECT` on the index | Document Q&A, semantic search |
 | 7 | **Agent-as-tool** | Inherits parent's auth | Same as parent | Multi-agent orchestration |
 | 8 | **Custom Python function** | Defined in code | Code-level | Last resort — ungoverned |
 
@@ -222,7 +238,7 @@ MCP Service names (`catalog.schema.service`) are immutable once created — choo
 | Server type | What UC enforces |
 |---|---|
 | Managed — Genie | `CAN_USE` on the Genie space; row filters + column masks enforced per `current_user()` on underlying tables |
-| Managed — Vector Search | `CAN_SELECT` on the VS index (the only permission granularity available) |
+| Managed — AI Search (formerly Vector Search) | `CAN_SELECT` on the index (the only permission granularity available) |
 | Managed — UC Functions | `EXECUTE` on each function, plus `USE SCHEMA` and `USE CATALOG` on the containing schema/catalog |
 | Managed — DBSQL | Full UC table/schema/catalog privileges; supports read and write, since the agent can generate arbitrary SQL |
 | **UC MCP Service** | `EXECUTE` on `catalog.schema.mcp_service`; tool-level allow/deny/approval via service policies |
@@ -255,7 +271,7 @@ The connection proxy (`/api/2.0/mcp/external/{connection_name}` + `USE CONNECTIO
 
 | Method | When to use |
 |---|---|
-| **Managed OAuth** | Recommended for supported providers — Glean, GitHub, Atlassian, Google Drive, SharePoint. Databricks manages OAuth end to end. |
+| **Managed OAuth** | Recommended for supported providers — the set has expanded to include Glean, GitHub, Atlassian, Google Drive, Gmail, Google Calendar, and SharePoint. Databricks manages OAuth end to end. |
 | **Databricks Marketplace** | Install a pre-configured connection for a listed MCP server. |
 | **Custom HTTP Connection** | Any server exposing Streamable HTTP; configure host, path, and bearer token directly. |
 | **Dynamic Client Registration (RFC 7591)** | For MCP servers implementing DCR. Treat as experimental — validate before relying on it in production, and note that DCR OAuth flows aren't part of every external MCP client's auth path (check your client's supported flows). |

@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: ai/endpoint-telemetry.md, ai/mlflow-tracing.md, ai/production-monitoring.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/admin/account-settings/audit-logs
@@ -13,7 +13,7 @@
 >
 > **Audience**: Builders implementing production observability for Databricks AI apps. Security reviewers assessing audit posture.
 >
-> **Last updated**: 2026-07-14
+> **Last updated**: 2026-07-28
 
 ---
 
@@ -47,7 +47,7 @@ By default, traces live in the MLflow tracking server, which is not directly SQL
 
 ### UC OTel Tracing — Traces Stored Directly in Unity Catalog (Public Preview)
 
-As an alternative to the default control-plane storage, MLflow (>= 3.11.0) can write traces directly into Unity Catalog Delta tables in OpenTelemetry format — this is primary storage, not a periodic copy, so there is no archival lag. Set a UC trace location when creating the experiment:
+As an alternative to the default control-plane storage, MLflow (>= 3.14.0) can write traces directly into Unity Catalog Delta tables in OpenTelemetry format — this is primary storage, not a periodic copy, so there is no archival lag. Set a UC trace location when creating the experiment:
 
 ```python
 from mlflow.entities.trace_location import UnityCatalog
@@ -76,6 +76,15 @@ This creates four tables per experiment (`<prefix>_otel_spans`, `_otel_annotatio
 Scorers run asynchronously on production traces with zero impact on application latency. Assessments are written back to the trace and appear in the Delta table.
 
 **Gotcha**: The assessment field is `a.name`, NOT `a.assessment_name`. Early documentation referenced `assessment_name`, which does not exist.
+
+#### Judge data residency and usage policy
+
+LLM judges may call partner-powered models, which introduces two governance constraints worth capturing in an audit posture:
+
+- **Data residency.** With cross-Geo processing disabled, a judge processes content only in the workspace's own Databricks Geo, returning a geo-restriction error if no eligible in-Geo model is available rather than routing content elsewhere. Enabling [cross-Geo processing](https://learn.microsoft.com/en-us/azure/databricks/resources/databricks-geos) allows judges to process content in other Geos; partner-powered features can be turned off entirely to keep evaluation on models you provide. The partner path opts out of abuse monitoring, so prompts and responses are not retained by the partner service.
+- **No training on judge output.** LLM judge outputs must not be used to train, improve, or fine-tune an LLM. Treat judge assessments as read-only evaluation signal.
+
+Reference: [Production monitoring with scorers](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/eval-monitor/production-monitoring).
 
 ### Multi-Turn Conversation Judges
 

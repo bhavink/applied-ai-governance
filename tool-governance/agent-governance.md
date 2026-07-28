@@ -1,6 +1,6 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
-  Sources: ai/agent-framework.md, ai/agent-bricks.md, ai/agent-tool.md, ai/uc-functions.md, ai/genie.md, ai/vector-search.md
+  Synced from databricks-fieldkit on 2026-07-28
+  Sources: ai/agent-framework.md, ai/agent-bricks.md, ai/agent-tool.md, ai/uc-functions.md, ai/genie.md, ai/vector-search.md, governance/agent-permissions-guide.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/generative-ai/agent-framework/
     - https://docs.databricks.com/aws/en/generative-ai/agent-bricks/
@@ -95,6 +95,17 @@ If this returns anything beyond `USE CATALOG`, `USE SCHEMA`, and specific object
 
 ---
 
+## Development and Deployment Constraints
+
+The identity model above depends on how an agent is developed and where it runs. A few platform constraints shape the governance story:
+
+- **Local development uses a real workspace identity.** The agent template runs a local FastAPI server (`uv run start-app`) and evaluates against a test dataset locally (`uv run agent-evaluate`) before deploy. Local runs authenticate as the developer's own workspace identity, so treat local development as privileged access and keep sensitive data out of local test runs. Promote to a dedicated Service Principal on deploy so production actions carry the agent's identity, not a person's.
+- **Agents deployed to Databricks Apps require OAuth, not personal access tokens.** Use browser SSO or a service principal for App-deployed agents; a personal access token is not accepted on that path. This keeps per-user identity and OBO intact instead of collapsing every call onto one token.
+- **Databricks Apps run on Medium or Large compute.** Configure at least Medium; stateful agents (for example, those holding Lakebase connections) need Medium or Large for memory headroom. Size the endpoint accordingly in the deployment config.
+- **Obtain the OBO client inside the request handler.** `get_user_workspace_client()` returns an M2M client if called at module load time, because user context only exists during a request. Call it inside the tool handler or route function so the user's identity actually propagates.
+
+---
+
 ## Tool Governance for Agents
 
 An agent's risk surface is really the sum of its tools. Each tool type below carries a distinct auth model, a distinct governance mechanism, and a distinct blast radius if misconfigured — treat tool selection as a governance decision, not just an implementation detail.
@@ -107,7 +118,7 @@ An agent's risk surface is really the sum of its tools. Each tool type below car
 | **External connection tool** | Third-party MCP servers (e.g., ticketing or search systems) via UC HTTP connection | `USE CONNECTION` + stored credential | `USE CONNECTION` privilege |
 | **Custom MCP server** | Your own MCP server for internal APIs | Custom (your server's auth) | Code-level + connection privilege |
 | **UC Function** | Executes a SQL/Python function registered in Unity Catalog | Caller's identity (OBO) or SP | `EXECUTE` privilege on the function |
-| **Retriever tool (Vector Search)** | Queries a Vector Search index for RAG | SP (M2M) or OBO | `SELECT` on the index and its source table |
+| **Retriever tool (AI Search)** | Queries a Databricks AI Search index (formerly Vector Search) for RAG | SP (M2M) or OBO | `SELECT` on the index and its source table |
 | **Code interpreter** (`system.ai.python_exec`) | Runs dynamic Python for calculation and data wrangling | Caller's identity (OBO) or SP | `EXECUTE` on `system.ai.python_exec` |
 | **Agent-as-tool** | Calls another deployed agent (sub-agent) as a tool | Inherits parent's auth | Sub-agent's own serving-endpoint grants |
 | **Custom Python function** | Arbitrary Python code wrapped as a tool | Defined in code (SP, OBO, or custom) | Code-level only — no UC privilege check on the tool itself |
@@ -120,7 +131,7 @@ Whether a tool call runs as the calling user (OBO) or as the agent's own identit
 
 - **UC Functions**: `current_user()` inside the function reflects the caller under OBO, or the SP identity under M2M. `EXECUTE` privilege gates who can call the function at all.
 - **Genie**: Always OBO — the caller's token executes the generated SQL, so row filters and column masks on the underlying tables apply automatically. There is no M2M mode for Genie query execution.
-- **Vector Search**: M2M (the serving endpoint's SP) by default, requiring `SELECT` on the index and its source table for that SP. Pass the user's token explicitly in the request to run a query as the calling user instead, so row-level controls on the source table apply to that user.
+- **AI Search** (formerly Vector Search): M2M (the serving endpoint's SP) by default, requiring `SELECT` on the index and its source table for that SP. Pass the user's token explicitly in the request to run a query as the calling user instead, so row-level controls on the source table apply to that user.
 
 **Design pattern for group-based checks**: `is_member('group')` evaluates the *workspace*-group membership of the identity actually executing the SQL — which, under Genie OBO or any service-mediated execution path, may be a service context rather than the human user. For access checks that must resolve reliably to the human regardless of execution path, prefer `current_user()` joined against an allowlist table over `is_member()`:
 
@@ -171,9 +182,29 @@ AS (
 
 Key properties: parameters require `COMMENT` annotations so the LLM has a usable tool-parameter description; `EXECUTE` controls callability; and UC Functions are auto-exposed as tools through the Managed MCP server at `{workspace}/api/2.0/mcp/functions/{catalog}/{schema}`, where users only see functions they already have `EXECUTE` on.
 
-### Retriever Tool Governance (Vector Search)
+**Custom dependencies for Python UDF tools**: a Python UC Function can declare external PyPI packages, Unity Catalog volume-hosted wheels, or public URLs through the `ENVIRONMENT` clause, so a governed tool can use libraries beyond the built-in runtime without dropping to un-governed application code:
 
-Vector Search indexes inherit row-level security from their source Delta table, so the grant model is the same one you already use for tables:
+```sql
+CREATE OR REPLACE FUNCTION my_catalog.my_schema.process_json(data STRING)
+RETURNS STRING
+LANGUAGE PYTHON
+ENVIRONMENT (
+  dependencies = '["simplejson==3.19.3", "/Volumes/catalog/schema/vol/pkg.whl"]',
+  environment_version = '3'
+)
+AS $$
+import simplejson as json
+return json.dumps(data)
+$$;
+```
+
+Serverless warehouses may run on different CPU architectures, so confirm any PyPI package publishes wheels for all target architectures, or use pure-Python packages. See [Unity Catalog Python UDFs](https://docs.databricks.com/aws/en/udf/unity-catalog/).
+
+**Design around the 5-UDF-per-query limit**: a single query can invoke at most five Python UDFs. When an agent tool needs more, split the work across queries or have a SQL UDF call Python UDFs internally. Views containing Python UDFs also require serverless or pro SQL compute rather than a classic SQL warehouse.
+
+### Retriever Tool Governance (AI Search)
+
+Databricks AI Search (the vector search capability, referred to as AI Search in current product naming) indexes inherit row-level security from their source Delta table, so the grant model is the same one you already use for tables:
 
 ```sql
 GRANT USE CATALOG ON CATALOG my_catalog TO `<agent-sp-uuid>`;
@@ -181,7 +212,7 @@ GRANT USE SCHEMA  ON SCHEMA  my_catalog.rag TO `<agent-sp-uuid>`;
 GRANT SELECT      ON TABLE   my_catalog.rag.documents TO `<agent-sp-uuid>`;
 ```
 
-Vector Search is also available as a Managed MCP server (`{workspace}/api/2.0/mcp/vector-search/{endpoint}/{index}`), exposing `similarity_search` and `get_document` tools under the same grant model.
+AI Search is also available as a Managed MCP server. The current path is `{workspace}/api/2.0/mcp/ai-search/{catalog}/{schema}/{index}` (scope `ai-search`); the legacy `{workspace}/api/2.0/mcp/vector-search/...` path and `vector-search` scope continue to work. Either exposes `similarity_search` and `get_document` tools under the same grant model.
 
 Use `mlflow.models.set_retriever_schema()` before logging a retriever-backed agent to map custom retriever output columns (`primary_key`, `text_column`, `doc_uri`) to the fields MLflow's Agent Evaluation judges expect — this enables automatic groundedness and relevance scoring without manual mapping.
 
@@ -220,6 +251,19 @@ Each sub-agent enforces the calling user's permissions
 ---
 
 ## External System Integration Patterns
+
+### Managed OAuth for SaaS Data Sources
+
+For a set of common SaaS providers, Databricks manages the OAuth credentials, so there is no OAuth app registration or secret management to run yourself. Create a UC HTTP connection with auth type **OAuth User to Machine Per User**, select the provider from the OAuth Provider drop-down, and each user is prompted to authorize on first use. Because it is per-user OAuth, downstream access reflects the human's own permissions in the source system, and no shared credential lives in agent code.
+
+| Provider | Read-only scopes |
+|---|---|
+| Google Drive API | `drive.readonly`, `documents.readonly`, `spreadsheets.readonly` |
+| Gmail API | `gmail.readonly` |
+| Google Calendar API | `calendar.readonly` |
+| SharePoint / Microsoft Graph | Files, Mail, Calendar, Teams chats/channels/meetings, OnlineMeetings (all read-only) |
+
+Managed OAuth is a good fit for development and testing; production use cases that need custom OAuth credentials should register their own OAuth application per the provider's docs. For providers that publish their own MCP server (for example, common enterprise search, source-control, issue-tracking, and messaging tools), Databricks can manage the OAuth credentials when you register that server as an MCP Service. See [agent tool authoring](https://learn.microsoft.com/en-us/azure/databricks/generative-ai/agent-framework/agent-tool).
 
 ### CRM Systems (Salesforce, HubSpot)
 

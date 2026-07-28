@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-15
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: ai/ai-gateway.md, mcp/mcp-services.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/ai-gateway/
@@ -188,7 +188,16 @@ flowchart LR
 
 Budgets are configured at the account level (`Usage > Budgets` in the account console) and track spend against the underlying Unity Catalog model-service object, not against a single workspace, endpoint, or API surface. That means a budget on a model rolls up spend consistently whether the traffic arrived through the OpenAI-compatible `mlflow/v1/chat/completions` route or a native provider API — the same model, the same dollar total, one place to manage the threshold.
 
-Each budget defines a monthly (or custom-period) dollar threshold and a "when exhausted" action. Set the scope (workspaces, resource types, tags) at creation time, then manage thresholds and actions from the budget's detail page.
+Each budget defines a monthly (or custom-period) dollar threshold and a "when exhausted" action. Set the scope (workspaces, resource types, tags) at creation time, then manage thresholds and actions from the budget's detail page. Scope is fixed after creation.
+
+**Two exhaustion actions, with an important scope difference:**
+
+- **Send alert** — email notification; access continues. Available for all covered model services.
+- **Block usage** — hard stop; requests are denied once the threshold is reached. This "stop traffic" action is available for Genie only. For model-service endpoints, plan on **Send alert** as the enforcement signal and pair it with rate limits (per user/group/endpoint) to bound consumption.
+
+**What budgets track, and what they do not:** Budgets meter spend for pay-per-token and `ai_query` (batch) inference. **Provisioned-throughput and external-model inference are not tracked by budgets.** For those surfaces, use rate limits and the model access permissions gate to bound usage rather than relying on a dollar cap.
+
+**Scale limits per budget/account:** up to 4 shared thresholds per budget, up to 20 per-user overrides per budget, and up to 1,000 budgets per account. Reported spend can differ slightly across the alert email, the budget details page, and system tables because each updates on its own cadence; enforcement uses near real-time tracking.
 
 > See [Manage budgets](https://docs.databricks.com/aws/en/ai-gateway/budgets) for the full configuration walkthrough and available exhaustion actions.
 
@@ -208,6 +217,8 @@ These are complementary controls that address different concerns. Do not conflat
 | **Service policies** | Access — who can call what, and whether approval is required | MCP Service level (tool-by-tool) | MCP Service policy configuration |
 
 **Guardrails** are content filters: they inspect the payload before it reaches the model and after the model responds. A blocked request never reaches the LLM.
+
+> **Regional availability**: the built-in safety and PII moderation guardrails depend on foundation model pay-per-token availability in the region. In regions where pay-per-token foundation model serving is not available, plan to apply content controls at the application layer instead. Confirm regional coverage in [AI Gateway for serving endpoints](https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/overview-serving-endpoints).
 
 **Service policies** are access control: they enforce which principals can invoke which tools within an MCP service, and can require a human approval step before a tool executes. They operate before content is even evaluated.
 

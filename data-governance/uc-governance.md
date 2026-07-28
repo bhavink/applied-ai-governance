@@ -1,8 +1,9 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
-  Sources: governance/unity-catalog.md, governance/abac.md, governance/row-filters.md, governance/column-masks.md, governance/governed-tags.md, governance/data-classification.md, governance/best-practices.md, governance/metastore-management.md
+  Synced from databricks-fieldkit on 2026-07-28
+  Sources: governance/unity-catalog.md, governance/abac.md, governance/row-filters.md, governance/column-masks.md, governance/governed-tags.md, governance/data-classification.md, governance/best-practices.md, governance/metastore-management.md, governance/business-semantics.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/data-governance/unity-catalog/
+    - https://docs.databricks.com/aws/en/business-semantics/
   This file is auto-prepared and human-reviewed before publish.
 -->
 
@@ -251,6 +252,22 @@ WHERE t.tag_name = 'databricks:classifier:pii_type'
   AND m.mask_function IS NULL;
 ```
 
+**Track classification cost and scan activity.** Classification consumes DBUs; initial scans cost more than subsequent incremental scans. Attribute that spend with `system.billing.usage`, filtering on the `DATA_CLASSIFICATION` billing origin product, and monitor scan results in `system.data_classification.results`.
+
+```sql
+-- Classification DBUs by catalog over the last 30 days
+SELECT
+  usage_date,
+  usage_metadata.catalog_id,
+  usage_metadata.created_by,
+  SUM(usage_quantity) AS dbus
+FROM system.billing.usage
+WHERE billing_origin_product = 'DATA_CLASSIFICATION'
+  AND usage_date >= current_date() - 30
+GROUP BY 1, 2, 3
+ORDER BY usage_date DESC;
+```
+
 Reference: [ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac), [ABAC Tutorial](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/tutorial), [Data Classification](https://docs.databricks.com/aws/en/data-governance/unity-catalog/data-classification), [Governed Tags](https://docs.databricks.com/aws/en/admin/governed-tags/)
 
 ### Governed Tags — The ABAC Primitive
@@ -265,7 +282,7 @@ Tags are key-value metadata on UC securables (catalogs, schemas, tables, columns
 | Privilege | `APPLY TAG` is separate from data access — data stewards tag, analysts query |
 | Queryable | `system.information_schema.column_tags`, `table_tags`, `schema_tags`, `catalog_tags` |
 | System tags | Databricks maintains reserved, write-protected tags such as `system.certification_status` (certified/deprecated) and the `class.*` PII family — only Databricks systems or account admins can write these |
-| Account limits | Up to 1,000 governed tags per account; up to 50 allowed values per tag |
+| Account limits | Up to 1,000 governed tags per account; up to 500 allowed values per tag |
 
 ```sql
 -- Tag a table

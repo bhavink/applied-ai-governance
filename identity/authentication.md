@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: auth/overview.md, auth/m2m-service-principal.md, auth/obo-passthrough.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/
@@ -184,6 +184,38 @@ This makes revoking access, rotating secrets, and adding a second SP (for a blue
 Some grants are handled automatically when a Databricks App is deployed with a `resources` block in `app.yaml` (Genie space access, Vector Search index access, serving endpoint access, SQL warehouse access, function execution). Catalog, schema, and table-level Unity Catalog grants are not covered by `app.yaml` and need to be applied once via SQL, as shown above.
 
 Service principals carry two identifiers: an **application ID** (what `current_user()` returns, and what Unity Catalog grants reference) and a numeric **member ID** (used for SCIM group membership operations). Keep the two straight when scripting group membership changes.
+
+### Service principal secret quota
+
+Each service principal can hold up to **5 active OAuth secrets**, and each secret is valid for up to **730 days**. Plan rotation within these limits: when creating a new secret would exceed the quota, delete a stale secret first. List and delete secrets through the account-level service principal credentials API:
+
+```bash
+# List a service principal's OAuth secrets
+databricks api get /api/2.0/accounts/<account-id>/servicePrincipals/<sp-id>/credentials/secrets
+
+# Delete a stale secret before generating a replacement
+databricks api delete /api/2.0/accounts/<account-id>/servicePrincipals/<sp-id>/credentials/secrets/<secret-id>
+```
+
+A predictable rotation cadence (well under 730 days) with cleanup of retired secrets keeps you within the quota and avoids accumulating unused credentials.
+
+### Scoping an M2M token to a group with `assume_group`
+
+A service principal can request a workspace-level token that acts as though the SP belongs to a single target group, using the `assume_group` parameter on the client credentials request. The resulting token carries only that group's membership for the duration of the call, which lets one SP take on a narrowly scoped role per request rather than carrying every group it belongs to at once.
+
+Two conditions apply:
+
+- The token must be a **workspace-level** token (this parameter does not apply to account-level tokens).
+- The service principal must hold the **`Assume`** permission on the target group.
+
+```http
+POST https://<workspace-host>/oidc/v1/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=<client-id>&client_secret=<client-secret>&scope=all-apis&assume_group=<group-name>
+```
+
+This pairs well with the SP-to-group grant model above: grant privileges to groups, then let a service principal assume exactly one group's role per token when a workload needs to run with a specific, minimal set of privileges.
 
 ## Implementing OBO (On-Behalf-Of)
 

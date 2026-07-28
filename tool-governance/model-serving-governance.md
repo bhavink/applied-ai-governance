@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: ai/model-serving.md, ai/endpoint-telemetry.md
   Public docs grounding: https://docs.databricks.com/aws/en/machine-learning/model-serving/
   This file is auto-prepared and human-reviewed before publish.
@@ -129,16 +129,20 @@ Three tables, one per signal:
 <prefix>_otel_metrics   ← OTel MeterProvider metrics (custom instrumentation)
 ```
 
-**Governance prerequisites**: a Unity Catalog-enabled workspace, plus `USE CATALOG` / `USE SCHEMA` / `CREATE TABLE` / `MODIFY` grants on the destination schema. Databricks creates the target tables automatically once the config is applied — no manual `CREATE TABLE` needed. Destination table names are fixed for the life of the config, so choose them deliberately as part of endpoint design. Availability varies by cloud and region — check the linked docs for current coverage before planning a rollout.
+**Governance prerequisites**: a Unity Catalog-enabled workspace, plus `USE CATALOG` / `USE SCHEMA` / `CREATE TABLE` / `MODIFY` grants on the destination schema. Databricks creates the target tables automatically once the config is applied — no manual `CREATE TABLE` needed. Destination table names are fixed for the life of the config, so choose them deliberately as part of endpoint design. Endpoint telemetry is generally available and offered in a defined set of regions, so confirm regional coverage in the linked docs before planning a rollout.
 
-Configure on the endpoint:
+Configure on the endpoint. **`telemetry_config` is a top-level field in the create/update request body — it sits alongside `config`, not inside it.** Nesting it under `config` (a common mistake when copying older serving examples) means telemetry is silently not enabled:
 
 ```json
 {
+  "name": "my-endpoint",
+  "config": {
+    "served_entities": [ ... ]
+  },
   "telemetry_config": {
     "table_names": {
       "logs_table":    "main.observability.endpoint_logs",
-      "spans_table":   "main.observability.endpoint_spans",
+      "traces_table":  "main.observability.endpoint_spans",
       "metrics_table": "main.observability.endpoint_metrics"
     }
   }
@@ -246,6 +250,24 @@ ORDER BY calls DESC;
 | Production endpoint with `scale_to_zero_enabled: true` | Keep at least one replica warm for predictable latency |
 | Agent calling Genie or VS as the endpoint SP | OBO via `ModelServingUserCredentials` so caller-level grants apply |
 | Enabling endpoint telemetry without planning table names | Table names are fixed once telemetry is configured — name them deliberately up front |
+
+---
+
+## Performance, Data Residency, and Retention
+
+Governance decisions about model serving depend on where data lives and how long it is kept. The platform characteristics below are the baseline to plan around:
+
+| Property | Behavior |
+|---|---|
+| Scale and latency | Model Serving supports high-throughput workloads (documented at over 25,000 queries per second) with low serving overhead (under 50 ms). |
+| Foundation Model API data residency | Inputs and outputs are stored in the workspace region and retained for 30 days for abuse detection. |
+| Training use | On paid accounts, user inputs and outputs are not used to train Databricks models or improve Databricks services. |
+| External model providers | Providers such as OpenAI and Anthropic apply their own data retention and safety-scanning policies; review the provider terms when proxying through an External Model endpoint. |
+| Operational log retention | Container build logs are retained for 30 days and endpoint metrics for 14 days. Persist anything you need for longer-term audit to UC Delta via inference tables or endpoint telemetry. |
+
+For workloads that need predictable capacity, guaranteed tokens per second, or regulated data handling, use a Provisioned Throughput endpoint (no cold starts, capacity-backed) rather than pay-per-token serverless.
+
+> See [Model Serving overview](https://docs.databricks.com/aws/en/machine-learning/model-serving/) for current performance and data-handling details.
 
 ---
 

@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-09
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: sharing/overview.md, sharing/opensharing.md, sharing/storage-network-gateway.md, sharing/sap-bdc-connector.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/data-sharing
@@ -21,6 +21,36 @@
 | **D2O** (Databricks-to-Open) | Bearer token or OIDC-federated JWT | Provider-issued credential file or IdP-issued token | Recipient is on any other platform — Spark, Pandas, Power BI, Tableau, Iceberg-compatible engines |
 
 Recipients never need Unity Catalog, and a Databricks workspace is never required on the recipient side for D2O.
+
+### What can be shared, and what to design around
+
+Shareable asset types include Delta tables, views (including dynamic views with row/column filters), streaming tables, materialized views, managed Iceberg tables, and — for D2D only — volumes, Unity Catalog models, and read-only notebooks.
+
+Some table shapes are not shareable, so plan the share design around them up front rather than discovering the boundary at grant time:
+
+| Not shareable | What to do instead |
+|---|---|
+| Tables with liquid clustering and partition filtering enabled at the same time | Drop the partition filter or remove liquid clustering before sharing |
+| Collation-enabled tables | Share a view that projects the columns without collation, or store the shared copy without collation |
+| Managed Iceberg tables shared to external (non-Databricks) Iceberg clients | Share to Databricks recipients (D2D), or expose through the standard Delta path for external clients |
+| Tables with row filters or column masks applied directly | Wrap the base table in a dynamic view and share the view |
+| Shallow clone tables | Share the source table directly |
+
+Recipients also cannot import a schema named `information_schema`; rename the shared schema on the provider side if needed.
+
+Reference: [OpenSharing](https://docs.databricks.com/aws/en/opensharing/)
+
+### Delta Lake feature runtime requirements
+
+Some Delta table features require a minimum runtime on both sides. Sharing a table that uses one of these features to a recipient on an older runtime or connector produces errors, so confirm the recipient's runtime before enabling the feature on a shared table.
+
+| Feature | Databricks Runtime | Open-source connector |
+|---|---|---|
+| Deletion vectors | 14.1+ | 3.1+ |
+| Column mapping | 14.1+ | 3.1+ |
+| UniForm (Universal Format) | 14.2+ | 3.1+ |
+
+Reference: [OpenSharing](https://docs.databricks.com/aws/en/opensharing/)
 
 ### Core objects
 
@@ -89,6 +119,19 @@ For providers sharing from firewalled or private-endpoint-protected storage, Sec
 - **Recipients on classic/open compute** still allowlist a small, stable set of Databricks IP ranges rather than a per-recipient list.
 - SecureConnect never initiates inbound connections into the recipient's network.
 - Supported asset types: tables, views, foreign tables, materialized views, streaming tables. Volumes, notebooks, and AI models are shared through the standard D2D/D2O path instead.
+
+#### SecureConnect environment constraints
+
+SecureConnect relies on AWS PrivateLink to the provider's storage, which introduces a few environment boundaries to check before you standardize on it:
+
+| Constraint | Detail |
+|---|---|
+| FIPS endpoints | AWS PrivateLink to S3 is not compatible with FIPS endpoints, which are the default in US regions. Plan SecureConnect for non-FIPS regions, or use the standard IP-allowlist path for FIPS-mode US deployments. |
+| Cloudflare R2 backend | R2 cannot serve as the provider-side storage backend for SecureConnect. Use a supported cloud storage backend. |
+| AWS GovCloud | SecureConnect is not available on AWS GovCloud. Use per-recipient IP allowlisting there. |
+| Tables shared `WITH HISTORY` | Cloud token optimization is disabled for SecureConnect-enabled tables that include history; expect the standard token path for those queries. |
+
+Reference: [SecureConnect provider setup](https://docs.databricks.com/aws/en/opensharing/)
 
 ---
 

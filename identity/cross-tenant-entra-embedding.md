@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-17
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: auth/cross-tenant-entra-embedding.md, auth/peruser-byoidp-federation.md, auth/token-federation.md, apps/aibi-dashboard-external-embedding.md
   Public docs grounding:
     - https://docs.databricks.com/gcp/en/security/auth/single-sign-on/azure-ad
@@ -94,7 +94,7 @@ The dual-login symptom has one root cause: **the viewer's IdP differs from the D
 | Viewer needs a Databricks identity | **No** | Yes (SCIM/AIM) | Yes (SCIM/AIM) |
 | Second-login prompt | **Never** (token injected) | Unlikely (relies on the live session) | **Never** (token minted server-side) |
 | Per-viewer data scoping | App parameter matched in the dashboard SQL | Unity Catalog `current_user()` row filters | Unity Catalog `current_user()` row filters |
-| "Ask Genie" in the embed | **Not supported** | Supported | Supported |
+| "Ask Genie" in the embed | Outside this model's scope (parameterized dashboards only) | Available | Available |
 | Backend effort | Medium | Low | High |
 | Reference | [AI/BI external embedding](https://docs.databricks.com/aws/en/ai-bi/admin/embed) | [Basic dashboard embedding](https://docs.databricks.com/aws/en/dashboards/share/embedding) | [OAuth token federation](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation) plus [`byoidp-peruser-federation.md`](byoidp-peruser-federation.md) |
 
@@ -137,6 +137,14 @@ WHERE  department = __aibi_external_value   -- injected per viewer
 ```
 
 > **Load-bearing caveat.** There is no Unity Catalog backstop in this model. A query that omits the scoping filter exposes everything the service principal can read. Review every query, and grant the service principal only the union of what viewers legitimately need.
+
+#### Allowlisting the host domain (all embedding models)
+
+Before any embed renders, the host application's domain has to be allowed for embedding. In the account, go to **Settings → Security → External Access → Embed Dashboards** and add the **host app's own domain** (not a Databricks domain). The policy options are Allow, Allow approved domains, and Deny. Domain entries follow the W3C Content Security Policy grammar: use a `*` prefix for subdomains, so `*.example.com` matches `app.example.com`. Some hosts need several entries; a Google Sites embed, for example, needs `sites.google.com`, `www.gstatic.com`, and `*.googleusercontent.com`. See [Manage AI/BI dashboard embedding](https://docs.databricks.com/aws/en/ai-bi/admin/embed) for the full domain grammar and policy behavior.
+
+#### Matching the embed to the host UI
+
+The embedding SDK accepts a `colorScheme` prop with values `light`, `dark`, or `light dark`. Setting `light dark` lets the embedded dashboard follow the viewer's system preference so it blends with a host app that also honors light and dark modes. The same component takes a `getNewToken` callback so the SDK can request a fresh embed token before the current one expires (embed tokens live roughly one hour), which keeps a long-lived embedded view from dropping its session.
 
 ### Federated: how the no-login works with a real identity
 

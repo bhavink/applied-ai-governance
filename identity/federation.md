@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: auth/token-federation.md, auth/_azure/token-federation.md, auth/_okta/token-federation.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
@@ -44,7 +44,7 @@ Databricks exposes two federation entry points, chosen by **who** is authenticat
 | Model | Who uses it | Setup | Flow |
 |---|---|---|---|
 | Account Token Federation | Users and service principals authenticating through your IdP | SSO enabled on the account; SCIM sync of users/SPs; up to 5 federated token issuers per account | Supports both U2M and M2M |
-| Workload Identity Federation (WIF) | Automated workloads running outside Databricks (CI/CD runners, cloud VMs, Kubernetes pods) | Per-SP federation policy; no issuer limit | M2M only, using the workload runtime's own token (GitHub Actions OIDC, Azure Workload Identity, GCP service account) |
+| Workload Identity Federation (WIF) | Automated workloads running outside Databricks (CI/CD runners, cloud VMs, Kubernetes pods) | Per-SP federation policy; no issuer limit; no Databricks secrets | M2M only, using the workload runtime's own token (GitHub Actions OIDC, Azure Workload Identity, GCP service account) |
 
 The role-based service principal pattern in this doc runs on Account Token Federation with M2M exchange: the external user's IdP token maps to a service principal via a role claim, rather than to an individual Databricks account.
 
@@ -72,7 +72,7 @@ One SP per role, not per user. N:1 mapping. UC governance applies via `is_member
 
 ### Federation Policy
 
-Each SP that participates in token exchange needs a federation policy configured in the Account Console. The policy defines which IdP tokens are trusted:
+Each SP that participates in token exchange needs a federation policy configured in the Account Console. Configuring federation policies is a self-service action for an account admin: on Azure Databricks, an account admin sets them up directly in the account console under Settings > Security > Authentication > Federation Policies, with no external provisioning step. The policy defines which IdP tokens are trusted:
 
 | Field | What it does |
 |-------|-------------|
@@ -186,6 +186,11 @@ AZURE_MI_TOKEN=$(curl -s \
 ```
 
 `<databricks-resource-id>` is Databricks' Azure application ID (`2ff814a6-3304-4ab8-85cb-cd0e6f879c1d`). This path is a good fit for CI/CD runners, AKS pods, or Azure Functions that need to call Databricks without holding a Databricks secret — IMDS is only reachable from inside Azure compute, and the exchange applies to Azure Databricks workspaces.
+
+The prerequisite federation trust policy is self-service on Azure: an account admin configures it in the account console under Settings > Security > Authentication > Federation Policies, specifying the trusted Azure tenants and managed-identity object IDs. Two policy shapes cover the range of Azure workloads:
+
+- **Account-wide token federation** — all users and service principals in the account can authenticate with tokens from the IdP. Pair it with SCIM so IdP identities are synchronized into the account before any exchange.
+- **Workload identity federation** — an automated Azure workload authenticates as a specific Databricks service principal using the token its runtime already holds, with no Databricks secret involved.
 
 ## Gotchas
 

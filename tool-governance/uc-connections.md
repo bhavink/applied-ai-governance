@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: governance/http-connections.md, governance/service-credentials.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/query-federation/http
@@ -198,7 +198,7 @@ For a set of common providers, Databricks manages the OAuth client registration 
 | **Glean MCP** | `/mcp/default` | `mcp` | Enterprise search, chat, documents, agent tools |
 | **GitHub MCP** | (default) | `repo read:project read:org` | Repositories, organizations, project data |
 | **Atlassian MCP** | (default) | `read:jira-work read:jira-user read:confluence-content.all offline_access` | Issue tracking and wiki content |
-| **Slack MCP** | (default) | `search:read.public channels:history users:read` (+more) | Messages, files, channels, direct messages |
+| **Slack MCP** | (default) | `search:read.public search:read.private search:read.mpim search:read.im search:read.files search:read.users channels:history groups:history mpim:history im:history canvases:read users:read users:read.email` | Messages, files, channels, canvases, DMs, and channel/group/DM history |
 
 If your identity provider requires an explicit allowlist, add the redirect URI for your cloud:
 

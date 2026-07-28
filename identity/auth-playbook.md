@@ -1,6 +1,6 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
-  Sources: auth/overview.md, auth/obo-passthrough.md, auth/m2m-service-principal.md
+  Synced from databricks-fieldkit on 2026-07-28
+  Sources: auth/overview.md, auth/obo-passthrough.md, auth/m2m-service-principal.md, auth/eli5-auth-models.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m
@@ -497,6 +497,28 @@ grant_type=client_credentials
 
 The token is valid for 1 hour — cache it and refresh proactively rather than requesting a new one per call. Use the narrowest `scope` the caller needs (`sql`, `clusters`, `jobs`, or `all-apis`).
 
+### Scoping an M2M token to a single group (`assume_group`)
+
+A service principal can request a **workspace-level** token that carries only one target group's membership, using the `assume_group` parameter on the client credentials request. The token then behaves as if the SP belongs to just that group for the life of the call, which lets a single SP run with a minimal, request-specific role rather than every group it belongs to at once.
+
+```http
+POST https://<workspace-host>/oidc/v1/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id=<sp-application-uuid>
+&client_secret=<sp-secret>
+&scope=all-apis
+&assume_group=<group-name>
+```
+
+Two conditions apply:
+
+- The token must be **workspace-level** — `assume_group` does not apply to account-level tokens.
+- The SP must hold the **`Assume`** permission on the target group.
+
+This complements the grant-through-groups model above: privileges live on groups, and a workload can assume exactly one group's role per token when it needs to run with a narrow set of privileges.
+
 ### Secret management
 
 Store SP credentials for external services in a Databricks secret scope rather than in plaintext env vars, code repositories, or unmanaged CI/CD variables:
@@ -509,12 +531,19 @@ databricks secrets put-secret pipeline-sp client-secret --string-value <secret> 
 
 Back the scope with your cloud's key management service in production (AWS Secrets Manager, Azure Key Vault, or GCP Secret Manager).
 
-Each SP has a limited number of active secrets available at a time. If you hit a secret-creation limit, list and clean up stale secrets from earlier testing before generating a new one:
+Each SP can hold up to **5 active OAuth secrets**, and each secret is valid for up to **730 days**. Plan rotation within these limits. If creating a new secret would exceed the quota, list and delete a stale secret from earlier testing first:
 
 ```bash
-databricks api get /api/2.0/accounts/<account-id>/service-principals/<sp-id>/credentials/secrets \
+# List a service principal's OAuth secrets
+databricks api get /api/2.0/accounts/<account-id>/servicePrincipals/<sp-id>/credentials/secrets \
+  --profile <account-profile>
+
+# Delete a stale secret before generating a replacement
+databricks api delete /api/2.0/accounts/<account-id>/servicePrincipals/<sp-id>/credentials/secrets/<secret-id> \
   --profile <account-profile>
 ```
+
+A rotation cadence well under 730 days, with cleanup of retired secrets, keeps you inside the 5-secret quota.
 
 ### Auditing SP activity
 

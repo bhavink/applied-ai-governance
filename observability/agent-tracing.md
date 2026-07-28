@@ -1,6 +1,6 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
-  Sources: ai/mlflow-tracing.md, ai/production-monitoring.md
+  Synced from databricks-fieldkit on 2026-07-28
+  Sources: ai/mlflow-tracing.md, ai/production-monitoring.md, ai/mlflow-mcp.md, ai/third-party-scorers.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/mlflow3/genai/tracing/
     - https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/eval-monitor/production-monitoring
@@ -98,7 +98,7 @@ Tag conventions worth standardizing across an organization:
 
 ## UC OTel Tracing — Traces Directly in Unity Catalog (Public Preview)
 
-MLflow (>= 3.11.0) supports writing traces directly into Unity Catalog Delta tables in OpenTelemetry format, as an alternative to the default MLflow control-plane storage. This is primary storage rather than a periodic copy, so there's no archival lag between when a span completes and when it's queryable.
+MLflow (>= 3.14.0) supports writing traces directly into Unity Catalog Delta tables in OpenTelemetry format, as an alternative to the default MLflow control-plane storage. This is primary storage rather than a periodic copy, so there's no archival lag between when a span completes and when it's queryable.
 
 ```python
 from mlflow.entities.trace_location import UnityCatalog
@@ -168,6 +168,15 @@ Multi-turn judges aggregate traces by the `mlflow.trace.session` tag, considerin
 Custom LLM judges can be trained to match an organization's own evaluation standards: provide ratings against a judge's past assessments from the **Judges** tab in the MLflow Experiment UI, and the judge incorporates that feedback going forward. Built-in judges can also be created directly from the UI without writing code — select scope (traces or sessions), judge type, and sampling configuration.
 
 Judge models can be overridden per scorer when a workspace needs a specific model for evaluation, for example `Correctness(model="databricks:/databricks-gpt-5-mini")`.
+
+#### Judge data residency and usage policy
+
+LLM judges can call partner-powered models, so plan for two governance constraints:
+
+- **Data residency.** When cross-Geo processing is disabled, a judge processes content in the workspace's own Databricks Geo; if no eligible in-Geo model is available, the judge returns a geo-restriction error rather than sending content elsewhere. Enabling [cross-Geo processing](https://learn.microsoft.com/en-us/azure/databricks/resources/databricks-geos) lets judges process content in other Geos. Partner-powered features can be disabled entirely if you need to keep evaluation on models you provide. Abuse monitoring is opted out for the partner path, so prompts and responses are not retained by the partner service.
+- **No training on judge output.** LLM judge outputs must not be used to train, improve, or fine-tune an LLM. Treat judge assessments as read-only evaluation signal, not as labeled training data.
+
+Reference: [Production monitoring with scorers](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/eval-monitor/production-monitoring).
 
 ### Querying traces with natural language
 

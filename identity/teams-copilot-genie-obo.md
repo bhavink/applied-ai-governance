@@ -1,13 +1,10 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-10
-  Sources: apps/teams-agentbricks-obo.md (composes apps/powerbi-agentbricks-obo.md, auth/peruser-byoidp-federation.md, auth/token-federation.md, auth/obo-passthrough.md)
+  Synced from databricks-fieldkit on 2026-07-28
+  Sources: apps/teams-agentbricks-obo.md, apps/powerbi-agentbricks-obo.md, auth/peruser-byoidp-federation.md, auth/token-federation.md, auth/obo-passthrough.md
   Public docs grounding:
     - https://learn.microsoft.com/en-us/azure/databricks/generative-ai/agent-framework/teams-agent
-    - https://github.com/databricks-solutions/teams-databricks-bot-service
-    - https://www.databricks.com/blog/access-genie-everywhere
     - https://docs.databricks.com/aws/en/integrations/msft-teams
     - https://docs.databricks.com/aws/en/integrations/msft-m365-copilot
-  One section (Genie space publish mode) needs re-verification against a public source; flagged inline for follow-up.
   This file is auto-prepared and human-reviewed before publish.
 -->
 
@@ -47,12 +44,27 @@ This setting lives on the **space**, independent of the client integration. Veri
 | Path | Token-layer identity | Confidence | Still gated by publish mode |
 |---|---|---|---|
 | Custom AI agent + Azure Bot Service + OAuth federation | Per-user OBO — `current_user()` = human | Confirmed, code-traced against the official reference implementation | Yes |
-| Copilot Studio via MCP, "End user credentials" | Per-user (U2M) | Confirmed to exist (Databricks blog) | Yes |
+| Copilot Studio via MCP, "End user credentials" | Per-user (U2M) | Confirmed to exist | Yes |
 | Copilot Studio via MCP, "Maker credentials" | Shared — everyone runs as the maker's identity | Confirmed M2M by design, not a degraded OBO mode | N/A — already shared |
-| Native "Databricks Genie" app (Teams marketplace) | Verify directly | Confirm with a live test before rollout | Yes |
-| Native "Databricks Genie on Microsoft 365 Copilot" | Verify directly | Confirm with a live test before rollout | Yes |
+| Native "Databricks Genie" app (Teams marketplace) | Per-user, Entra sign-in required | Confirmed per-user ([Databricks Genie app in Microsoft Teams](https://docs.databricks.com/aws/en/integrations/msft-teams)) | Yes |
+| Native "Databricks Genie on Microsoft 365 Copilot" | Per-user, same Entra sign-in pattern as the Teams app | Confirmed per-user ([Databricks Genie on Microsoft 365 Copilot](https://docs.databricks.com/aws/en/integrations/msft-m365-copilot)) | Yes |
 
-Treat the two native marketplace apps the way you'd treat any new integration surface: confirm the identity model with a direct test rather than assuming it either way. The only auth-adjacent detail available (a `User.ReadBasic.All` Graph permission on the Teams app) is for looking up who's asking, not evidence either way about query-time identity. The test is simple and worth running before rollout: two users with different UC grants, same question, compare results and `system.access.audit`.
+The native "Databricks Genie" marketplace app uses **per-user authentication**: each user signs in with Entra ID, and `current_user()` resolves to that human. The Microsoft 365 Copilot native app follows the same Entra sign-in pattern. A quick confirmation before rollout is still worthwhile: two users with different UC grants, same question, compare results and `system.access.audit`.
+
+### Native Teams app: capabilities and constraints
+
+The native marketplace app trades configurability for a turnkey setup. Plan around these characteristics before choosing it over the custom Azure Bot Service path:
+
+| Characteristic | Native Teams app |
+|---|---|
+| Authentication | Per-user Entra sign-in; per-user RLS applies (subject to publish mode) |
+| PrivateLink | Not available. When IP access lists are enforced, allowlist the outbound IPs of the Databricks control plane for the workspace's region |
+| Compute | Automatic warehouse selection; users cannot pick a SQL warehouse |
+| Chart visualizations | Text answers only; charts are outside the app's scope |
+| Outbound notifications (Teams to Databricks actions) | Outside the app's scope |
+| Response visibility | An admin can limit responses to direct messages only, rather than channel messages |
+
+When you need PrivateLink, an explicit warehouse choice, charts, or write-back actions, use the custom Azure Bot Service pattern below, which gives you full control over each of these. The native app is the fastest route when a turnkey, per-user Genie experience in Teams is the goal.
 
 ---
 
@@ -77,7 +89,7 @@ sequenceDiagram
     Bot-->>User: Response in Teams
 ```
 
-The exchange, code-traced from the official reference implementation ([`databricks-solutions/teams-databricks-bot-service`](https://github.com/databricks-solutions/teams-databricks-bot-service)):
+The exchange, following the [Connect an AI agent to Microsoft Teams](https://learn.microsoft.com/en-us/azure/databricks/generative-ai/agent-framework/teams-agent) reference pattern:
 
 ```python
 url = f"{databricks_host}/oidc/v1/token"
@@ -93,7 +105,7 @@ oauth_db_token = response.json()["access_token"]
 workspace_client = WorkspaceClient(host=databricks_host, token=oauth_db_token)
 ```
 
-This is the same account-wide RFC 8693 exchange as [Per-User BYO-IdP Federation](byoidp-peruser-federation.md) — Teams/Azure Bot Service is a new front-end for a pattern already documented here, not a new mechanism.
+This is the same account-wide RFC 8693 exchange as [Per-User BYO-IdP Federation](byoidp-peruser-federation.md). Teams/Azure Bot Service is a new front-end for a pattern already documented here, using the same mechanism.
 
 **Setup, condensed** (full steps: [Connect an AI agent to Microsoft Teams](https://learn.microsoft.com/en-us/azure/databricks/generative-ai/agent-framework/teams-agent)):
 
@@ -108,7 +120,7 @@ This is the same account-wide RFC 8693 exchange as [Per-User BYO-IdP Federation]
 
 ## Copilot Studio via MCP — "End user credentials"
 
-Per [Use Genie Everywhere with Enterprise OAuth](https://www.databricks.com/blog/access-genie-everywhere): the Copilot Studio MCP connector to Genie offers an explicit toggle between shared M2M ("Maker credentials") and per-user ("End user credentials"). Selecting the latter produces the same effect as the custom-bot path above — `current_user()` = the human — subject to the same publish-mode gate.
+The Copilot Studio MCP connector to Genie offers an explicit toggle between shared M2M ("Maker credentials") and per-user ("End user credentials"). Selecting the latter produces the same effect as the custom-bot path above, where `current_user()` resolves to the human, subject to the same publish-mode gate. See [Databricks Genie on Microsoft 365 Copilot](https://docs.databricks.com/aws/en/integrations/msft-m365-copilot) for the connector setup.
 
 ---
 
@@ -134,7 +146,5 @@ Per [Use Genie Everywhere with Enterprise OAuth](https://www.databricks.com/blog
 ## Public References
 
 - [Connect an AI agent to Microsoft Teams](https://learn.microsoft.com/en-us/azure/databricks/generative-ai/agent-framework/teams-agent)
-- [Use Genie Everywhere with Enterprise OAuth](https://www.databricks.com/blog/access-genie-everywhere)
 - [Databricks Genie app in Microsoft Teams](https://docs.databricks.com/aws/en/integrations/msft-teams)
 - [Databricks Genie on Microsoft 365 Copilot](https://docs.databricks.com/aws/en/integrations/msft-m365-copilot)
-- Reference implementation: [databricks-solutions/teams-databricks-bot-service](https://github.com/databricks-solutions/teams-databricks-bot-service)

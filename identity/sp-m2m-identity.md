@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: auth/m2m-service-principal.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m
@@ -73,6 +73,28 @@ def get_sp_token(host, client_id, client_secret, scope="all-apis"):
 ```
 
 For SDK-based workloads, `WorkspaceClient()` auto-discovers `DATABRICKS_CLIENT_ID` / `DATABRICKS_CLIENT_SECRET` / `DATABRICKS_HOST` from the environment and performs this exchange internally — no manual token handling required.
+
+### Scoping a token to one group with `assume_group`
+
+An SP can request a **workspace-level** token that carries only a single target group's membership by adding `assume_group` to the client credentials request. The token then acts as though the SP belongs to just that group for the life of the call, so one SP can run with a narrow, request-specific role rather than every group it belongs to at once:
+
+```http
+POST https://<workspace-host>/oidc/v1/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id=<sp-application-id>
+&client_secret=<sp-secret>
+&scope=all-apis
+&assume_group=<group-name>
+```
+
+Two conditions apply:
+
+- The token must be **workspace-level** — `assume_group` does not apply to account-level tokens.
+- The SP must hold the **`Assume`** permission on the target group.
+
+This complements the SP → Group → UC privilege model below: privileges live on groups, and a workload assumes exactly one group's role per token when it needs to run with a minimal privilege set.
 
 ---
 
@@ -193,6 +215,22 @@ For production workloads, back the secret scope with your cloud's key management
 - Azure: back with Azure Key Vault
 - GCP: back with GCP Secret Manager
 
+### Secret quota per service principal
+
+Each SP can hold up to **5 active OAuth secrets**, and each secret is valid for up to **730 days**. Plan rotation within these limits: when creating a new secret would exceed the quota, list and delete a stale secret from earlier testing first.
+
+```bash
+# List a service principal's OAuth secrets
+databricks api get /api/2.0/accounts/<account-id>/servicePrincipals/<sp-id>/credentials/secrets \
+  --profile <account-profile>
+
+# Delete a stale secret before generating a replacement
+databricks api delete /api/2.0/accounts/<account-id>/servicePrincipals/<sp-id>/credentials/secrets/<secret-id> \
+  --profile <account-profile>
+```
+
+A rotation cadence well under 730 days, with cleanup of retired secrets, keeps you inside the 5-secret quota.
+
 ---
 
 ## Audit: SP Actions in System Tables
@@ -244,6 +282,7 @@ ORDER BY event_time DESC;
 | Granting directly to the SP | Works, but revocation and rotation become per-SP operations. Grant to a group instead so revoking group membership is the single lever for cutting off access. |
 | Token not cached | Client-credentials tokens expire in 1 hour. Cache the token and refresh proactively — treat each token request as a network round trip to budget for. |
 | M2M for user-scoped data | If a result should differ per calling human, use OBO. M2M returns the same result to every caller regardless of who triggered the workflow. |
+| Secret quota | An SP holds at most 5 active secrets, each valid up to 730 days. Delete stale secrets before creating new ones so rotation never hits the quota. |
 
 ---
 

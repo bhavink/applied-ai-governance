@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: sharing/clean-rooms.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/clean-rooms/
@@ -45,6 +45,8 @@ Approved notebook runs produce read-only, temporary output tables that land in e
 ## Prerequisites
 
 Setting up a clean room requires a workspace with serverless compute and Unity Catalog enabled, plus OpenSharing enabled on the metastore — the same underlying sharing mechanism a clean room uses to move contributed assets into the central environment.
+
+**Storage placement for contributed tables.** Tables contributed to a clean room must reside in Databricks default storage or in an S3 bucket explicitly configured to allow serverless compute access. A storage firewall that blocks serverless will prevent the clean room from executing against those tables, so confirm the bucket policy admits serverless before contributing. Reference: [Clean Rooms](https://docs.databricks.com/aws/en/clean-rooms/).
 
 ## Supported Workloads
 
@@ -100,7 +102,7 @@ GCP support was added as of Summer 2025, so all three major clouds now support t
 |---|---|
 | Naming a clean room | The name cannot be changed after creation and must be unique across every collaborator's metastore — choose it deliberately upfront |
 | Communicating context to collaborators | Comments added to a clean room securable don't propagate to other parties' views of it — coordinate context out-of-band |
-| Sharing tables from default storage | This path currently requires enabling a Beta feature ("OpenSharing for Default Storage – Expanded Access"); use external storage tables if you'd rather stay off Beta features |
+| Sharing tables from default storage | Enable the "OpenSharing for Default Storage - Expanded Access" feature in the Account Console if tables in default storage are not accessible to a clean room; alternatively, place contributed tables in external S3 storage |
 | Scaling to many assets | Clean room securables are subject to account-level resource quotas — plan asset counts ahead of a large collaboration and engage your account team if you expect to scale significantly |
 | Referencing the sharing identifier | The identifier is the full string (global metastore ID + workspace ID + user email) — use it in full from the UI rather than a partial value |
 | Applying ABAC to contributed tables | Apply row filters, column masks, and tags to a table before contributing it to a clean room, and verify the policy behaves as expected on the underlying table first |

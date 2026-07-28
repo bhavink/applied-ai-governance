@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: ai/endpoint-telemetry.md
   Public docs grounding:
     - https://learn.microsoft.com/en-us/azure/databricks/machine-learning/model-serving/custom-model-serving-uc-logs
@@ -51,11 +51,13 @@ The telemetry path is independent of MLflow Tracing. Use **MLflow Tracing** for 
 - Unity Catalog-enabled workspace
 - `USE CATALOG`, `USE SCHEMA`, `CREATE TABLE`, `MODIFY` on the destination schema — the platform creates the `otel_logs`, `otel_spans`, and `otel_metrics` tables automatically if they don't already exist, so no manual `CREATE TABLE` is required
 - An existing (or new) custom model serving endpoint or agent serving endpoint
-- On Azure, telemetry is available in a defined set of regions; check current availability against [Features with limited regional availability](https://learn.microsoft.com/en-us/azure/databricks/resources/feature-region-support) before planning a rollout
+- Endpoint telemetry is generally available and is offered in a defined set of regions rather than globally. On Azure, confirm the destination region is supported using [Features with limited regional availability](https://learn.microsoft.com/en-us/azure/databricks/resources/feature-region-support) before planning a rollout
 
 ---
 
 ## Configure Telemetry on the Endpoint
+
+`telemetry_config` is a **top-level field** in the endpoint create/update request, at the same level as `config` — not nested inside `config`. Older examples that place it under `config` will not apply telemetry.
 
 ```json
 {
@@ -67,13 +69,13 @@ The telemetry path is independent of MLflow Tracing. Use **MLflow Tracing** for 
       "entity_version": "2",
       "workload_size": "Small",
       "scale_to_zero_enabled": true
-    }],
-    "telemetry_config": {
-      "table_names": {
-        "logs_table":    "main.observability.claims_logs",
-        "metrics_table": "main.observability.claims_metrics",
-        "traces_table":  "main.observability.claims_spans"
-      }
+    }]
+  },
+  "telemetry_config": {
+    "table_names": {
+      "logs_table":    "main.observability.claims_logs",
+      "metrics_table": "main.observability.claims_metrics",
+      "traces_table":  "main.observability.claims_spans"
     }
   }
 }
@@ -238,6 +240,7 @@ Joining `trace_id` across tables lets you correlate a structured log line back t
 
 | Pattern | Better approach |
 |---|---|
+| Nesting `telemetry_config` inside `config` in the API request | Place `telemetry_config` at the top level of the create/update request, alongside `config` — nesting it silently skips telemetry |
 | OTel provider initialization inline in `predict()` | Per-worker init in a separate file (avoids serialization issues with OTel globals) |
 | Default root logger left at `WARNING` when `INFO` signals are needed | Override in `load_context` so the desired severity is exported |
 | Telemetry config change during peak traffic | Schedule for a maintenance window — config update redeploys the endpoint |

@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-07-28
   Sources: governance/context-based-ingress.md, apps/_azure/context-based-policies.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/security/network/front-end/context-based-ingress
@@ -121,6 +121,12 @@ Beyond public CIDR ranges, network source rules also match on registered private
 
 This supports rules like "API access only from the corporate Private Link endpoint" — network-layer isolation without maintaining an IP allowlist.
 
+### Managed IP Allowlists for SaaS Analytics Tools
+
+Context-based ingress automatically manages and keeps current the IP allowlists for common third-party SaaS analytics platforms, including **Power BI**, **Tableau Cloud**, and **dbt platform**. When a policy rule targets an identity type that matches one of these platforms, Databricks tracks the platform's egress IP ranges and updates the allowlist without manual intervention. This removes the recurring maintenance of chasing published IP-range changes for these connectors, and it is the recommended approach for admitting managed SaaS BI and transformation traffic.
+
+Reference: [Context-based ingress control](https://docs.databricks.com/aws/en/security/network/front-end/context-based-ingress)
+
 ### Configuring via API and Terraform
 
 Policies can be managed the same way as any other Databricks resource, not just through the Account Console:
@@ -235,7 +241,7 @@ Workspaces with no explicit policy use the default. Editing the default propagat
 | An IP access list change doesn't seem to take effect | Confirm the source IP passes the account-level policy first — the account policy is evaluated before workspace IP access lists |
 | Piloting a policy change | Create a named policy and attach it to one workspace rather than editing the default policy, which applies to every unassigned workspace |
 | Deciding between Allow + Deny on the same rule | Deny always wins over a matching Allow — use `NOT IN` on the Deny rule if the intent is closer to "allow only these" |
-| A SaaS client's IPs change frequently | Use an identity-based rule (`All service principals`) instead of tracking IP ranges |
+| A SaaS client's IPs change frequently | Use an identity-based rule (`All service principals`) instead of tracking IP ranges. For Power BI, Tableau Cloud, and dbt platform, context-based ingress keeps their egress IP allowlists current automatically. |
 
 ---
 
