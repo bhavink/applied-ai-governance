@@ -6,6 +6,18 @@
     - https://docs.databricks.com/aws/en/ai-gateway/model-provider-services
     - https://docs.databricks.com/aws/en/ai-gateway/query-model-provider-services
     - https://docs.databricks.com/aws/en/ai-gateway/coding-agent-integration-model-provider-services
+    - https://docs.databricks.com/aws/en/ai-gateway/budgets
+
+  Source-inspection grounding (claims not covered by the docs pages above):
+    Read from the public databricks/ucode repo at commit ecb14e7 (2026-08-04).
+    - Per-agent provider support and the credential-less subscription relay:
+      ucode/databricks.py
+    - Provider header injection into each agent's managed config:
+      ucode/agents/claude.py, ucode/agents/codex.py
+    - Loopback token-swap proxy: ucode/gateway_proxy.py
+    Every ucode build reports v0.1.0, so verify capability by flag or by reading
+    the pinned commit, never by version string.
+
   This file is auto-prepared and human-reviewed before publish.
 -->
 
@@ -134,11 +146,15 @@ ucode claude --provider main.default.anthropic_prod
 
 Two properties matter for governance. Access is a **Unity Catalog grant** — `EXECUTE` on the service decides who may use which provider, so provider access joins the same permission model as tables and functions. And the credential **stops living on laptops**, which removes the rotation and offboarding problem that per-developer API keys create.
 
-Provider support is per agent and narrow: Claude Code can be backed by Anthropic or Amazon Bedrock, Codex CLI by OpenAI. Other agents have no model-provider-service support today.
+Provider support is per agent and narrow: reading the ucode source, Claude Code accepts `anthropic` and `amazon_bedrock` services, Codex CLI accepts `openai`, and Gemini CLI, OpenCode, Copilot, and Pi have no model-provider-service support at all.
+
+> **Docs and source disagree on this one.** The Databricks page describes Claude Code as usable with "OpenAI, Anthropic, Amazon Bedrock, and other registered provider," and its example even shows `ucode claude --provider main.default.openai_prod`. The ucode source gates the pairing more narrowly than that. Treat the per-agent list as the binding constraint, test the specific pairing you intend to ship, and do not promise a combination on the strength of the doc example alone.
 
 ### Using a Claude subscription instead of a key
 
 An Anthropic service can be registered **credential-less** to relay an existing Claude Max, Team, or Enterprise subscription. The developer's own subscription sign-in remains the credential the provider authenticates, while the Databricks credential travels in a separate header that a local loopback process refreshes per request. Practically: a team keeps the subscription it already pays for, and the platform still sees the traffic. This path is Claude Code only.
+
+> **Grounding**: this behaviour is read from the ucode source (`databricks.py` for the relay flag, `gateway_proxy.py` for the loopback refresh), not from the AI Gateway doc pages listed above, which describe API-key registration only. Confirm against the [ucode repo](https://github.com/databricks/ucode) before relying on it; the mechanism is unusual and could change without a doc update.
 
 ### Governance by inference path
 
