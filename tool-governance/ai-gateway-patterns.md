@@ -1,11 +1,11 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-08-05
   Sources: ai/ai-gateway.md, mcp/mcp-services.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/ai-gateway/
-    - https://learn.microsoft.com/en-us/azure/databricks/ai-gateway/overview-beta
     - https://docs.databricks.com/aws/en/ai-gateway/budgets
     - https://docs.databricks.com/aws/en/ai-gateway/ai-governance
+    - https://docs.databricks.com/aws/en/ai-gateway/model-provider-services
     - https://learn.microsoft.com/en-us/azure/databricks/machine-learning/foundation-model-apis/model-uc-permissions
   This file is auto-prepared and human-reviewed before publish.
 -->
@@ -190,12 +190,16 @@ Budgets are configured at the account level (`Usage > Budgets` in the account co
 
 Each budget defines a monthly (or custom-period) dollar threshold and a "when exhausted" action. Set the scope (workspaces, resource types, tags) at creation time, then manage thresholds and actions from the budget's detail page. Scope is fixed after creation.
 
-**Two exhaustion actions, with an important scope difference:**
+**Two exhaustion actions:**
 
-- **Send alert** — email notification; access continues. Available for all covered model services.
-- **Block usage** — hard stop; requests are denied once the threshold is reached. This "stop traffic" action is available for Genie only. For model-service endpoints, plan on **Send alert** as the enforcement signal and pair it with rate limits (per user/group/endpoint) to bound consumption.
+- **Send alert** — email notification; access continues.
+- **Block usage** — the user is prevented from making further requests through Unity AI Gateway and sees a budget-exhausted message. Access resumes when the budget resets or an admin raises the threshold. Select Unity AI Gateway as the resource type to scope it.
+
+**Block usage is approximate, not an absolute ceiling.** Enforcement runs against a near-real-time cost estimate, so actual spend can overshoot the threshold before requests start being denied. The docs are explicit: do not treat this as a guarantee on final billed amounts. Where a firm bound matters, pair it with rate limits per user, group, or endpoint.
 
 **What budgets track, and what they do not:** Budgets meter spend for pay-per-token and `ai_query` (batch) inference. **Provisioned-throughput and external-model inference are not tracked by budgets.** For those surfaces, use rate limits and the model access permissions gate to bound usage rather than relying on a dollar cap.
+
+That exclusion extends to **model provider services** — the bring-your-own-key path for external providers: "Spend from model provider services is not tracked in budgets. Budget notifications, alerts, and hard spend caps do not apply to model provider service usage." Anyone fronting their own OpenAI or Anthropic account through the gateway should expect the provider's own bill to be the only spend signal, and should use rate limits for containment. See [ucode Governance](ucode-governance.md#governance-by-inference-path) for the full per-path matrix.
 
 **Scale limits per budget/account:** up to 4 shared thresholds per budget, up to 20 per-user overrides per budget, and up to 1,000 budgets per account. Reported spend can differ slightly across the alert email, the budget details page, and system tables because each updates on its own cadence; enforcement uses near real-time tracking.
 

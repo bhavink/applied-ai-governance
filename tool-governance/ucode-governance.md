@@ -1,8 +1,11 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-08-05
   Sources: ai/ucode.md
   Public docs grounding:
     - https://github.com/databricks/ucode
+    - https://docs.databricks.com/aws/en/ai-gateway/model-provider-services
+    - https://docs.databricks.com/aws/en/ai-gateway/query-model-provider-services
+    - https://docs.databricks.com/aws/en/ai-gateway/coding-agent-integration-model-provider-services
   This file is auto-prepared and human-reviewed before publish.
 -->
 
@@ -16,12 +19,16 @@
 
 ## TL;DR
 
-ucode is Databricks' own lightweight CLI launcher for running coding agents — Codex, Claude Code, Gemini CLI, OpenCode, GitHub Copilot CLI, and Pi — through Databricks. It handles OAuth automatically, requires no API keys, and routes each agent's model calls through Unity AI Gateway using the developer's own workspace credentials. It does not include [Omnigent](omnigent-governance.md)'s session sharing, sandboxing, or policy engine — it's purely an auth-and-routing layer.
+ucode is Databricks' own lightweight CLI launcher for running coding agents — Codex, Claude Code, Gemini CLI, OpenCode, GitHub Copilot CLI, and Pi — through Databricks. It handles OAuth automatically and routes each agent's model calls through Unity AI Gateway using the developer's own workspace credentials. It does not include [Omnigent](omnigent-governance.md)'s session sharing, sandboxing, or policy engine — it's purely an auth-and-routing layer.
+
+Teams that already pay for OpenAI, Anthropic, or a Claude subscription do not have to switch models to get governance: a Unity Catalog **model provider service** lets the gateway front an external provider with your own credential. What you gain and give up on that path is the subject of [Governance by inference path](#governance-by-inference-path) below — read it before promising a team "same governance, your models."
 
 | You want... | Use ucode? |
 |---|---|
 | The simplest path from "installed coding agent" to "routed through Databricks" | Yes |
 | OAuth handled for you, zero API keys to manage | Yes |
+| Keep your existing provider account or Claude subscription, but centralize the credential and the audit trail | Yes — via a model provider service |
+| A guaranteed dollar ceiling on coding-agent spend | No — budgets block only approximately, and do not see external-provider spend; use rate limits |
 | Team collaboration, session sharing, a client-side cost-cap policy engine | No — see [Omnigent](omnigent-governance.md) |
 
 ---
@@ -33,7 +40,8 @@ ucode is Databricks' own lightweight CLI launcher for running coding agents — 
 - You don't need session sharing, sandboxing, or contextual policies
 
 **Anti-patterns:**
-- Cursor's OAuth flow isn't available through ucode — Cursor routes through its own servers, so use a PAT or Service Principal token for it instead
+- Do not expect ucode to govern **Cursor's inference**. `ucode cursor` exists but registers MCP servers only: `cursor-agent` runs models on the user's own Cursor account and exposes no gateway base URL. The result is governed tools alongside ungoverned model calls. To govern Cursor's inference, point its OpenAI-compatible base URL at the gateway manually with a token
+- Do not present budgets as a spend cap for coding agents. See [Governance by inference path](#governance-by-inference-path)
 
 ---
 
@@ -50,9 +58,12 @@ ucode gemini       # Gemini CLI
 ucode opencode     # OpenCode
 ucode copilot      # GitHub Copilot CLI
 ucode pi           # Pi
+ucode cursor       # Cursor Agent — registers MCP servers only, not inference
 ```
 
 First launch prompts for the workspace URL and authenticates via browser SSO, writing each agent's config automatically. Subsequent launches go straight to the agent.
+
+Useful per-launch flags: `--workspace <url>` targets one launch at a specific workspace (authenticating it if needed), which is what lets two agents sit on two different workspaces without reconfiguring in between; `--provider <catalog>.<schema>.<name>` routes through a model provider service; `--skip-preflight` skips the per-launch re-validation.
 
 ```bash
 ucode configure        # configure multiple agents (interactive picker)
@@ -112,10 +123,54 @@ Non-Databricks developers need to be provisioned as workspace users first — vi
 
 ---
 
+## Bringing your own models
+
+The common objection to routing coding agents through a platform is "we already pay for our own models." A Unity Catalog **model provider service** answers it. The service is a UC securable holding an external provider's connection details and encrypted credential; the gateway supplies the credential at request time, so the coding agent never handles the secret:
+
+```bash
+ucode codex  --provider main.default.openai_prod
+ucode claude --provider main.default.anthropic_prod
+```
+
+Two properties matter for governance. Access is a **Unity Catalog grant** — `EXECUTE` on the service decides who may use which provider, so provider access joins the same permission model as tables and functions. And the credential **stops living on laptops**, which removes the rotation and offboarding problem that per-developer API keys create.
+
+Provider support is per agent and narrow: Claude Code can be backed by Anthropic or Amazon Bedrock, Codex CLI by OpenAI. Other agents have no model-provider-service support today.
+
+### Using a Claude subscription instead of a key
+
+An Anthropic service can be registered **credential-less** to relay an existing Claude Max, Team, or Enterprise subscription. The developer's own subscription sign-in remains the credential the provider authenticates, while the Databricks credential travels in a separate header that a local loopback process refreshes per request. Practically: a team keeps the subscription it already pays for, and the platform still sees the traffic. This path is Claude Code only.
+
+### Governance by inference path
+
+This is the part worth being precise about, because "route it through the gateway" does not mean "all controls apply." Governance degrades in two steps as you move away from platform-hosted models:
+
+| Control | Databricks-hosted models | Your own key or subscription | Passthrough (forward all URL paths) |
+|---|---|---|---|
+| Usage tracking | Yes | Yes | No token or cost tracking |
+| Payload logging (inference tables) | Yes | Yes | Yes |
+| Rate limits | Yes | Yes | Token-based limits do not apply |
+| Guardrails and service policies | Yes | Yes, on managed paths | Do not apply |
+| Model access control | Yes | Yes (`EXECUTE` on the service) | Does not apply |
+| Budgets and spend caps | Alert or block, approximately | **Not tracked at all** | Not tracked |
+
+Three implications for anyone designing this:
+
+1. **Budgets bound spend approximately; they do not guarantee a ceiling.** Both actions are available on Unity AI Gateway: alert, or block further requests. But enforcement runs on a near-real-time cost estimate, so spend can overshoot before blocking engages, and the docs say plainly not to rely on it for an absolute cap. Separately, external-provider spend is outside budgets entirely — "spend from model provider services is not tracked in budgets" — so that bill arrives from your provider. Where a firm ceiling on coding-agent consumption matters, **rate limits** are the control that enforces.
+2. **Keep providers on managed paths.** Enabling "forward all URL paths" for unmapped provider endpoints is the single biggest governance downgrade available: usage and cost tracking, token-based rate limits, model access control, and service policies all stop applying to passthrough requests. Enable it only with a specific reason.
+3. **The audit trail survives the switch.** Usage tracking, payload logging, rate limits, and policies all continue to work with your own credential. Bringing your own model costs you budget visibility, not observability.
+
+---
+
 ## Gotchas
 
 - **Model support varies per route** — e.g. Cursor's route doesn't support every model (open-source models like Qwen aren't supported there); check the AI Gateway UI for the per-route supported model list.
 - **Claude Code's large context window can hit default FMAPI rate-limit tiers quickly** (e.g. 200k input tokens/min default tier for Claude Sonnet). Monitor via AI Gateway usage tables and request a tier increase if needed.
+- **Codex requires a workspace that serves the OpenAI Responses API.** Codex speaks Responses, so a workspace whose endpoints only expose chat completions cannot host it, and the failure looks like "no models available" rather than a protocol error. Other agents use their own native dialects and are less constrained.
+- **Verify rate limits and policies behaviourally, not by reading configuration.** Controls configured through the model service surface do not appear in the older serving-endpoints gateway configuration, and the two surfaces do not synchronize. Send traffic and confirm you see a `429` or a policy block; a configuration read will mislead you.
+- **A polite refusal is not a policy block.** Guardrails on the current surface are model-evaluated classifiers rather than keyword matchers, so testing needs care: a `200` response saying "I can't share that" is the model declining, whereas an actual block is a `4xx` naming the policy and the phase. Built-in PII detection is the most deterministic to test against.
+- **Coding-agent traffic can be attributed with request tags.** Where several tools share one endpoint, a request tag is the practical way to separate their usage in the gateway usage table, and tags are queryable as a map column.
+- **Enterprise-managed agent settings can override ucode.** Claude Code honours a managed settings file at the highest precedence tier, above environment variables and command-line settings. If that file pins a base URL, an API-key helper, or custom headers, ucode cannot redirect the agent and provider routing headers are dropped. ucode warns when it detects those keys. Check the effective base URL rather than the reported model name, since the model can change while the endpoint stays pinned.
+- **Environment variables outrank ucode's config files.** A shell exporting a provider base URL or model override makes the agent ignore what ucode wrote. Launch from a clean shell if routing looks wrong.
 
 ---
 
@@ -127,3 +182,7 @@ Non-Databricks developers need to be provisioned as workspace users first — vi
 ## References
 
 - [ucode on GitHub](https://github.com/databricks/ucode)
+- [Govern external model providers (model provider services)](https://docs.databricks.com/aws/en/ai-gateway/model-provider-services)
+- [Query model provider services](https://docs.databricks.com/aws/en/ai-gateway/query-model-provider-services)
+- [Coding agent integration with model provider services](https://docs.databricks.com/aws/en/ai-gateway/coding-agent-integration-model-provider-services)
+- [Manage budgets](https://docs.databricks.com/aws/en/ai-gateway/budgets)
