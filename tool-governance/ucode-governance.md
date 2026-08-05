@@ -148,7 +148,9 @@ Two properties matter for governance. Access is a **Unity Catalog grant** — `E
 
 Provider support is per agent and narrow: reading the ucode source, Claude Code accepts `anthropic` and `amazon_bedrock` services, Codex CLI accepts `openai`, and Gemini CLI, OpenCode, Copilot, and Pi have no model-provider-service support at all.
 
-> **Docs and source disagree on this one.** The Databricks page describes Claude Code as usable with "OpenAI, Anthropic, Amazon Bedrock, and other registered provider," and its example even shows `ucode claude --provider main.default.openai_prod`. The ucode source gates the pairing more narrowly than that. Treat the per-agent list as the binding constraint, test the specific pairing you intend to ship, and do not promise a combination on the strength of the doc example alone.
+> **Docs and source disagree on this one.** The Databricks page describes Claude Code as usable with "OpenAI, Anthropic, Amazon Bedrock, and other registered provider," and its example even shows `ucode claude --provider main.default.openai_prod`. The ucode source gates the pairing more narrowly than that. Treat the per-agent list as the binding constraint and do not promise a combination on the strength of the doc example alone.
+>
+> **You may not be able to test this locally.** On a machine with enterprise-managed agent settings, that file sits at the highest precedence tier and can pin the base URL, model, and credential helper, so ucode cannot redirect the agent and `--provider` has no observable effect. A failure there tells you managed settings won, not that the pairing was rejected. Check the effective base URL before concluding anything about provider support.
 
 ### Using a Claude subscription instead of a key
 
