@@ -721,7 +721,7 @@ client.messages.create(...)</pre>
       <thead><tr><th style="width:22%">Lever</th><th style="width:30%">Governs</th><th>Detail</th></tr></thead>
       <tbody>
         <tr><td><strong>Rate limits</strong></td><td>Call volume</td><td>QPM and TPM, per user/group/SP/endpoint. Precedence: endpoint ceiling &gt; named SP override &gt; user &gt; group &gt; default. Max 20 limits per endpoint.</td></tr>
-        <tr><td><strong>Spend caps</strong></td><td>Dollar budget</td><td>Hard block on threshold, per endpoint/user/account. Not an alert-and-continue &mdash; genuinely blocks.</td></tr>
+        <tr><td><strong>Spend caps</strong></td><td>Dollar budget</td><td>Blocks on threshold, per endpoint/user/account &mdash; not just alert-and-continue. Enforced on a near-real-time cost estimate, so treat it as a brake, not a guaranteed ceiling. Pair with rate limits.</td></tr>
         <tr><td><strong>Service policies (ABAC)</strong></td><td>Access + tool calls</td><td>Allow, deny, or <strong>require human approval</strong> &mdash; extends beyond content filtering to govern which tools a principal may invoke.</td></tr>
       </tbody>
     </table>
