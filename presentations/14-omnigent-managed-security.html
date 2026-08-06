@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<!--
+  Code-grounded security architecture for Databricks-managed Omnigent.
+  Scanned: omnigent 0.7.0 wheel, build epoch 1785189710.
+  Companion doc: tool-governance/omnigent-managed-security-architecture.md
+  Every claim carries a path:line citation from that scan. Re-verify against the
+  deployed version before quoting line numbers.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Managed Omnigent — Security Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --white:#ffffff;
+    --ink:#1a1a1a;
+    --vermillion:#cc3311;
+    --ink-60:rgba(26,26,26,.6);
+    --ink-12:rgba(26,26,26,.12);
+    --ink-06:rgba(26,26,26,.06);
+    --verm-10:rgba(204,51,17,.10);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    font-family:'Space Grotesk',sans-serif;
+    background:var(--ink);
+    color:var(--ink);
+    overflow:hidden;
+  }
+  /* deck viewport */
+  .deck{position:fixed;inset:0}
+  .slide{
+    position:absolute;inset:0;
+    background:var(--white);
+    padding:6vh 7vw;
+    display:none;
+    flex-direction:column;
+    opacity:0;
+    transition:opacity .5s ease;
+  }
+  .slide.active{display:flex;opacity:1;z-index:2}
+  .slide.prev{display:flex;opacity:0;z-index:1}
+
+  /* grid guides — swiss */
+  .kicker{
+    font-family:'Space Mono',monospace;
+    font-size:.72rem;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--vermillion);margin-bottom:1.6vh;
+    opacity:0;transform:translateY(8px);
+  }
+  h1{font-size:clamp(2.2rem,5.4vw,4.6rem);font-weight:700;line-height:1.02;letter-spacing:-.02em;max-width:20ch}
+  h2{font-size:clamp(1.6rem,3.4vw,2.9rem);font-weight:600;line-height:1.06;letter-spacing:-.015em;margin-bottom:2.4vh}
+  .sub{font-size:clamp(1rem,1.5vw,1.35rem);font-weight:400;color:var(--ink-60);max-width:52ch;margin-top:2.2vh;line-height:1.45}
+  p{font-size:clamp(.95rem,1.25vw,1.15rem);line-height:1.5}
+  .mono{font-family:'Space Mono',monospace}
+
+  /* reveal stagger */
+  .r{opacity:0;transform:translateY(14px)}
+  .slide.active .r{animation:rise .6s cubic-bezier(.2,.7,.2,1) forwards}
+  .slide.active .r.d1{animation-delay:.10s}
+  .slide.active .r.d2{animation-delay:.22s}
+  .slide.active .r.d3{animation-delay:.34s}
+  .slide.active .r.d4{animation-delay:.46s}
+  .slide.active .r.d5{animation-delay:.58s}
+  .slide.active .r.d6{animation-delay:.70s}
+  .slide.active .r.d7{animation-delay:.82s}
+  .slide.active .kicker{animation:rise .55s ease forwards}
+  @keyframes rise{to{opacity:1;transform:translateY(0)}}
+
+  /* footer */
+  .foot{
+    position:absolute;bottom:3vh;left:7vw;right:7vw;
+    display:flex;justify-content:space-between;align-items:center;
+    font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-60);
+    border-top:1px solid var(--ink-12);padding-top:1.4vh;
+  }
+  .foot .n{color:var(--vermillion)}
+
+  /* progress */
+  .prog{position:absolute;top:0;left:0;height:4px;background:var(--vermillion);z-index:10;transition:width .4s ease}
+
+  /* three-column compare */
+  .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:1.6vw;margin-top:1vh}
+  .col{border:1px solid var(--ink-12);border-radius:2px;padding:2.4vh 1.6vw;display:flex;flex-direction:column;gap:1.2vh;background:var(--white)}
+  .col.hl{border-color:var(--vermillion);box-shadow:0 0 0 1px var(--vermillion) inset}
+  .col .tag{font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--vermillion)}
+  .col h3{font-size:1.4rem;font-weight:600;letter-spacing:-.01em}
+  .col ul{list-style:none;display:flex;flex-direction:column;gap:.8vh}
+  .col li{font-size:.95rem;color:var(--ink-60);padding-left:1.1em;position:relative;line-height:1.4}
+  .col li::before{content:"";position:absolute;left:0;top:.55em;width:.42em;height:.42em;background:var(--vermillion);border-radius:50%}
+
+  /* pill row */
+  .pills{display:flex;gap:.7vw;flex-wrap:wrap;margin-top:2vh}
+  .pill{font-family:'Space Mono',monospace;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;padding:.55em 1em;border:1px solid var(--ink-12);border-radius:999px;color:var(--ink-60)}
+  .pill.on{background:var(--ink);color:var(--white);border-color:var(--ink)}
+  .pill.v{background:var(--verm-10);color:var(--vermillion);border-color:var(--vermillion)}
+
+  /* flow diagram */
+  .flow{display:flex;align-items:center;gap:0;margin-top:3vh;flex-wrap:wrap}
+  .node{
+    border:1.5px solid var(--ink);border-radius:3px;
+    padding:1.5vh 1.3vw;font-weight:500;font-size:.98rem;
+    background:var(--white);min-width:8.5vw;text-align:center;position:relative;
+  }
+  .node .lbl{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--vermillion);display:block;margin-bottom:.4em}
+  .node.v{border-color:var(--vermillion)}
+  .node.ghost{border-style:dashed;color:var(--ink-60)}
+
+  /* animated arrow */
+  .arrow{flex:1;min-width:3vw;height:2px;position:relative;background:var(--ink-12);margin:0 .3vw}
+  .arrow::after{content:"";position:absolute;right:-1px;top:-4px;border-left:9px solid var(--ink);border-top:5px solid transparent;border-bottom:5px solid transparent}
+  .arrow .pulse{position:absolute;top:-3px;left:0;width:8px;height:8px;border-radius:50%;background:var(--vermillion);
+    box-shadow:0 0 10px 2px rgba(204,51,17,.5)}
+  .slide.active .arrow .pulse{animation:travel 1.8s cubic-bezier(.4,0,.2,1) infinite}
+  .slide.active .arrow.a2 .pulse{animation-delay:.5s}
+  .slide.active .arrow.a3 .pulse{animation-delay:1s}
+  .slide.active .arrow.a4 .pulse{animation-delay:1.5s}
+  @keyframes travel{0%{left:0;opacity:0}12%{opacity:1}88%{opacity:1}100%{left:100%;opacity:0}}
+  .arrow.back::after{left:-1px;right:auto;border-left:none;border-right:9px solid var(--vermillion)}
+  .arrow.back{background:transparent;border-top:2px dashed var(--ink-12)}
+  .slide.active .arrow.back .pulse{animation:travelback 1.8s cubic-bezier(.4,0,.2,1) infinite}
+  @keyframes travelback{0%{left:100%;opacity:0}12%{opacity:1}88%{opacity:1}100%{left:0;opacity:0}}
+  .flow-label{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;color:var(--ink-60);position:absolute;top:-2.2em;left:50%;transform:translateX(-50%);white-space:nowrap}
+
+  /* vertical flow for lifecycle */
+  .vflow{display:flex;flex-direction:column;gap:0;margin-top:1.5vh;max-width:70vw}
+  .vrow{display:flex;align-items:center;gap:1.2vw;padding:1.1vh 0}
+  .vstep{font-family:'Space Mono',monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--vermillion);min-width:6vw}
+  .vbar{flex:1;height:1px;background:var(--ink-12);position:relative}
+  .vtext{font-size:.98rem;color:var(--ink);min-width:34vw}
+  .vtext b{font-weight:600}
+  .vtext .m{font-family:'Space Mono',monospace;font-size:.82rem;color:var(--ink-60)}
+
+  /* two-panel */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:2.4vw;margin-top:1vh;flex:1}
+  .panel{border:1px solid var(--ink-12);border-radius:2px;padding:2.6vh 1.8vw;display:flex;flex-direction:column;gap:1.4vh}
+  .panel h3{font-size:1.3rem;font-weight:600}
+  .panel .layer{display:flex;align-items:center;gap:.8vw;padding:1vh 1vw;background:var(--ink-06);border-radius:2px;font-size:.9rem}
+  .panel .layer .num{font-family:'Space Mono',monospace;color:var(--vermillion);font-weight:700}
+  .panel.dim{opacity:.5}
+
+  /* stat row */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1.4vw;margin-top:3vh}
+  .stat{border-left:2px solid var(--vermillion);padding-left:1vw}
+  .stat .big{font-size:clamp(1.8rem,3.4vw,2.8rem);font-weight:700;letter-spacing:-.02em}
+  .stat .cap{font-size:.82rem;color:var(--ink-60);margin-top:.4vh;line-height:1.3}
+
+  /* decision tree */
+  .tree{margin-top:2vh;display:flex;flex-direction:column;gap:1.3vh;max-width:64vw}
+  .branch{display:flex;align-items:center;gap:1vw}
+  .q{font-family:'Space Mono',monospace;font-size:.85rem;color:var(--ink);background:var(--ink-06);padding:.9vh 1.1vw;border-radius:2px;min-width:26vw}
+  .ans{font-size:.85rem;color:var(--ink-60);font-family:'Space Mono',monospace}
+  .pick{font-weight:700;color:var(--vermillion)}
+
+  /* closing calligram */
+  .calli{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center}
+  .calli .word{font-size:clamp(3rem,10vw,9rem);font-weight:700;letter-spacing:-.04em;line-height:.9;color:var(--ink)}
+  .calli .word .accent{color:var(--vermillion)}
+  .calli .tagline{font-family:'Space Mono',monospace;font-size:.9rem;letter-spacing:.28em;text-transform:uppercase;color:var(--ink-60);margin-top:3vh}
+
+  /* nav hint */
+  .hint{position:absolute;bottom:3vh;right:7vw;font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.18em;color:var(--ink-12);text-transform:uppercase;z-index:5}
+  .snapshot{position:absolute;top:3vh;right:7vw;font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.14em;color:var(--ink-60);text-transform:uppercase;z-index:5;border:1px solid var(--ink-12);padding:.4em .8em;border-radius:999px}
+
+  table.mat{border-collapse:collapse;margin-top:2vh;width:100%;font-size:.9rem}
+  table.mat th,table.mat td{text-align:left;padding:1vh 1vw;border-bottom:1px solid var(--ink-12);vertical-align:top}
+  table.mat th{font-family:'Space Mono',monospace;font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--vermillion);font-weight:400}
+  table.mat td:first-child{font-weight:600}
+  table.mat .yes{color:var(--vermillion);font-weight:700}
+  table.mat .no{color:var(--ink-60)}
+  .note{margin-top:auto;font-family:'Space Mono',monospace;font-size:.7rem;color:var(--ink-60);letter-spacing:.06em;padding-top:2vh}
+
+  /* nested containment: server > host > sandbox */
+  .nest{margin-top:2vh}
+  .ring{border:1.5px solid var(--ink);border-radius:3px;padding:1.7vh 1.5vw}
+  .ring .cap{font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--vermillion);display:block;margin-bottom:.8vh}
+  .ring .desc{font-size:.88rem;line-height:1.45;color:var(--ink-60);margin-bottom:1.4vh}
+  .ring .desc .m{font-family:'Space Mono',monospace;font-size:.8rem}
+  .ring.r2{border-color:var(--vermillion)}
+  .ring.r3{border-style:dashed;border-color:var(--vermillion)}
+
+  /* numbered sequence inside a panel */
+  .seq{display:flex;flex-direction:column;gap:.2vh}
+  .step{display:flex;gap:.7vw;align-items:flex-start;padding:.55vh 0}
+  .step .num{font-family:'Space Mono',monospace;font-size:.66rem;color:var(--vermillion);min-width:1.5em;padding-top:.25em}
+  .step .txt{font-size:.86rem;line-height:1.38;color:var(--ink)}
+  .step .txt .m{font-family:'Space Mono',monospace;font-size:.76rem;color:var(--ink-60)}
+  .panel .where{font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--vermillion)}
+
+  /* worked example: prompt strip + verdict checks */
+  .prompt{font-family:'Space Mono',monospace;font-size:.82rem;line-height:1.5;color:var(--ink);background:var(--ink-06);border-left:2px solid var(--vermillion);padding:1.2vh 1.2vw;margin-top:1vh}
+  .chk{display:grid;grid-template-columns:1fr auto;gap:.3vh .8vw;padding:1vh 0;border-top:1px solid var(--ink-12)}
+  .chk .ph{grid-column:1/-1;font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:var(--vermillion)}
+  .chk .ct{font-size:.86rem;line-height:1.38;color:var(--ink-60)}
+  .vd{font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;padding:.3em .6em;border-radius:2px;align-self:start;white-space:nowrap}
+  .vd.allow{background:var(--ink-06);color:var(--ink-60)}
+  .vd.ask{background:var(--verm-10);color:var(--vermillion);border:1px solid var(--vermillion)}
+  .vd.deny{background:var(--vermillion);color:var(--white)}
+  .vd.log{background:var(--ink);color:var(--white)}
+
+  /* code citation chip */
+  .cite{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.02em;color:var(--vermillion);background:var(--verm-10);padding:.18em .5em;border-radius:2px;white-space:nowrap}
+  .citeline{font-family:'Space Mono',monospace;font-size:.62rem;color:var(--ink-60);margin-top:.5vh}
+
+  /* verdict / answer chips */
+  .no{font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;background:var(--vermillion);color:var(--white);padding:.3em .7em;border-radius:2px;white-space:nowrap}
+  .yes2{font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;background:var(--ink);color:var(--white);padding:.3em .7em;border-radius:2px;white-space:nowrap}
+  .cond{font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;background:var(--white);color:var(--vermillion);border:1px solid var(--vermillion);padding:.3em .7em;border-radius:2px;white-space:nowrap}
+
+  /* big single answer */
+  .bigans{font-size:clamp(2rem,4.6vw,3.6rem);font-weight:700;letter-spacing:-.02em;line-height:1.05;margin-top:1vh}
+  .bigans .accent{color:var(--vermillion)}
+
+  /* qa rows */
+  .qa{display:flex;flex-direction:column;gap:0;margin-top:1vh;max-width:78vw}
+  .qarow{display:grid;grid-template-columns:1fr auto;gap:1.2vw;align-items:center;padding:1.05vh 0;border-bottom:1px solid var(--ink-12)}
+  .qarow .q2{font-size:.94rem;color:var(--ink)}
+  .qarow .q2 .m{font-family:'Space Mono',monospace;font-size:.78rem;color:var(--ink-60)}
+
+  /* nested boxes for containment */
+  .stack{display:flex;flex-direction:column;gap:.9vh;margin-top:1.5vh}
+  .box{border:1.5px solid var(--ink);border-radius:3px;padding:1.3vh 1.2vw}
+  .box .bt{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--vermillion);display:block;margin-bottom:.5vh}
+  .box p{font-size:.88rem;color:var(--ink-60);line-height:1.4}
+  .box.v2{border-color:var(--vermillion)}
+  .box.dash{border-style:dashed;border-color:var(--vermillion)}
+
+  /* arrow direction emphasis */
+  .dirgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4vw;margin-top:2vh}
+  .dircard{border:1px solid var(--ink-12);border-radius:2px;padding:2vh 1.3vw;display:flex;flex-direction:column;gap:.9vh}
+  .dircard .lbl2{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--vermillion)}
+  .dircard .dir{font-family:'Space Mono',monospace;font-size:1.05rem;font-weight:700;color:var(--ink)}
+  .dircard .d2{font-size:.86rem;color:var(--ink-60);line-height:1.4}
+</style>
+</head>
+<body>
+<div class="prog" id="prog"></div>
+<div class="deck" id="deck">
+  <!-- 1 TITLE -->
+  <section class="slide active">
+    <div class="snapshot">Code-grounded · omnigent 0.7.0 wheel</div>
+    <div class="kicker">Applied AI Governance</div>
+    <h1 class="r d1">Managed Omnigent,<br>read from the <span style="color:var(--vermillion)">source</span>.</h1>
+    <p class="sub r d2">Network topology, data flow, encryption, isolation, and persistence for Databricks-managed Omnigent. Every claim below was taken from the shipped code, with a file and line to check it against.</p>
+    <div class="pills">
+      <span class="pill v r d3">No inbound connections</span>
+      <span class="pill v r d4">Outbound-only tunnels</span>
+      <span class="pill v r d5">Isolation is conditional</span>
+    </div>
+    <div class="foot"><span>Managed Omnigent Security</span><span class="n">01 / 19</span></div>
+  </section>
+
+  <!-- 2 WHAT MANAGED MEANS -->
+  <section class="slide">
+    <div class="kicker">First, a correction</div>
+    <h2 class="r d1">"Managed" is a per-session setting, not a product tier.</h2>
+    <p class="sub r d2" style="max-width:72ch">A session created with <span class="mono">host_type="managed"</span> makes the server provision a cloud sandbox, start a host inside it, and wait for it to register. From there it uses the identical machinery an external host uses.</p>
+    <div class="cols r d3" style="margin-top:2vh">
+      <div class="col"><span class="tag">Server</span><h3>Always Databricks</h3><ul><li>Sessions, auth, permissions</li><li>Policy evaluation</li><li>Durable transcript</li></ul></div>
+      <div class="col hl"><span class="tag">Host · the variable</span><h3>Sandbox or your laptop</h3><ul><li>Runs the agent loop</li><li>Owns the working tree</li><li>Chosen per session</li></ul></div>
+      <div class="col"><span class="tag">Sandbox</span><h3>Confines the harness</h3><ul><li>Omnibox on either host</li><li>Strength varies by OS</li></ul></div>
+    </div>
+    <p class="note r d5">One server can run managed-sandbox sessions and laptop-host sessions side by side. So "is my code on Databricks infrastructure?" is answered per session, not once by a contract. <span class="cite">server/managed_hosts.py:1-9</span></p>
+    <div class="foot"><span>Terminology</span><span class="n">02 / 19</span></div>
+  </section>
+
+  <!-- 3 THE INBOUND ANSWER -->
+  <section class="slide">
+    <div class="kicker">The question everyone asks first</div>
+    <h2 class="r d1">Does Databricks open a connection into my network?</h2>
+    <div class="bigans r d2">No. <span class="accent">Every hop dials outward.</span></div>
+    <div class="dirgrid">
+      <div class="dircard r d3">
+        <span class="lbl2">Host → Server</span>
+        <span class="dir">OUTBOUND</span>
+        <span class="d2">The host is a WebSocket <i>client</i>. It binds no listening socket at all.</span>
+        <span class="citeline">host/connect.py:714, 930-939</span>
+      </div>
+      <div class="dircard r d4">
+        <span class="lbl2">Runner → Server</span>
+        <span class="dir">OUTBOUND</span>
+        <span class="d2">Same pattern. The code says it plainly: "The runner is the WebSocket client."</span>
+        <span class="citeline">runner/transports/ws_tunnel/serve.py:262-268</span>
+      </div>
+      <div class="dircard r d5">
+        <span class="lbl2">Server → Host</span>
+        <span class="dir">NEVER DIALS</span>
+        <span class="d2">Control rides <i>down the tunnel you opened</i>, as a <span class="mono">host.launch_runner</span> frame.</span>
+        <span class="citeline">server/managed_hosts.py:6-9</span>
+      </div>
+    </div>
+    <p class="note r d6">This is why the design suits egress-only firewalls and Private Link. Tunnel reconnect: 0.5s initial, 10s cap, ±50% jitter. <span class="cite">host/connect.py:292-294</span></p>
+    <div class="foot"><span>Inbound</span><span class="n">03 / 19</span></div>
+  </section>
+
+  <!-- 4 THE HONEST NUANCE -->
+  <section class="slide">
+    <div class="kicker">Being precise</div>
+    <h2 class="r d1">The harness does listen. On a socket only its parent can reach.</h2>
+    <p class="sub r d2" style="max-width:74ch">A security review deserves the caveat rather than a flat "nothing listens." The harness binds a local endpoint the parent allocated. It is never on a network interface.</p>
+    <div class="two" style="margin-top:.5vh">
+      <div class="panel r d3">
+        <span class="where">POSIX · macOS and Linux</span>
+        <h3>Unix domain socket</h3>
+        <div class="layer"><span class="num">›</span> Path under <span class="mono">/tmp/omnigent-{uid}/</span></div>
+        <div class="layer"><span class="num">›</span> Directory mode <span class="mono">0700</span>, socket mode <span class="mono">0600</span></div>
+        <div class="layer"><span class="num">›</span> Owner-only; unreachable over any network</div>
+        <p class="citeline">runtime/harnesses/process_manager.py:67, 89, 93, 428</p>
+      </div>
+      <div class="panel r d4">
+        <span class="where">Windows</span>
+        <h3>Loopback TCP</h3>
+        <div class="layer"><span class="num">›</span> Binds <span class="mono">127.0.0.1</span> only</div>
+        <div class="layer"><span class="num">›</span> Ephemeral port allocated by the OS</div>
+        <div class="layer"><span class="num">›</span> Enforced: exactly one of socket or bind is required</div>
+        <p class="citeline">runtime/harnesses/process_manager.py:392 · _runner.py:370-383</p>
+      </div>
+    </div>
+    <p class="note r d5">And yes, <span class="mono">0.0.0.0</span> appears in the code. It is the <b>server's</b> bind, behind an ingress, on the Databricks side. No customer-resident component binds a wildcard. <span class="cite">server/paas_env.py:33</span></p>
+    <div class="foot"><span>Listening sockets</span><span class="n">04 / 19</span></div>
+  </section>
+
+  <!-- 5 PROCESS CHAIN -->
+  <section class="slide">
+    <div class="kicker">Where things run</div>
+    <h2 class="r d1">Four processes. Your code runs in the last one.</h2>
+    <div class="vflow">
+      <div class="vrow r d2"><span class="vstep">server</span><div class="vbar"><span class="pulse" style="position:absolute;top:-3.5px;width:8px;height:8px;border-radius:50%;background:var(--vermillion)"></span></div><span class="vtext">Sends <b>host.launch_runner</b> down the tunnel the host already opened. Never executes agent code.</span></div>
+      <div class="vrow r d3"><span class="vstep">host</span><div class="vbar"></div><span class="vtext">Spawns the runner as a subprocess with <span class="m">RUNNER_SERVER_URL</span> and a binding token. <span class="m">host/connect.py:591-592</span></span></div>
+      <div class="vrow r d4"><span class="vstep">runner</span><div class="vbar"></div><span class="vtext">One per session. Resolves harness type and spawn env from the agent spec. <span class="m">runner/app.py:2385-2410</span></span></div>
+      <div class="vrow r d5"><span class="vstep">harness</span><div class="vbar"></div><span class="vtext"><b>Your code and its tools execute here</b>, inside Omnibox, on the host. <span class="m">runner/app.py:1-10</span></span></div>
+    </div>
+    <p class="note r d6">In a managed session all four sit on Databricks infrastructure. In an external-host session, host, runner, and harness are on your machine and only the server is remote.</p>
+    <div class="foot"><span>Process chain</span><span class="n">05 / 19</span></div>
+  </section>
+
+  <!-- 6 INFERENCE PATH -->
+  <section class="slide">
+    <div class="kicker">Inference egress</div>
+    <h2 class="r d1">Model calls leave the harness directly.</h2>
+    <p class="sub r d2" style="max-width:74ch">Credentials are injected into the harness at spawn from a fixed allowlist, and the harness calls the base URL it was handed. The Omnigent server does not proxy, cache, or inspect model traffic.</p>
+    <div class="flow r d3">
+      <div class="node"><span class="lbl">Runner</span>spawn env</div>
+      <div class="arrow a1"><span class="flow-label">creds allowlist</span><span class="pulse"></span></div>
+      <div class="node v"><span class="lbl">Harness</span>builds request</div>
+      <div class="arrow a2"><span class="flow-label">egress proxy</span><span class="pulse"></span></div>
+      <div class="node"><span class="lbl">Credential swap</span>real secret added</div>
+      <div class="arrow a3"><span class="flow-label">HTTPS</span><span class="pulse"></span></div>
+      <div class="node v"><span class="lbl">Endpoint</span>Gateway or provider</div>
+    </div>
+    <div class="card" style="border:1px solid var(--vermillion);border-radius:2px;padding:1.8vh 1.4vw;margin-top:2.5vh;background:var(--verm-10)">
+      <p style="font-size:.95rem;line-height:1.5"><b>Governance consequence, stated bluntly.</b> Because inference leaves the harness directly, routing it through Unity AI Gateway is a <i>configuration</i> property — the base URL the harness was given — not a structural guarantee of the topology. If your guardrail and usage-tracking story depends on Gateway transit, verify it with traffic, per session type.</p>
+    </div>
+    <p class="note r d6">Gateway logging exists but is diagnostic only; no proxying occurs. <span class="cite">runner/app.py:9276-9332, 9788-9798</span></p>
+    <div class="foot"><span>Inference</span><span class="n">06 / 19</span></div>
+  </section>
+
+  <!-- 7 MULTITENANCY -->
+  <section class="slide">
+    <div class="kicker">Multitenancy</div>
+    <h2 class="r d1">Per-user grants, checked on every route.</h2>
+    <div class="two" style="margin-top:.5vh">
+      <div class="panel r d2">
+        <span class="where">Authentication</span>
+        <h3>Who is calling</h3>
+        <div class="layer"><span class="num">›</span> Header mode (default): trusts <span class="mono">X-Forwarded-Email</span> from the SSO proxy</div>
+        <div class="layer"><span class="num">›</span> OIDC: auth code + PKCE, RS256/ES256, <span class="mono">email_verified</span> gate</div>
+        <div class="layer"><span class="num">›</span> Accounts: username plus Argon2id password hash</div>
+        <div class="layer"><span class="num">›</span> Identity is an email address</div>
+        <p class="citeline">server/auth.py:571-614 · routes/auth.py:725-856</p>
+      </div>
+      <div class="panel r d3">
+        <span class="where">Authorization</span>
+        <h3>What they may reach</h3>
+        <div class="layer"><span class="num">›</span> <span class="mono">permissions</span> table: user, conversation, level</div>
+        <div class="layer"><span class="num">›</span> Owner 4 · Manage 3 · Edit 2 · Read 1</div>
+        <div class="layer"><span class="num">›</span> 403 for too little, <b>404 for none</b> — existence is not leaked</div>
+        <div class="layer"><span class="num">›</span> Host ownership checked pre-accept; 409 on mismatch</div>
+        <p class="citeline">routes/_auth_helpers.py:147-180 · host_tunnel.py:201-226</p>
+      </div>
+    </div>
+    <p class="note r d5">Sharing is server-wide policy via <span class="mono">OMNIGENT_SHARING_MODE</span>: ON, READ_ONLY, RESTRICTED_READ_ONLY, OFF. Public links are separately gated and capped at read. <span class="cite">server/auth.py:111-143</span></p>
+    <div class="foot"><span>Tenancy</span><span class="n">07 / 19</span></div>
+  </section>
+
+  <!-- 8 THE CONDITIONAL -->
+  <section class="slide">
+    <div class="kicker">The one finding to act on</div>
+    <h2 class="r d1">Isolation holds only if a permission store is wired.</h2>
+    <p class="sub r d2" style="max-width:72ch">The access check opens with an early return. A <span class="mono">None</span> store turns every session permission check into a no-op — a silent allow-all across all users.</p>
+    <div class="prompt r d3" style="font-size:.95rem">async def _require_access(user_id, conversation_id, required_level,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;permission_store, conversation_store):<br><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--vermillion);font-weight:700">if permission_store is None:</span><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--vermillion);font-weight:700">return</span>&nbsp;&nbsp;<span style="color:var(--ink-60)"># every check below is skipped</span></div>
+    <p class="citeline r d4" style="margin-top:.8vh">server/routes/_auth_helpers.py:120-121</p>
+    <div class="card" style="border-left:2px solid var(--vermillion);padding:1.6vh 1.3vw;margin-top:2vh;background:var(--ink-06)">
+      <p style="font-size:.95rem;line-height:1.5"><b>This is a sane default for a single-user laptop and a catastrophic one for a shared deployment.</b> It is not a defect to report upstream — it is the top verification item. Prove it with traffic: authenticate as user B, request user A's session id, require a 404. A configuration read will not reveal this.</p>
+    </div>
+    <div class="foot"><span>Verification item</span><span class="n">08 / 19</span></div>
+  </section>
+
+  <!-- 9 UI HOSTING -->
+  <section class="slide">
+    <div class="kicker">The UI</div>
+    <h2 class="r d1">The UI ships inside the wheel.</h2>
+    <p class="sub r d2" style="max-width:74ch">A built React SPA at <span class="mono">server/static/web-ui/</span>, mounted at <span class="mono">/</span> after all API routers so API routes win. That single fact answers the hosting question for both deployments.</p>
+    <div class="two" style="margin-top:.5vh">
+      <div class="panel r d3">
+        <span class="where">Where it is served</span>
+        <h3>By whichever process runs the server</h3>
+        <div class="layer"><span class="num">›</span> Managed: the Databricks-hosted app, on a Databricks domain</div>
+        <div class="layer"><span class="num">›</span> Self-hosted: your loopback server</div>
+        <div class="layer"><span class="num">›</span> No separate UI service, no third-party origin</div>
+        <p class="citeline">server/app.py:2839-2846</p>
+      </div>
+      <div class="panel r d4">
+        <span class="where">Browser-side posture</span>
+        <h3>What protects the session</h3>
+        <div class="layer"><span class="num">›</span> Session cookie is HttpOnly — page JS cannot read it</div>
+        <div class="layer"><span class="num">›</span> <span class="mono">__Host-</span> prefix, Secure, SameSite=Lax</div>
+        <div class="layer"><span class="num">›</span> Multipart session create is origin-checked (CSRF)</div>
+        <div class="layer"><span class="num">›</span> Unmatched API paths return JSON 404, not the SPA shell</div>
+        <p class="citeline">server/auth.py:186-194 · app.py:2915-2929</p>
+      </div>
+    </div>
+    <p class="note r d5"><span class="mono">omnigent_ui_sdk</span> is a terminal UI toolkit, not part of the web attack surface.</p>
+    <div class="foot"><span>UI hosting</span><span class="n">09 / 19</span></div>
+  </section>
+
+  <!-- 10 ENCRYPTION AT REST -->
+  <section class="slide">
+    <div class="kicker">Data at rest</div>
+    <h2 class="r d1">The application encrypts nothing. That is the platform's job.</h2>
+    <p class="sub r d2" style="max-width:76ch">Verified by absence as much as presence: no SQLCipher, pysqlcipher, pgcrypto, or envelope encryption anywhere in the package, and engines are built with plain SQLAlchemy and no cipher parameters.</p>
+    <div class="qa r d3">
+      <div class="qarow"><span class="q2">Conversation content — <span class="m">conversation_items.data</span>, plaintext JSON in a Text column</span><span class="no">plaintext</span></div>
+      <div class="qarow"><span class="q2">Search index — <span class="m">search_text</span>, an extracted plaintext copy</span><span class="no">plaintext</span></div>
+      <div class="qarow"><span class="q2">Comments — <span class="m">CompressedText</span>, zstd level 19. Compression is unkeyed and reversible</span><span class="no">not encryption</span></div>
+      <div class="qarow"><span class="q2">Host launch tokens — SHA-256 digest only, raw token never stored</span><span class="yes2">hashed</span></div>
+      <div class="qarow"><span class="q2">Device codes and refresh tokens — HMAC-SHA256, plus prev-hash for replay detection</span><span class="yes2">hashed</span></div>
+      <div class="qarow"><span class="q2">Lakebase connection — OAuth token minted per connection, ~1h life, 10min pool recycle</span><span class="yes2">short-lived</span></div>
+    </div>
+    <p class="note r d6">So at-rest protection is entirely Lakebase and UC Volumes. Reasonable architecture; attribute the control correctly. <b>Whether a workspace uses CMEK is not in the code</b> — ask, because "encrypted at rest" and "encrypted with your key" are different answers. <span class="cite">db/db_models.py:904 · db/utils.py:198-254</span></p>
+    <div class="foot"><span>Encryption</span><span class="n">10 / 19</span></div>
+  </section>
+
+  <!-- 11 SANDBOX IN/OUT -->
+  <section class="slide">
+    <div class="kicker">Managed sandbox</div>
+    <h2 class="r d1">Inbound: none. Outbound: default-deny.</h2>
+    <div class="two" style="margin-top:.5vh">
+      <div class="panel r d2">
+        <span class="where">Outbound</span>
+        <h3>Allowlist proxy with metadata traps</h3>
+        <div class="layer"><span class="num">›</span> L7 proxy matches every request against an allowlist; empty list denies all</div>
+        <div class="layer"><span class="num">›</span> Blocked: RFC1918, CGNAT, loopback, link-local, reserved, multicast</div>
+        <div class="layer"><span class="num">›</span> Cloud metadata trapped: AWS <span class="mono">169.254.169.254</span>, Azure <span class="mono">168.63.129.16</span>, Alibaba</div>
+        <div class="layer"><span class="num">›</span> Relay port chosen by the parent so nothing can pre-squat it</div>
+        <p class="citeline">inner/egress/proxy.py:140-184 · sandbox.py:113-116</p>
+      </div>
+      <div class="panel r d3">
+        <span class="where">Inbound</span>
+        <h3>No path in</h3>
+        <div class="layer"><span class="num">›</span> Only endpoint is the <span class="mono">0600</span> UDS or loopback TCP</div>
+        <div class="layer"><span class="num">›</span> Reachable solely by the parent runner at the same UID</div>
+        <div class="layer"><span class="num">›</span> <span class="mono">$HOME</span> is never mounted</div>
+        <div class="layer"><span class="num">›</span> Dotfiles masked: <span class="mono">.aws .ssh .gnupg .kube .netrc .databrickscfg</span></div>
+        <p class="citeline">bwrap_sandbox.py:30-31, 1096-1151 · seatbelt_sandbox.py:179-198</p>
+      </div>
+    </div>
+    <p class="note r d5">Credentials never enter the sandbox. Default is swap-on-access: the harness sends no Authorization header and the proxy injects the real secret on the way out. The proxy config is deliberately excluded from the serialized sandbox policy. <span class="cite">inner/credential_proxy.py:12-16 · sandbox.py:159-165</span></p>
+    <div class="foot"><span>Sandbox boundary</span><span class="n">11 / 19</span></div>
+  </section>
+
+  <!-- 12 SANDBOX STRENGTH -->
+  <section class="slide">
+    <div class="kicker">Isolation strength</div>
+    <h2 class="r d1">The platform asymmetry argues for a Linux managed host.</h2>
+    <table class="mat r d2">
+      <tr><th>Backend</th><th>Platform</th><th>What it actually applies</th><th>Verdict</th></tr>
+      <tr><td>linux_bwrap</td><td>Linux</td><td>Mount, PID, UTS, IPC namespaces plus a seccomp denylist</td><td class="yes">Hard isolating</td></tr>
+      <tr><td>darwin_seatbelt</td><td>macOS</td><td>SBPL capability rules. <b>No syscall filter</b></td><td class="no">Partial</td></tr>
+      <tr><td>windows_jobobject</td><td>Windows</td><td>Process-tree containment. <b>No filesystem or network isolation</b></td><td class="no">Advisory</td></tr>
+      <tr><td>none</td><td>any</td><td>Nothing</td><td class="no">Disabled</td></tr>
+    </table>
+    <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-top:2.5vh">
+      <div class="stat r d3"><div class="big">Fails loud</div><div class="cap">A missing bwrap or sandbox-exec binary raises OSError rather than silently running unsandboxed</div></div>
+      <div class="stat r d4"><div class="big">ENOSYS</div><div class="cap">clone3 returns ENOSYS not EPERM, so glibc 2.34+ pthread_create keeps working</div></div>
+      <div class="stat r d5"><div class="big">3 families</div><div class="cap">socket() limited to AF_UNIX, AF_INET, AF_INET6; future families denied by a &gt;= rule</div></div>
+    </div>
+    <p class="note r d6">Bundled example configs ship <span class="mono">sandbox: type: none</span>. Fine for demos, a review trigger in production. <span class="cite">sandbox.py:907-957 · bwrap_sandbox.py:44-51, 618-651</span></p>
+    <div class="foot"><span>Backends</span><span class="n">12 / 19</span></div>
+  </section>
+
+  <!-- 13 PERSISTENCE -->
+  <section class="slide">
+    <div class="kicker">Session · memory · skills</div>
+    <h2 class="r d1">What persists, and what quietly does not.</h2>
+    <div class="two" style="margin-top:.5vh">
+      <div class="panel r d2">
+        <span class="where">Persists</span>
+        <h3>Session and transcript</h3>
+        <div class="layer"><span class="num">›</span> Messages, tool calls, reasoning in <span class="mono">conversation_items</span></div>
+        <div class="layer"><span class="num">›</span> Managed: Lakebase. Self-hosted default: <span class="mono">~/.omnigent/chat.db</span></div>
+        <div class="layer"><span class="num">›</span> Artifacts to UC Volumes, S3, or local disk</div>
+        <div class="layer"><span class="num">›</span> Skills are files on the host, per-user or per-project</div>
+      </div>
+      <div class="panel r d3">
+        <span class="where">Does not persist</span>
+        <h3>Memory</h3>
+        <div class="layer"><span class="num">›</span> A plain Python dict in the process</div>
+        <div class="layer"><span class="num">›</span> Lost on restart. Nothing durable to encrypt or retain</div>
+        <div class="layer"><span class="num">›</span> Scope labels: per_session, per_user, <span class="mono">cross_user</span></div>
+        <div class="layer"><span class="num">›</span> <b>cross_user carries no enforcement</b> — a label on a dict, not a boundary</div>
+        <p class="citeline">inner/datamodel.py:199-252</p>
+      </div>
+    </div>
+    <p class="note r d5">Two things not to overstate: a skill bundled into an agent is readable by anyone who can load that bundle, and there is no skill-level access control. <span class="cite">spec/skill_sources.py:93-98</span></p>
+    <div class="foot"><span>Persistence</span><span class="n">13 / 19</span></div>
+  </section>
+
+  <!-- 14 TELEMETRY -->
+  <section class="slide">
+    <div class="kicker">Telemetry</div>
+    <h2 class="r d1">Metadata leaves. Content does not.</h2>
+    <div class="two" style="margin-top:.5vh">
+      <div class="panel r d2">
+        <span class="where">Sent</span>
+        <h3>Identifiers and counts</h3>
+        <div class="layer"><span class="num">›</span> Session, agent, harness, surface identifiers</div>
+        <div class="layer"><span class="num">›</span> Version, OS, python version, timestamps, duration</div>
+        <div class="layer"><span class="num">›</span> <span class="mono">anon_user_id</span> = first 16 hex of sha256(install_id:user_id)</div>
+        <div class="layer"><span class="num">›</span> Aggregate token counts and cost, on session delete</div>
+      </div>
+      <div class="panel r d3">
+        <span class="where">Never sent</span>
+        <h3>Any content</h3>
+        <div class="layer"><span class="num">›</span> Prompts</div>
+        <div class="layer"><span class="num">›</span> Model responses</div>
+        <div class="layer"><span class="num">›</span> Message bodies</div>
+        <div class="layer"><span class="num">›</span> Tool arguments and results</div>
+      </div>
+    </div>
+    <p class="note r d5">Opt-outs: <span class="mono">OMNIGENT_ANALYTICS=0</span>, <span class="mono">DISABLE_TELEMETRY</span>, <span class="mono">DO_NOT_TRACK=1</span>, any CI env var, or <span class="mono">telemetry: false</span> in config. <span class="cite">telemetry/events.py:15-83 · client.py:215-252, 287</span></p>
+    <div class="foot"><span>Telemetry</span><span class="n">14 / 19</span></div>
+  </section>
+
+  <!-- 15 ARCH DIAGRAM -->
+  <section class="slide">
+    <div class="kicker">Architecture · trust boundaries</div>
+    <h2 class="r d1">Every arrow touching your side points outward.</h2>
+    <div class="r d2" style="flex:1;display:flex;align-items:center;justify-content:center;margin-top:1vh">
+      <pre style="font-family:'Space Mono',monospace;font-size:clamp(.5rem,.82vw,.78rem);line-height:1.5;color:var(--ink)">
+  USER DEVICE                DATABRICKS-OPERATED PLANE                    EXTERNAL
+  +-----------+              +--------------------------------+           +-------------+
+  |  Browser  |  --HTTPS-->  |  SSO Proxy  -->  Omnigent      |           |   Model     |
+  |  SPA      |   outbound   |                  Server        |           |   endpoint  |
+  +-----------+              |                  [binds 0.0.0.0|           |  (Gateway   |
+                             |                   behind ingress]          |  or provider)|
+                             |                    |      |     |          +------+------+
+                             |          +---------+      +---------+             ^
+                             |          v                          v             |
+                             |  +---------------+      +------------------+       |
+                             |  | Session store |      | Artifact store   |       |
+                             |  | Lakebase      |      | UC Volumes       |       |
+                             |  | PLAINTEXT     |      | app encryption:  |       |
+                             |  |   JSON        |      |      NONE        |       |
+                             |  +---------------+      +------------------+       |
+                             +--------------------------------+                   |
+                                     ^              ^                             |
+                     wss OUTBOUND    |              |   wss OUTBOUND              |
+                     host dials      |              |   runner dials              |
+                             +-------+--------------+-----------------+            |
+                             |  MANAGED SANDBOX  (provider-dependent) |           |
+                             |                                        |           |
+                             |   omnigent host  --spawn-->  Runner    |           |
+                             |   (NO listener)                 |      |           |
+                             |                                 v      |           |
+                             |                    Harness + Omnibox   | --HTTPS---+
+                             |                    YOUR CODE RUNS HERE |  direct
+                             |                    0600 UDS, parent    |  never via
+                             |                    only. $HOME never   |  the server
+                             |                    mounted.            |
+                             +----------------------------------------+
+      </pre>
+    </div>
+    <p class="note r d3">The server never dials the host. Control reaches the sandbox as a frame on the tunnel the host opened.</p>
+    <div class="foot"><span>C4 level 1</span><span class="n">15 / 19</span></div>
+  </section>
+
+  <!-- 16 CONDENSED ANSWERS -->
+  <section class="slide">
+    <div class="kicker">Condensed</div>
+    <h2 class="r d1">The answers, on one slide.</h2>
+    <div class="qa r d2" style="max-width:82vw">
+      <div class="qarow"><span class="q2">Inbound connections from Databricks into my network</span><span class="no">none</span></div>
+      <div class="qarow"><span class="q2">Where the harness resides</span><span class="yes2">on the host</span></div>
+      <div class="qarow"><span class="q2">Where the UI runs</span><span class="yes2">in the wheel, by the server</span></div>
+      <div class="qarow"><span class="q2">Where inference runs</span><span class="yes2">harness, direct</span></div>
+      <div class="qarow"><span class="q2">Encryption in transit</span><span class="yes2">wss + https</span></div>
+      <div class="qarow"><span class="q2">Encryption at rest, by the application</span><span class="no">none, platform's job</span></div>
+      <div class="qarow"><span class="q2">Session and transcript</span><span class="no">plaintext json</span></div>
+      <div class="qarow"><span class="q2">Memory</span><span class="no">in-process only</span></div>
+      <div class="qarow"><span class="q2">Credentials inside the sandbox</span><span class="yes2">never</span></div>
+      <div class="qarow"><span class="q2">Content in telemetry</span><span class="yes2">never</span></div>
+      <div class="qarow"><span class="q2">Tenant isolation</span><span class="cond">only if store wired</span></div>
+    </div>
+    <div class="foot"><span>Summary</span><span class="n">16 / 19</span></div>
+  </section>
+
+  <!-- 17 VERIFY -->
+  <section class="slide">
+    <div class="kicker">Before you deploy</div>
+    <h2 class="r d1">Seven things a code read cannot settle.</h2>
+    <div class="tree" style="max-width:76vw">
+      <div class="branch r d2"><span class="q" style="min-width:44vw">Prove isolation with traffic: user B requests user A's session id</span><span class="ans">→ <span class="pick">require 404</span></span></div>
+      <div class="branch r d3"><span class="q" style="min-width:44vw">Name the sandbox provider backing your workspace</span><span class="ans">→ <span class="pick">where code lives</span></span></div>
+      <div class="branch r d3"><span class="q" style="min-width:44vw">Get the at-rest answer in writing, CMEK or not</span><span class="ans">→ <span class="pick">not in code</span></span></div>
+      <div class="branch r d4"><span class="q" style="min-width:44vw">Set sharing mode deliberately; the default is ON</span><span class="ans">→ <span class="pick">restricted</span></span></div>
+      <div class="branch r d4"><span class="q" style="min-width:44vw">Verify Gateway transit behaviorally, not architecturally</span><span class="ans">→ <span class="pick">send traffic</span></span></div>
+      <div class="branch r d5"><span class="q" style="min-width:44vw">Prefer a Linux managed host for isolation strength</span><span class="ans">→ <span class="pick">seccomp</span></span></div>
+      <div class="branch r d5"><span class="q" style="min-width:44vw">Treat sandbox type none as a review trigger</span><span class="ans">→ <span class="pick">audit specs</span></span></div>
+    </div>
+    <p class="note r d7">These are not product gaps. They are the boundary between what the shipped code proves and what the deployment decides, and every one of them is a builder action.</p>
+    <div class="foot"><span>Verification</span><span class="n">17 / 19</span></div>
+  </section>
+
+  <!-- 18 PROVENANCE -->
+  <section class="slide">
+    <div class="kicker">Provenance</div>
+    <h2 class="r d1">Where these claims came from.</h2>
+    <div class="stats" style="grid-template-columns:repeat(2,1fr);margin-top:1vh">
+      <div class="stat r d2"><div class="big">0.7.0</div><div class="cap">Installed omnigent wheel, build epoch 1785189710, COMMIT_SHA empty. Paths are relative to the package root.</div></div>
+      <div class="stat r d3"><div class="big">OSS only</div><div class="cap">This is the open-source package, not the Databricks control plane. Auth provider, permission store, sandbox provider, sharing mode, and storage encryption are deployment configuration and do not appear here.</div></div>
+    </div>
+    <div class="card" style="border-left:2px solid var(--vermillion);padding:1.6vh 1.3vw;margin-top:2.5vh;background:var(--ink-06)">
+      <p style="font-size:.95rem;line-height:1.5"><b>Version drift is real.</b> Related notes elsewhere reference 0.8.0.dev0 while this scan is 0.7.0. Re-verify citations against the version actually deployed before quoting line numbers to a customer. Every "not in code" in this deck marks that boundary honestly rather than filling it with a guess.</p>
+    </div>
+    <div class="foot"><span>Scan provenance</span><span class="n">18 / 19</span></div>
+  </section>
+
+  <!-- 19 CLOSING -->
+  <section class="slide">
+    <div class="calli">
+      <div class="word r d1">outbound only.<br><span class="accent">verify</span> the rest.</div>
+      <div class="tagline r d3">Nothing dials in · the app encrypts nothing · isolation is conditional</div>
+    </div>
+    <div class="foot"><span>Managed Omnigent Security</span><span class="n">19 / 19</span></div>
+  </section>
+
+</div>
+<div class="hint">← → or space</div>
+<script>
+
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0;const prog=document.getElementById('prog');
+  function show(n){
+    const old=i;i=Math.max(0,Math.min(slides.length-1,n));
+    if(old!==i){slides[old].classList.remove('active');slides[old].classList.add('prev');
+      setTimeout(()=>slides[old].classList.remove('prev'),500);}
+    slides[i].classList.add('active');
+    prog.style.width=((i+1)/slides.length*100)+'%';
+  }
+  show(0);
+  function next(){show(i+1)}function prev(){show(i-1)}
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();next()}
+    if(e.key==='ArrowLeft'){prev()}
+    if(e.key==='Home'){show(0)}if(e.key==='End'){show(slides.length-1)}
+  });
+  document.addEventListener('click',e=>{if(e.clientX>window.innerWidth*0.5)next();else prev()});
+</script>
+</body>
+</html>
