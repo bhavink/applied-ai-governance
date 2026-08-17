@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-08-17
   Sources: auth/m2m-service-principal.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m
@@ -95,6 +95,22 @@ Two conditions apply:
 - The SP must hold the **`Assume`** permission on the target group.
 
 This complements the SP → Group → UC privilege model below: privileges live on groups, and a workload assumes exactly one group's role per token when it needs to run with a minimal privilege set.
+
+### Account-level token endpoint
+
+For account-level operations (e.g., managing service principals, workspaces, or account groups), request a token from the account-level OIDC endpoint instead of the workspace endpoint:
+
+```http
+POST https://accounts.cloud.databricks.com/oidc/accounts/<account-id>/v1/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id=<sp-application-id>
+&client_secret=<sp-secret>
+&scope=all-apis
+```
+
+Account-level tokens follow the same TTL and scope rules as workspace-level tokens (1-hour expiry, cache proactively, use minimum required scope). The distinction is the endpoint URI and the operations it authorizes: account-level tokens permit REST API calls to manage account resources, while workspace-level tokens (from `https://<workspace-host>/oidc/v1/token`) authorize workspace-level operations.
 
 ---
 

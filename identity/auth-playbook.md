@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-08-17
   Sources: auth/overview.md, auth/obo-passthrough.md, auth/m2m-service-principal.md, auth/eli5-auth-models.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/
@@ -518,6 +518,22 @@ Two conditions apply:
 - The SP must hold the **`Assume`** permission on the target group.
 
 This complements the grant-through-groups model above: privileges live on groups, and a workload can assume exactly one group's role per token when it needs to run with a narrow set of privileges.
+
+### Account-level operations
+
+For operations that manage account-level resources (service principals, workspaces, account groups), request a token from the account-level endpoint:
+
+```http
+POST https://accounts.cloud.databricks.com/oidc/accounts/<account-id>/v1/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id=<sp-application-id>
+&client_secret=<sp-secret>
+&scope=all-apis
+```
+
+Account-level tokens expire in 1 hour, so cache and refresh proactively like workspace-level tokens. The only difference from the workspace-level client credentials flow is the endpoint: workspace-level tokens (from `https://<workspace-host>/oidc/v1/token`) authorize workspace-scoped operations, while account-level tokens authorize account-management APIs.
 
 ### Secret management
 

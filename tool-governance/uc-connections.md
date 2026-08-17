@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-08-17
   Sources: governance/http-connections.md, governance/service-credentials.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/query-federation/http
@@ -189,6 +189,14 @@ DCR is the recommended authentication method for MCP servers that support it —
 
 ---
 
+### OAuth 2.0 RFC Compliance Requirement
+
+HTTP connections using OAuth must connect to services that comply with the official [OAuth 2.0 token endpoint specification (RFC 6749)](https://datatracker.ietf.org/doc/html/rfc6749#section-5.2). This means the service must return responses with exact field names and data formats as specified in the standard: `access_token`, `expires_in`, and related token fields.
+
+If you encounter connection failures with OAuth 2.0, verify the external service's token endpoint responses conform to the RFC specification. Databricks cannot connect to OAuth services with non-compliant token implementations.
+
+---
+
 ### Managed OAuth Providers
 
 For a set of common providers, Databricks manages the OAuth client registration and credentials for you — no OAuth app to register at all. Select **OAuth User to Machine Per User** and choose the provider by name:
@@ -209,6 +217,8 @@ If your identity provider requires an explicit allowlist, add the redirect URI f
 | GCP | `https://us-central1.gcp.databricks.com/api/2.0/http/oauth/redirect` |
 
 For GitHub, Glean, Atlassian, and Slack, this removes the OAuth app registration and token-management steps entirely — select the provider and Databricks handles the rest.
+
+When using a managed OAuth provider, Databricks registers an OAuth application on your behalf at the provider. Token refresh, credential rotation, and lifecycle management are all handled automatically by Databricks.
 
 ---
 
@@ -469,6 +479,8 @@ Combined with Serverless Network Policies (SNP), this gives defense in depth: SN
 | **`unity-catalog` scope required** | The calling token must include the `unity-catalog` scope to reach the MCP proxy |
 | **`offline_access` scope missing** | Without a refresh token, the connection works briefly then fails silently — always request the refresh-token scope for the provider |
 | **IP allowlist migration** | Workspaces created before March 2026 should migrate firewall rules from control-plane to serverless IPs by May 30, 2026 |
+| **Data transfer charges** | HTTP connections may incur Databricks data transfer charges depending on the destination. See [Data transfer and connectivity pricing](https://www.databricks.com/product/pricing/data-transfer-connectivity) for details |
+| **Rate limiting on `http_request()`** | The `http_request()` function is rate limited and designed for interactive/agent use, not high-volume batch queries. For large row counts, batch IDs into a bulk API call, or use the proxy endpoint with the provider's SDK |
 
 ---
 

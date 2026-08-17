@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-08-17
   Sources: mcp/overview.md, mcp/managed-mcp.md, mcp/custom-mcp.md, mcp/external-mcp.md, mcp/external-connection-tools.md
   Public docs grounding: https://docs.databricks.com/aws/en/generative-ai/mcp/
   This file is auto-prepared and human-reviewed before publish.
@@ -7,7 +7,7 @@
 
 # MCP Governance — Server Types, Tool Selection, and Auth Patterns
 
-> **TL;DR**: Databricks supports three MCP server types — Managed, Custom, and External — all reachable through the same `DatabricksMCPClient` API and `{workspace}/api/2.0/mcp/...` URL namespace, with Unity Catalog enforcing permissions on every call. For external tools, MCP Services are Unity Catalog securables — the recommended pattern for governing access to third-party MCP servers. Seven built-in `system.ai.*` services (Slack, GitHub, Atlassian, Google Drive, Google Calendar, Gmail, SharePoint) are ready to grant with zero setup. The UC HTTP connection proxy pattern remains a valid option for existing integrations and services not yet available as MCP Services.
+> **TL;DR**: Databricks supports three MCP server types — Managed, Custom, and External — all reachable through the same `DatabricksMCPClient` API and `{workspace}/api/2.0/mcp/...` URL namespace, with Unity Catalog enforcing permissions on every call. For external tools, MCP Services are Unity Catalog securables — the recommended pattern for governing access to third-party MCP servers. Seven built-in `system.ai.*` services (Slack, GitHub, Atlassian, Google Drive, Google Calendar, Gmail, Microsoft 365) are ready to grant with zero setup. The UC HTTP connection proxy pattern remains a valid option for existing integrations and services not yet available as MCP Services.
 
 See also: [MCP overview](https://docs.databricks.com/aws/en/generative-ai/mcp/).
 
@@ -89,7 +89,7 @@ Agent needs to call a tool
   ├─ Data in Databricks? → MANAGED MCP (Genie One / Genie Agent, AI Search, UC Functions, DBSQL)
   ├─ Custom business logic YOU own? → CUSTOM MCP (Databricks Apps)
   └─ External service?
-        ├─ Slack, GitHub, Atlassian, Google, SharePoint? → system.ai.* MCP Service (GRANT EXECUTE)
+        ├─ Slack, GitHub, Atlassian, Google, Microsoft 365? → system.ai.* MCP Service (GRANT EXECUTE)
         ├─ Other third-party with MCP support? → UC MCP Service (catalog.schema.svc)
         └─ Existing UC HTTP connection? → Connection proxy (legacy, still functional)
 ```
@@ -152,7 +152,7 @@ Seven services in the `system.ai.*` namespace are managed by Databricks — no c
 | Google Drive | `system.ai.google_drive` | Google Drive |
 | Google Calendar | `system.ai.google_calendar` | Google Calendar |
 | Gmail | `system.ai.gmail` | Gmail |
-| SharePoint | `system.ai.sharepoint` | Microsoft SharePoint |
+| Microsoft 365 | `system.ai.microsoft_365` | SharePoint, Outlook, Teams |
 
 ```sql
 GRANT EXECUTE ON MCP SERVICE system.ai.github TO `dev-team`;
@@ -221,7 +221,7 @@ MCP Service names (`catalog.schema.service`) are immutable once created — choo
 | Priority | Tool Type | Auth model | Governance | Best for |
 |---|---|---|---|---|
 | 1 | **Managed MCP server** | OBO or SP (auto) | UC privileges | Default choice — dynamic tool discovery |
-| 2 | **UC MCP Service** (`system.ai.*` or `catalog.schema.svc`) | Managed OAuth (Databricks-managed) | `EXECUTE` on MCP Service | GitHub, Slack, Atlassian, Google, SharePoint — zero credential management |
+| 2 | **UC MCP Service** (`system.ai.*` or `catalog.schema.svc`) | Managed OAuth (Databricks-managed) | `EXECUTE` on MCP Service | GitHub, Slack, Atlassian, Google, Microsoft 365 — zero credential management |
 | 3 | **External MCP server via UC connection** (legacy) | `USE CONNECTION` + stored creds | `USE CONNECTION` privilege | Existing integrations not yet migrated to MCP Services |
 | 4 | **Custom MCP server** | Custom (your server's auth) | Code-level + connection | Internal APIs, custom integrations |
 | 5 | **UC Function** | Caller's identity (OBO) or SP | `EXECUTE` privilege | Deterministic computations, data lookups |
@@ -271,7 +271,7 @@ The connection proxy (`/api/2.0/mcp/external/{connection_name}` + `USE CONNECTIO
 
 | Method | When to use |
 |---|---|
-| **Managed OAuth** | Recommended for supported providers — the set has expanded to include Glean, GitHub, Atlassian, Google Drive, Gmail, Google Calendar, and SharePoint. Databricks manages OAuth end to end. |
+| **Managed OAuth** | Recommended for supported providers — the set has expanded to include Glean, GitHub, Atlassian, Google Drive, Gmail, Google Calendar, and Microsoft 365. Databricks manages OAuth end to end. |
 | **Databricks Marketplace** | Install a pre-configured connection for a listed MCP server. |
 | **Custom HTTP Connection** | Any server exposing Streamable HTTP; configure host, path, and bearer token directly. |
 | **Dynamic Client Registration (RFC 7591)** | For MCP servers implementing DCR. Treat as experimental — validate before relying on it in production, and note that DCR OAuth flows aren't part of every external MCP client's auth path (check your client's supported flows). |

@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-08-17
   Sources: auth/overview.md, auth/m2m-service-principal.md, auth/obo-passthrough.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/
@@ -168,6 +168,17 @@ grant_type=client_credentials&client_id=<client-id>&client_secret=<client-secret
 ```
 
 Tokens expire in one hour — cache and refresh proactively rather than requesting a new token per call. Request the minimum scope the workload needs (`sql`, `all-apis`, `clusters`, `jobs`) instead of defaulting to `all-apis` everywhere.
+
+For account-level operations (managing service principals, workspaces, or account groups), use the account-level OAuth endpoint instead:
+
+```http
+POST https://accounts.cloud.databricks.com/oidc/accounts/<account-id>/v1/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=<client-id>&client_secret=<client-secret>&scope=all-apis
+```
+
+Account-level tokens follow the same TTL (1 hour) and caching guidance as workspace-level tokens. The endpoint is the only difference: workspace-level tokens authorize workspace-scoped API calls, while account-level tokens authorize account-management APIs.
 
 ### Granting access to a service principal
 

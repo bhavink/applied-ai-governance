@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-08-17
   Sources: governance/unity-catalog.md, governance/abac.md, governance/row-filters.md, governance/column-masks.md, governance/governed-tags.md, governance/data-classification.md, governance/best-practices.md, governance/metastore-management.md, governance/business-semantics.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/data-governance/unity-catalog/
@@ -178,6 +178,29 @@ AS (CASE WHEN current_user() IN (SELECT email FROM authorized_viewers) THEN phon
 
 A mask function can call another mask function to chain transformations — keep the chain shallow, since each hop adds evaluation cost. Row filters and column masks compose freely: a user can be row-filtered and column-masked on the same query.
 
+### Performance Considerations for Column Masks
+
+| Factor | Impact | Optimization |
+|---|---|---|
+| **SQL vs Python UDFs** | SQL masks: sub-millisecond per row. Python UDFs: orders of magnitude slower | Use SQL masks whenever possible |
+| **Deterministic expressions** | Non-deterministic functions (e.g., division without error handling) cause per-row overhead | Use deterministic expressions like `try_divide()` instead of standard division |
+| **Number of UDF arguments** | Databricks cannot optimize away unreferenced columns; each argument adds evaluation cost | Minimize column references in mask function signature |
+| **Distinct mask expressions** | A column with multiple distinct masks per cell (dynamic masking by CASE branches) costs more than a single static mask | Consolidate logic into one mask function with clear CASE branches |
+| **Chained mask functions** | Each function call adds latency | Keep mask function chains shallow; prefer one function with multiple conditions |
+
+Mask functions apply per-row during query execution. On billion-row tables, even sub-millisecond overhead multiplies. Use SQL masks and favor simple, deterministic expressions.
+
+### Gotchas — Column Masks
+
+| Issue | Impact | Solution |
+|---|---|---|
+| **Type mismatch silent failure in non-ANSI mode** | Mask function returns a type that doesn't match the column type — query continues silently with incorrect results | Verify with `EXPLAIN` or switch to ANSI mode (`SET ansi_mode=true`) for early error reporting |
+| **Mask breaks Spark pushdown** | Column wrapped in a mask function — Spark cannot push predicates down to the storage engine | Expected tradeoff; consider denormalization if performance is critical |
+| **Cannot mask generated column references** | Masks cannot be applied to columns that are referenced by generated columns | Apply mask to the base column, not the generated column |
+| **Iceberg REST catalogs** | Masked tables are incompatible with Iceberg REST catalog APIs | Use Delta Lake or standard Iceberg for masked tables |
+| **Time travel and clone** | Time travel (`AS OF`) and clone operations cannot be used on masked tables | Design your data lineage and recovery strategies to avoid these operations on protected tables |
+| **AI Search indexing prohibited** | Masked tables cannot be indexed for Databricks Vector Search | Create an unmasked copy for indexing, or build the index before applying masks |
+
 ## ABAC (Attribute-Based Access Control)
 
 > Databricks recommends ABAC for governance at scale.
@@ -272,7 +295,9 @@ Reference: [ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catal
 
 ### Governed Tags — The ABAC Primitive
 
-Tags are key-value metadata on UC securables (catalogs, schemas, tables, columns, volumes). Governed tags add administrator-defined policy on top of plain tags: who can assign a tag, and what values are permitted.
+Tags are key-value metadata on UC securables (catalogs, schemas, tables, columns, volumes, model services, MCP services). Governed tags add administrator-defined policy on top of plain tags: who can assign a tag, and what values are permitted.
+
+Governed tags now apply to service object types — model services and MCP services in Unity Catalog can be classified and governed via the same tag-driven policies as data objects. This enables API governance at scale: define policies once, apply them to model endpoints and external MCP services by tag, and enforce access control uniformly across your entire data and AI infrastructure.
 
 | Behavior | Detail |
 |---|---|

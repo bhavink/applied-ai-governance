@@ -1,11 +1,12 @@
 <!--
-  Synced from databricks-fieldkit on 2026-08-05
-  Sources: ai/ai-gateway.md, mcp/mcp-services.md
+  Synced from databricks-fieldkit on 2026-08-17
+  Sources: ai/ai-gateway.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/ai-gateway/
     - https://docs.databricks.com/aws/en/ai-gateway/budgets
     - https://docs.databricks.com/aws/en/ai-gateway/ai-governance
     - https://docs.databricks.com/aws/en/ai-gateway/model-provider-services
+    - https://docs.databricks.com/aws/en/ai-gateway/query-model-provider-services
     - https://learn.microsoft.com/en-us/azure/databricks/machine-learning/foundation-model-apis/model-uc-permissions
   This file is auto-prepared and human-reviewed before publish.
 -->
@@ -235,6 +236,47 @@ In practice, both layers apply together. A principal needs `EXECUTE` on the MCP 
 - You need cost attribution for LLM usage across multiple teams or projects
 - You want automatic fallback to a secondary model if the primary is unavailable
 - Your traffic stays within Databricks or arrives via the inbound gateway pattern (Pattern 4)
+
+### External Model Providers and Custom Request Tagging
+
+Databricks AI Gateway supports routes to external LLM providers via **Model Provider Services** (UC securables for external accounts):
+
+| Provider | Configuration |
+|---|---|
+| OpenAI | API key |
+| Anthropic | API key |
+| Cohere | API key |
+| Amazon Bedrock | AWS credentials (UC Service Credential) |
+| Google Vertex AI | Service account key |
+| Google Gemini Enterprise | API key, GCP project ID, region |
+| Custom (OpenAI-compatible) | Base URL + bearer token |
+
+For cost attribution across external providers, pass custom request tags via the `Databricks-Ai-Gateway-Request-Tags` header. Tags are logged to usage and inference tables and enable breakdown by project, team, priority, or cost center:
+
+```bash
+curl -X POST "https://<workspace-url>/ai-gateway/openai/v1/chat/completions" \
+  -H "Authorization: Bearer $DATABRICKS_TOKEN" \
+  -H "Databricks-Model-Provider-Service: <catalog>.<schema>.<model-service-name>" \
+  -H "Databricks-Ai-Gateway-Request-Tags: {\"project\": \"chatbot-v2\", \"team\": \"platform-eng\", \"priority\": \"high\"}" \
+  -H "Content-Type: application/json" \
+  -d '{...}'
+```
+
+### Managed Paths vs. Passthrough for External Providers
+
+When routing to external providers via Model Provider Services, requests follow one of two paths:
+
+| Aspect | Managed Paths | Passthrough |
+|---|---|---|
+| **Examples** | OpenAI chat completions, Anthropic messages, Gemini content generation | Provider-specific APIs not yet wrapped (e.g., batch endpoints, file uploads) |
+| **Usage tracking** | ✅ Yes | ❌ No |
+| **Token-based rate limits** | ✅ Yes | ❌ No |
+| **Service policies** | ✅ Yes | ❌ No |
+| **Model access control** | ✅ Yes | ❌ No |
+| **Inference tables** | ✅ Yes | ❌ No |
+| **When to use** | Default — recommended for all standard LLM operations | Fallback only for features not yet on a managed path |
+
+**Use managed paths by default.** Passthrough requests lose observability, governance controls, and audit logging. Enable passthrough only when a specific provider capability is not yet available via a managed path, and accept the governance tradeoff as temporary.
 
 ---
 
