@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-08-05
+  Synced from databricks-fieldkit on 2026-08-17
   Sources: ai/ucode.md
   Public docs grounding:
     - https://github.com/databricks/ucode
@@ -9,7 +9,7 @@
     - https://docs.databricks.com/aws/en/ai-gateway/budgets
 
   Source-inspection grounding (claims not covered by the docs pages above):
-    Read from the public databricks/ucode repo at commit ecb14e7 (2026-08-04).
+    Read from the public databricks/ucode repo at commit ecb14e7 (2026-08-05).
     - Per-agent provider support and the credential-less subscription relay:
       ucode/databricks.py
     - Provider header injection into each agent's managed config:

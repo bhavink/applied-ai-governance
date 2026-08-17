@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-08-17
   Sources: auth/cross-tenant-entra-embedding.md, auth/peruser-byoidp-federation.md, auth/token-federation.md, apps/aibi-dashboard-external-embedding.md
   Public docs grounding:
     - https://docs.databricks.com/gcp/en/security/auth/single-sign-on/azure-ad

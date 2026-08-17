@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-08-17
   Sources: governance/context-based-ingress.md, apps/_azure/context-based-policies.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/security/network/front-end/context-based-ingress

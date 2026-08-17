@@ -7,6 +7,7 @@
     - https://docs.databricks.com/aws/en/ai-gateway/ai-governance
     - https://docs.databricks.com/aws/en/ai-gateway/model-provider-services
     - https://docs.databricks.com/aws/en/ai-gateway/query-model-provider-services
+    - https://docs.databricks.com/aws/en/data-governance/unity-catalog/service-policies/
     - https://learn.microsoft.com/en-us/azure/databricks/machine-learning/foundation-model-apis/model-uc-permissions
   This file is auto-prepared and human-reviewed before publish.
 -->
@@ -228,6 +229,23 @@ These are complementary controls that address different concerns. Do not conflat
 **Service policies** are access control: they enforce which principals can invoke which tools within an MCP service, and can require a human approval step before a tool executes. They operate before content is even evaluated.
 
 In practice, both layers apply together. A principal needs `EXECUTE` on the MCP Service (UC), must not be blocked by a service policy (access control), and the content must pass guardrails (content control).
+
+### Service Policies — Enforcement Model and Built-In Guardrails
+
+Service policies evaluate at **two enforcement points**:
+
+- **ON CALL** — before the service is invoked (evaluates the request/prompt and caller attributes)
+- **ON RESULT** — after the service responds (evaluates the response, e.g., PII or unsafe content in output)
+
+**Fail-closed behavior**: a misconfigured or errored policy **blocks** the interaction rather than allowing it through. This is a safety default — when a policy cannot evaluate correctly, the system denies access rather than accidentally granting it.
+
+**Built-in guardrails** available as service policies include:
+
+- `system.ai.block_unsafe_content` — denies interactions containing unsafe or harmful content
+- **Jailbreak detection** — built-in capability to detect and block prompt injection attempts
+- **Hallucination detection** — built-in capability to flag model outputs that deviate from grounding
+
+For the latest schema and configuration examples, see [Service policies for AI securables](https://docs.databricks.com/aws/en/data-governance/unity-catalog/service-policies/).
 
 ### When to use Databricks AI Gateway
 

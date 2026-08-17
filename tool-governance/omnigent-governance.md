@@ -1,11 +1,10 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
-  Sources: ai/omnigent.md, ai/ucode.md
+  Synced from databricks-fieldkit on 2026-08-17
+  Sources: ai/omnigent.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/omnigent/
     - https://docs.databricks.com/gcp/en/omnigent/quickstart
     - https://www.databricks.com/blog/contextual-policies-omnigent-using-session-state-better-govern-ai-agents
-    - https://github.com/databricks/ucode
   This file is auto-prepared and human-reviewed before publish.
 -->
 
@@ -59,31 +58,41 @@ Omnigent is Databricks' meta-harness for AI coding agents — an open-source (Ap
 
 ## Architecture
 
+Omnigent has three runtime layers: the server (permissions, policies, history), the host (OS-level sandbox), and the harness (agent loop).
+
 ```mermaid
 flowchart TB
-    subgraph SERVER["Omnigent Server"]
+    subgraph SERVER["Databricks-Operated Server"]
         POLICY["Policy Engine<br/>stateful, per-session"]
         API["REST API / WebSocket<br/>terminal · web UI · native app"]
-        RUNNER["Runner / Harness<br/>Claude Code · Codex · Pi · Custom YAML"]
     end
 
-    subgraph HOST["Databricks Sandbox (optional managed host)"]
-        COMPUTE["SSH compute<br/>4 cores / 16GB RAM / 100GB disk"]
+    subgraph HOST["Host (Sandbox or your machine)"]
+        OMNIGENT["omnigent host (launcher)"]
+        RUNNER["Runner (one per session)"]
+        HARNESS["Harness + Sandbox<br/>Claude Code · Codex · Pi · Custom YAML"]
     end
 
     GATEWAY["Unity AI Gateway<br/>workspace-scoped rate limits · guardrails · usage tracking"]
 
-    SERVER --> HOST
-    HOST -->|"Model inference"| GATEWAY
+    SERVER -.->|"wss (outbound)"| OMNIGENT
+    OMNIGENT -->|"Popen"| RUNNER
+    RUNNER -->|"Popen"| HARNESS
+    HARNESS -->|"Inference"| GATEWAY
 
     style GATEWAY fill:#1a2e3b,stroke:#3b82f6,color:#bfdbfe
     style SERVER fill:#1e293b,stroke:#475569,color:#f1f5f9
     style HOST fill:#1e293b,stroke:#475569,color:#f1f5f9
 ```
 
-**Harness** = the runtime executing the agent loop (Claude Code, Codex, Pi, or a custom YAML-defined agent). Switching harnesses is a one-line config change.
+**Critical distinction:** The runner and harness are separate OS processes on the **host**, never inside the server process. The server communicates with them via an outbound WebSocket tunnel — the host initiates the connection, and model inference calls the gateway directly from the harness (not through the server).
 
-**Sandbox isolation** (filesystem + network) = the agent sees only explicitly granted paths; dotfiles (`.ssh`, `.aws/credentials`) are masked by default. Network access is default-deny with an explicit allowlist. Credential injection uses placeholder tokens — the harness never sees the real secret; the proxy substitutes it only on approved outbound requests.
+**Harness** = the runtime executing the agent loop (Claude Code, Codex, Pi, or a custom YAML-defined agent). One line in the config changes the harness or model.
+
+**Omnibox** = OS-level sandbox wrapping the harness:
+- **Filesystem isolation**: the agent sees only explicitly granted paths; dotfiles (`.ssh`, `.aws/credentials`) are masked by default
+- **Network isolation**: default-deny proxy with an explicit allowlist for hosts, methods, and paths; blocks cloud metadata endpoints
+- **Credential injection**: the harness receives placeholder tokens; the proxy substitutes real credentials only on approved outbound requests
 
 **Policy engine** = a stateful interceptor for tool calls, LLM requests, and file operations. It maintains state across the whole session — cumulative spend, call counts, risk score.
 
