@@ -379,7 +379,7 @@ tr:hover td{background:var(--surface)}
     Six governance layers: model routing, rate limits, spend caps, guardrails, approval gates, and sandbox isolation
   </p>
   <p class="r" style="margin-top:12px;color:var(--muted);font-size:var(--xs);max-width:640px">
-    Deck 10 &mdash; builds on the Unity AI Gateway deck and the Orchestration &amp; Tool Governance deck. This deck: governing agent cost and risk specifically.
+    Deck 10 &mdash; builds on the Unity AI Gateway deck and the Agent Orchestration &amp; Tool Governance deck. This deck: governing agent cost and risk specifically.
   </p>
 </div>
 
@@ -573,7 +573,7 @@ tr:hover td{background:var(--surface)}
 
   </div>
   <div class="r" style="font-size:var(--sm);color:var(--muted);text-align:center;margin-top:10px">
-    <code>system.ai_gateway.usage</code> captures every call: model, tokens, latency, cost, user, agent identity.
+    <code>system.ai_gateway.usage</code> captures every call. Custom request tags (<code>request-tags</code> header) enable cost attribution by project, team, or priority.
   </div>
 </div>
 
@@ -591,17 +591,17 @@ tr:hover td{background:var(--surface)}
         <tr><th style="min-width:160px">Control layer</th><th>Configured by</th><th>Scope</th><th>What it stops</th></tr>
       </thead>
       <tbody>
-        <tr><td><strong>1. Model allowlisting</strong></td><td>Platform team</td><td>Per route / per team</td><td>Model-tier creep, unnecessary premium-model usage</td></tr>
-        <tr><td><strong>2. Rate limits</strong></td><td>Platform team</td><td>Account &rarr; team &rarr; user &rarr; agent</td><td>Runaway loops, burst overconsumption</td></tr>
-        <tr><td><strong>3. Spend caps</strong></td><td>Finance + platform</td><td>Account &rarr; team &rarr; user (daily)</td><td>Billing surprises, budget overruns</td></tr>
+        <tr><td><strong>1. Model routing</strong></td><td>Platform team</td><td>Per route / per team</td><td>Model-tier creep, unnecessary premium-model usage</td></tr>
+        <tr><td><strong>2. Rate limits</strong></td><td>Platform team</td><td>Account &rarr; team &rarr; user (QPM, TPM)</td><td>Runaway loops, burst overconsumption</td></tr>
+        <tr><td><strong>3. Spend caps</strong></td><td>Finance + platform</td><td>Account, team, user (daily) — two actions</td><td>Billing surprises, budget overruns</td></tr>
         <tr><td><strong>4. Guardrails</strong></td><td>Security team</td><td>Account-level default, all routes</td><td>Secret exfiltration, prompt injection, PII leakage</td></tr>
-        <tr><td><strong>5. Service policies</strong></td><td>Engineering leadership</td><td>Per tool-call type</td><td>Unauthorized deploys, destructive actions</td></tr>
-        <tr><td><strong>6. Sandbox isolation</strong></td><td>Platform team</td><td>Per agent session</td><td>Filesystem escape, credential theft, session sprawl</td></tr>
+        <tr><td><strong>5. Service policies</strong></td><td>Engineering leadership</td><td>Per tool-call type, contextual</td><td>Unauthorized deploys, destructive actions</td></tr>
+        <tr><td><strong>6. Sandbox isolation</strong></td><td>Platform team</td><td>Per agent session</td><td>Filesystem escape, credential theft, scope creep</td></tr>
       </tbody>
     </table>
   </div>
   <div class="r mt2" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:11px 15px;font-size:var(--sm)">
-    <strong>Configuration surface:</strong> All six layers configure through Unity AI Gateway serving-endpoint settings plus Omnigent policy YAML. One control plane, no per-agent code changes.
+    <strong>Configuration surface:</strong> All six layers configure through Unity AI Gateway settings plus agent framework and Omnigent policy YAML. One control plane, no per-agent code changes required.
   </div>
 </div>
 
@@ -688,12 +688,12 @@ tr:hover td{background:var(--surface)}
           <tr><td><span class="badge badge-green">ALLOW</span></td><td>Proceed as requested</td></tr>
           <tr><td><span class="badge badge-red">DENY</span></td><td>Block the action outright</td></tr>
           <tr><td><span class="badge badge-amber">ASK</span></td><td>Pause for human approval</td></tr>
-          <tr><td><span class="badge badge-blue">TRANSFORM</span></td><td>Rewrite the action, then proceed</td></tr>
+          <tr><td><span class="badge badge-blue">TRANSFORM</span></td><td>Modify the action, then proceed</td></tr>
         </tbody>
       </table>
       <div class="card card-ink r" style="margin-top:6px">
-        <h4>Why four verdicts: policies remember the session</h4>
-        <p>A contextual policy listens to every tool call and model response in a session and accumulates state &mdash; it isn&rsquo;t just evaluating one action in isolation. For cost, that means a running spend total: a soft threshold triggers <span class="badge badge-amber" style="font-size:var(--xs)">ASK</span> for confirmation, and a hard cap triggers <span class="badge badge-blue" style="font-size:var(--xs)">TRANSFORM</span> &mdash; the agent switches to a cheaper model rather than stopping outright. The same session-state mechanism also backs non-cost policies, like scoping an agent&rsquo;s tools to its stated intent for the session.</p>
+        <h4>Why four verdicts: policies accumulate session state</h4>
+        <p>Contextual policies evaluate every tool call and model response during a session and track cumulative state. For cost budgets: a soft threshold triggers <span class="badge badge-amber" style="font-size:var(--xs)">ASK</span> for confirmation; a hard cap triggers <span class="badge badge-blue" style="font-size:var(--xs)">TRANSFORM</span>, which can swap the agent to a more efficient model rather than blocking outright. The same state tracking backs intent-based policies, which scope an agent&rsquo;s tools to what it declared it would do for the current session.</p>
       </div>
       <div class="label r" style="margin-top:6px">Sandbox isolation (Omnigent)</div>
       <div class="card card-ink r">
@@ -767,7 +767,7 @@ tr:hover td{background:var(--surface)}
   <h2 class="r">Spend caps are the kill switch. Here is what changed once all six layers were live.</h2>
   <div class="two-col mt1">
     <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="label r">Spend caps</div>
+      <div class="label r">Spend caps (two actions)</div>
       <table class="r" style="background:var(--surface);border-radius:6px;overflow:hidden">
         <thead>
           <tr><th>Scope</th><th>Cap</th><th>Period</th><th>On breach</th></tr>
@@ -777,26 +777,26 @@ tr:hover td{background:var(--surface)}
             <td><span class="badge badge-ink">Account</span></td>
             <td class="num"><strong>$15,000</strong></td>
             <td>monthly</td>
-            <td><span class="badge badge-red">429 &mdash; all calls block</span></td>
+            <td><span class="badge badge-amber">Alert</span> or <span class="badge badge-red">Block</span></td>
           </tr>
           <tr>
             <td><span class="badge badge-muted">Team</span></td>
             <td class="num"><strong>$2,000</strong></td>
             <td>monthly</td>
-            <td><span class="badge badge-red">429 &mdash; team blocks</span></td>
+            <td><span class="badge badge-amber">Alert</span> or <span class="badge badge-red">Block</span></td>
           </tr>
           <tr>
             <td><span class="badge badge-muted">Engineer</span></td>
             <td class="num"><strong>$50</strong></td>
             <td>daily</td>
-            <td><span class="badge badge-red">429 &mdash; user blocks</span></td>
+            <td><span class="badge badge-amber">Alert</span> or <span class="badge badge-red">Block</span></td>
           </tr>
         </tbody>
       </table>
       <div class="card card-amber r">
         <h4>Rate limits and caps compound</h4>
         <p>Rate limits stop loops in real time. Caps stop cumulative overruns across the billing period. Both are needed &mdash; neither alone is sufficient.</p>
-        <p class="mt1">Caps enforce on a near-real-time cost estimate, so a breach can overshoot the number before calls start failing. Treat the cap as the brake and the rate limit as the hard stop, and do not quote a cap as a guaranteed bill ceiling.</p>
+        <p class="mt1">Budget enforcement uses near-real-time cost estimates, so actual spend can overshoot the threshold before blocking engages. For a firm ceiling, pair budgets with rate limits. Use <strong>Alert</strong> for monitoring; use <strong>Block</strong> to prevent further usage.</p>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
@@ -955,37 +955,36 @@ HTTP/1.1 <span class="kw">429</span> Too Many Requests
   <h2 class="r">Omnigent sandbox policy &mdash; isolation and a per-session spend ceiling.</h2>
   <div class="two-col mt1">
     <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="label r">Sandbox policy YAML</div>
-      <pre class="r"><span class="cm"># Omnigent session policy</span>
-<span class="kw">sandbox_policy</span>:
+      <div class="label r">Omnigent sandbox policy YAML</div>
+      <pre class="r"><span class="cm"># Per-session isolation and cost budget</span>
+<span class="kw">guardrails</span>:
+  policies:
+    cost_budget:
+      <span class="kw">type</span>: contextual
+      <span class="kw">on</span>: [request]
+      soft_threshold: 500000  <span class="cm"># tokens</span>
+      soft_action: ask         <span class="cm"># pause, ask human</span>
+      hard_limit: 1000000
+      hard_action: transform   <span class="cm"># switch to cheaper model</span>
   isolation:
-    <span class="kw">filesystem</span>: workspace_only
-    <span class="kw">network</span>: allowlist
-    network_allowlist:
+    filesystem: workspace_only
+    network:
       - api.github.com
-      - jira.acme.io
-  credentials:
-    <span class="kw">injection_mode</span>: env_scoped
-    <span class="kw">rotation</span>: per_session
-  spend:
-    <span class="kw">token_budget_per_session</span>: 200000
-    <span class="kw">on_budget_exceeded</span>: terminate
-  review:
-    <span class="kw">shareable_session_url</span>: true
-    <span class="kw">retain_logs_days</span>: 90</pre>
+      - internal.jira.example.com
+    credentials: env_scoped  <span class="cm"># rotated per session</span></pre>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="card r">
-        <h4>Session-scoped, not gateway-scoped</h4>
-        <p>Even when the gateway-level per-engineer cap has headroom, a single session cannot exceed its own sandbox token budget &mdash; the session terminates on breach.</p>
+        <h4>Session-scoped cost budgets</h4>
+        <p>A single coding-agent session has its own token budget separate from gateway-level caps. Soft threshold pauses for confirmation; hard cap switches the agent to a more efficient model before terminating.</p>
       </div>
       <div class="card card-red r">
-        <h4>Full transparency for high-risk sessions</h4>
-        <p>Any team lead can open a session URL and see exactly what the agent sees: working directory, tool-call history, LLM conversation.</p>
+        <h4>Full transparency for code-at-scale scenarios</h4>
+        <p>Each session has a shareable URL. Team leads can inspect what the agent sees: working directory, full tool-call history, LLM conversation, and sandbox decisions.</p>
       </div>
       <div class="card card-green r">
         <h4>Defense in depth</h4>
-        <p>When an agent tries to write outside its workspace or call an unlisted API, the sandbox rejects it before the gateway is even involved.</p>
+        <p>Filesystem, network, and credentials are scoped at the OS level before the gateway is involved. An agent cannot escape its sandbox or access unlisted services.</p>
       </div>
     </div>
   </div>
@@ -1034,15 +1033,15 @@ HTTP/1.1 <span class="kw">429</span> Too Many Requests
           <thead><tr><th>Issue</th><th>Detail</th></tr></thead>
           <tbody>
             <tr><td><strong>Model-tier creep</strong></td><td>Without allowlisting, model choice defaults to whoever pays least attention &mdash; a premium model can cost roughly 15&times; a lower tier for the same output.</td></tr>
-            <tr><td><strong>Rate limits alone don't cap total spend</strong></td><td>Rate limits bound velocity, not cumulative total. Spend caps are still required.</td></tr>
-            <tr><td><strong>Session caps are separate from gateway caps</strong></td><td>A sandbox's per-session token budget can terminate a session even when the gateway-level cap has headroom.</td></tr>
-            <tr><td><strong><code>on_timeout: deny</code></strong></td><td>An unanswered approval request denies by default &mdash; verify this is the intended failure mode before rollout.</td></tr>
+            <tr><td><strong>Budgets don't track provisioned throughput</strong></td><td>Unity AI Gateway budgets track only pay-per-token and batch inference. Do not rely on budget caps to limit provisioned-throughput spend.</td></tr>
+            <tr><td><strong>Budget scale limits</strong></td><td>Max 4 shared thresholds per budget, max 20 per-user overrides per budget, max 1,000 budgets per account.</td></tr>
+            <tr><td><strong>Enforcement is approximate</strong></td><td>Budgets use near-real-time cost estimates, so actual spend can overshoot before blocking engages. Pair budgets with rate limits for firm control.</td></tr>
             <tr><td><strong><code>pii_detection: true</code> is not implicit</strong></td><td>Built-in PII redaction requires this flag explicitly set on the route.</td></tr>
           </tbody>
         </table>
       </div>
       <div class="card card-green r">
-        <p style="font-size:var(--sm)">The anomaly query can run as a scheduled workflow every few hours &mdash; anomalies page the on-call engineer directly. No dashboard required for the urgent case.</p>
+        <p style="font-size:var(--sm)">The billable-usage system table rolls up cost at the UC model-service level regardless of which API surface (mlflow-format, native provider API) was used. A pre-built usage dashboard visualizes spend trends by team, agent type, and model.</p>
       </div>
     </div>
   </div>

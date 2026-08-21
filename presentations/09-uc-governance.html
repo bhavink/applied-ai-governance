@@ -155,7 +155,7 @@ tr:hover td{background:var(--surface)}
 
 <div class="topbar">
   <div class="title">Unity Catalog <span>Governance</span></div>
-  <div class="counter" id="counter">01 / 16</div>
+  <div class="counter" id="counter">01 / 17</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 <div class="nav-dots" id="navDots"></div>
@@ -382,22 +382,15 @@ ALTER TABLE customers
   SET MASK mask_ssn;</pre>
     </div>
     <div class="card reveal">
-      <h4>Key Properties</h4>
+      <h4>Performance Guidance</h4>
       <table>
-        <tr><td style="font-weight:600;width:120px">Transformation</td><td>Does not hide rows. Replaces the column value with a masked version.</td></tr>
-        <tr><td style="font-weight:600">Per-column</td><td>Each column gets its own mask function. Multiple columns can be masked independently.</td></tr>
-        <tr><td style="font-weight:600">Chainable</td><td>Row filter + column mask can apply to the same table. Filter runs first, then mask.</td></tr>
-        <tr><td style="font-weight:600">Return type</td><td>Must match the original column type. STRING in, STRING out.</td></tr>
+        <tr><td style="font-weight:600;width:120px">Use SQL</td><td>SQL masks faster than Python UDFs. Prefer deterministic expressions.</td></tr>
+        <tr><td style="font-weight:600">Minimize args</td><td>Fewer arguments = better optimization. Max args: referenced columns still unconstrained.</td></tr>
+        <tr><td style="font-weight:600">Simple logic</td><td>Minimize distinct mask expressions. CASE WHEN over nested function calls.</td></tr>
+        <tr><td style="font-weight:600">Lookup tables</td><td>One per query (optimized out). Keep them small and cached.</td></tr>
       </table>
-      <div class="two-col mt-1" style="gap:8px">
-        <div class="card" style="padding:8px;text-align:center;border-left:3px solid var(--blue)">
-          <p style="font-size:var(--sz-label);color:var(--muted)">Analyst sees</p>
-          <p style="font-size:var(--sz-body);font-family:var(--mono);color:#7c3aed">***-**-6789</p>
-        </div>
-        <div class="card" style="padding:8px;text-align:center;border-left:3px solid var(--green)">
-          <p style="font-size:var(--sz-label);color:var(--muted)">Admin sees</p>
-          <p style="font-size:var(--sz-body);font-family:var(--mono);color:var(--green)">123-45-6789</p>
-        </div>
+      <div class="card card-amber mt-1">
+        <p style="font-size:var(--sz-small)"><strong>Limitation:</strong> Cannot mask generated columns or reference time-travel/clone snapshots. Iceberg REST reads do not apply masks.</p>
       </div>
     </div>
   </div>
@@ -413,28 +406,28 @@ ALTER TABLE customers
   <div class="two-col mt-2">
     <div class="card reveal" style="border-left:4px solid var(--blue)">
       <h4 style="color:var(--blue)">Governed Tags: Classification</h4>
-      <p style="font-size:var(--sz-small);margin-bottom:8px">Account-level tags with enforced naming rules. Applied to catalogs, schemas, tables, or columns. Tags inherit downward.</p>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">Account-level tags with enforced naming rules. Applied to catalogs, schemas, tables, columns, volumes, and service objects (model services, MCP services). Tags inherit downward.</p>
       <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Tag a table</span>
 ALTER TABLE customer_data
   SET TAGS ('sensitivity' = 'high',
             'region' = 'EMEA');
 
-<span style="color:var(--green)">-- Tags alone don't enforce access</span>
-<span style="color:var(--green)">-- They classify data for policies</span></pre>
+<span style="color:var(--green)">-- Tag a service</span>
+ALTER SERVICE my_model
+  SET TAGS ('sensitivity' = 'restricted');</pre>
     </div>
     <div class="card reveal" style="border-left:4px solid #7c3aed">
       <h4 style="color:#7c3aed">ABAC Policies: Enforcement</h4>
-      <p style="font-size:var(--sz-small);margin-bottom:8px">Policies reference tags to dynamically control access. One policy can govern thousands of tables.</p>
-      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Policy: high-sensitivity tables</span>
-<span style="color:var(--green)">-- require compliance-team access</span>
-CREATE ACCESS POLICY high_sens_policy
-  ON TABLE
-  WHEN TAG 'sensitivity' = 'high'
-  RESTRICT TO GROUP 'compliance_team';</pre>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">Policies reference tags to dynamically control access. One policy can govern thousands of objects without manual per-object configuration.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Query tags at runtime</span>
+SELECT * FROM system.information_schema
+  .column_tags
+WHERE tag_name = 'sensitivity'
+  AND tag_value = 'pii';</pre>
     </div>
   </div>
   <div class="card mt-2 reveal" style="text-align:center">
-    <p><strong>Tags classify. Policies enforce.</strong> Change a tag and access changes instantly. No need to update permissions on individual objects.</p>
+    <p><strong>Tags classify. Masks/Filters enforce.</strong> Apply a mask to any column tagged PII; it fires automatically on all queries, all tools.</p>
   </div>
 </div>
 
@@ -560,21 +553,21 @@ is_member('admins') => TRUE
 <span style="color:var(--green)">-- Full SSN returned</span></pre>
     </div>
     <div class="card card-amber reveal">
-      <h4>OBO: is_member() evaluates the service layer</h4>
-      <p style="font-size:var(--sz-small);margin-bottom:8px">In Genie or Agent Bricks OBO flows, <code>is_member()</code> evaluates the service layer's identity, not the calling user's groups. This is a known behavior.</p>
-      <pre style="font-size:var(--sz-code)"><span style="color:var(--amber)">-- Pattern: use allowlist table</span>
+      <h4>OBO: is_member() evaluates service identity</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">In Genie or Agent Bricks OBO flows, <code>is_member()</code> checks the <strong>service layer's</strong> groups, not the human's. Use a lookup table instead:</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--amber)">-- Pattern: current_user() + lookup</span>
 CASE
   WHEN EXISTS (
-    SELECT 1 FROM role_allowlist
+    SELECT 1 FROM access_control.user_roles
     WHERE email = current_user()
-      AND role = 'admin'
+      AND role IN ('admin', 'compliance')
   ) THEN ssn
   ELSE '***-**-' || RIGHT(ssn, 4)
 END</pre>
     </div>
   </div>
   <div class="card mt-2 reveal" style="text-align:center">
-    <p><strong>Rule of thumb:</strong> For masks in OBO chains, replace <code>is_member()</code> with a <code>current_user()</code> lookup against a UC-governed allowlist table.</p>
+    <p><strong>Rule:</strong> In OBO chains, use <code>current_user()</code> + UC-governed lookup table, never <code>is_member()</code> alone for role-based masking.</p>
   </div>
 </div>
 
@@ -626,9 +619,44 @@ ALTER TABLE deals ALTER COLUMN margin_pct SET MASK mask_margin;</pre>
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 15: DECISION TABLE -->
+<!-- SLIDE 15: DATA CLASSIFICATION AND GOVERNANCE -->
 <!-- ================================================================ -->
 <div class="slide" data-slide="15">
+  <div class="label reveal">Integration</div>
+  <h2 class="reveal">Data Classification & Governance</h2>
+  <p class="reveal" style="color:var(--muted)">Automated classification tags sensitive data. Your masks and filters decide what to do with those tags.</p>
+  <div class="two-col mt-2">
+    <div class="card card-blue reveal">
+      <h4>Auto-Classification</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">Agentic AI scans columns and detects PII (email, SSN, credit card, etc). Results written as <code>databricks:classifier:*</code> tags.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- See classified columns</span>
+SELECT catalog_name, table_name,
+       column_name, tag_value
+FROM system.information_schema
+  .column_tags
+WHERE tag_name =
+  'databricks:classifier:pii_type';</pre>
+      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Scans new tables within 24h. Can be automatic or manual review only.</p>
+    </div>
+    <div class="card card-amber reveal">
+      <h4>Apply Masks to Tagged Columns</h4>
+      <p style="font-size:var(--sz-small);margin-bottom:8px"><strong>Classification does not auto-apply masks.</strong> After reviewing, you apply masks to sensitive columns.</p>
+      <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- For each classified column</span>
+ALTER TABLE my_catalog.hr.employees
+  ALTER COLUMN ssn
+  SET MASK my_catalog.masks.pii_mask;</pre>
+      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Use ABAC: one mask covers all PII-tagged columns.</p>
+    </div>
+  </div>
+  <div class="card mt-2 reveal" style="text-align:center">
+    <p><strong>Workflow:</strong> Classification finds PII → review results → apply masks/row filters → all queries automatically governed.</p>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SLIDE 16: DECISION TABLE -->
+<!-- ================================================================ -->
+<div class="slide" data-slide="16">
   <div class="label reveal">Decision Guide</div>
   <h2 class="reveal">When to Use Which Pattern</h2>
   <div class="flex-1 mt-2 reveal" style="max-width:850px">
@@ -679,9 +707,9 @@ ALTER TABLE deals ALTER COLUMN margin_pct SET MASK mask_margin;</pre>
 </div>
 
 <!-- ================================================================ -->
-<!-- SLIDE 16: CLOSING CALLIGRAM -->
+<!-- SLIDE 17: CLOSING CALLIGRAM -->
 <!-- ================================================================ -->
-<div class="slide slide-calli" data-slide="16">
+<div class="slide slide-calli" data-slide="17">
   <div class="calli-hero reveal">
     FOUR LAYERS.
     <span class="line2">ONE ENGINE.</span>

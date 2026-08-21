@@ -353,7 +353,7 @@ tr:hover td{background:var(--surface)}
 <body>
 
 <div class="topbar">
-  <div class="title">Acme Corp &mdash; <span>AI Governance on Databricks: Overview</span></div>
+  <div class="title">Databricks &mdash; <span>AI Governance: Overview</span></div>
   <div class="counter" id="counter">01 / 10</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
@@ -504,17 +504,17 @@ tr:hover td{background:var(--surface)}
       <thead><tr><th>Layer</th><th>Governs</th></tr></thead>
       <tbody>
         <tr><td><strong>1 &middot; Identity</strong></td><td>Agent service principal, user OBO, token federation</td></tr>
-        <tr><td><strong>2 &middot; Permission</strong></td><td>UC privileges, MCP Service grants, least-privilege SPs</td></tr>
+        <tr><td><strong>2 &middot; Permission</strong></td><td>UC privileges on tables, functions, and services (MCP, model)</td></tr>
         <tr><td><strong>3 &middot; Data</strong></td><td>Row filters, column masks, ABAC, BROWSE privilege</td></tr>
         <tr><td><strong>4 &middot; Execution</strong></td><td>Model Serving, Apps, serverless sandboxing</td></tr>
-        <tr><td><strong>5 &middot; Service Policy</strong></td><td>Who can call which tools, with what approval gate</td></tr>
-        <tr><td><strong>6 &middot; Content</strong></td><td>AI Gateway guardrails: what the model is allowed to say</td></tr>
+        <tr><td><strong>5 &middot; Service Policy</strong></td><td>ABAC governance: who calls what tools, on which data (guardrails built-in, enforced ON CALL/ON RESULT, fail-closed)</td></tr>
+        <tr><td><strong>6 &middot; Content</strong></td><td>AI Gateway guardrails: hallucination detection, safety, PII handling</td></tr>
         <tr><td><strong>7 &middot; Audit</strong></td><td>system.access.audit, MLflow traces, inference tables</td></tr>
       </tbody>
     </table>
   </div>
   <div class="callout r mt2">
-    No design should rely on a single layer.
+    No design should rely on a single layer. Service Policies are the superset governing content and tool execution.
   </div>
 </div>
 
@@ -526,15 +526,15 @@ tr:hover td{background:var(--surface)}
   <div class="label r">What: the resource lens</div>
   <h2 class="r">Authorization differs by what's being accessed</h2>
   <div class="r arch-agents mt2">
-    <div class="abox r delay-1">Serving Endpoints</div>
+    <div class="abox r delay-1">Model Serving<small>endpoints, foundation models, custom</small></div>
     <div class="abox r delay-2">Genie Spaces</div>
     <div class="abox r delay-3">UC Functions</div>
     <div class="abox r delay-4">Vector Search</div>
-    <div class="abox uc r delay-5" style="font-size:var(--sm);padding:clamp(.5rem,1vw,.85rem) clamp(.7rem,1.4vw,1.1rem)">MCP Services<small style="color:var(--red);opacity:.7">new UC securable</small></div>
-    <div class="abox r delay-6">Tables</div>
-    <div class="abox danger r delay-7">Lakebase<small>PG-native, the exception</small></div>
+    <div class="abox uc r delay-5" style="font-size:var(--sm);padding:clamp(.5rem,1vw,.85rem) clamp(.7rem,1.4vw,1.1rem)">Services<small style="color:var(--red);opacity:.7">MCP, model (UC securables)</small></div>
+    <div class="abox r delay-6">Tables &amp; Volumes</div>
+    <div class="abox danger r delay-7">PostgreSQL<small>PG-native auth, the exception</small></div>
   </div>
-  <p class="r muted mt2" style="max-width:760px">MCP Services are now UC securables, the recommended path for external tool access, governed like any other catalog object. Lakebase is the one exception: PG-native authorization (roles, GRANT, RLS), not Unity Catalog.</p>
+  <p class="r muted mt2" style="max-width:760px">MCP Services and model services are UC securables with governed tags, role-based access, and service policies. PostgreSQL (Lakebase) uses native PG authorization (roles, GRANT, RLS) — the exception to the UC model.</p>
 </div>
 
 
@@ -599,8 +599,8 @@ tr:hover td{background:var(--surface)}
   </div>
   <div class="calli-rule r"></div>
   <div class="calli-sub r">Identity &middot; Permission &middot; Data &middot; Execution &middot; Service &middot; Content &middot; Audit</div>
-  <div class="calli-sub r" style="margin-top:clamp(.4rem,1vh,.7rem)">OBO &middot; M2M &middot; Federation &middot; MCP Services &middot; Omnigent</div>
-  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Acme Corp &middot; Databricks Applied AI Governance Series &middot; Deck 01</div>
+  <div class="calli-sub r" style="margin-top:clamp(.4rem,1vh,.7rem)">OBO &middot; M2M &middot; Federation &middot; MCP Services &middot; Multi-Provider LLMs</div>
+  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Databricks Applied AI Governance Series &middot; Deck 01</div>
 </div>
 
 

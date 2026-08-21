@@ -373,10 +373,10 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide slide-title active" data-slide="1">
   <h1 class="r">Unity <em>AI Gateway</em></h1>
-  <div class="sub r">Identity, runtime controls, and observability for every LLM, MCP, and API call an org makes &mdash; through one control point.</div>
+  <div class="sub r">Three layers: AI assets in Unity Catalog, AI traffic through a central control plane, and AI service behavior governed by policies.</div>
   <div class="red-rule r"></div>
   <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:640px">
-    What it governs, why it matters, and how to turn it on &mdash; including where it should <em>not</em> sit in the request path.
+    Spend control, audit trails, and risk reduction. How to implement and where not to put it.
   </p>
 </div>
 
@@ -390,23 +390,23 @@ tr:hover td{background:var(--surface)}
   <div class="flex1 mt2" style="display:flex;flex-direction:column;gap:10px;justify-content:center;max-width:760px">
     <div class="seq-step r">
       <div class="seq-num">1</div>
-      <div class="seq-body"><strong>The issue</strong><p>AI traffic scattered across tools and teams, with no shared audit trail or spend visibility.</p></div>
+      <div class="seq-body"><strong>The challenge</strong><p>AI call volume accumulates faster than governance does. Each surface (coding agents, Genie, Apps agents, MCP servers, external APIs) records calls separately, with no unified audit trail.</p></div>
     </div>
     <div class="seq-step r">
       <div class="seq-num">2</div>
-      <div class="seq-body"><strong>What it is</strong><p>Identity, runtime, and observability &mdash; one gateway governing LLMs, MCPs, and serving endpoints.</p></div>
+      <div class="seq-body"><strong>The architecture</strong><p>Three layers: AI assets (UC securables), AI traffic (control plane), AI service behavior (policies). One gateway governing LLMs, MCPs, and serving endpoints.</p></div>
     </div>
     <div class="seq-step r">
       <div class="seq-num">3</div>
-      <div class="seq-body"><strong>Why it matters</strong><p>Cost control, risk and compliance posture, and engineering velocity &mdash; concretely, not hand-wavy.</p></div>
+      <div class="seq-body"><strong>Why it matters</strong><p>Spend control with hard caps. Audit trails. Risk reduction through policy enforcement that fails closed. Velocity through provider switching without code changes.</p></div>
     </div>
     <div class="seq-step r">
       <div class="seq-num">4</div>
-      <div class="seq-body"><strong>How to configure it</strong><p>Enabling the gateway, setting guardrails/rate limits/spend caps, and the one place it should never sit.</p></div>
+      <div class="seq-body"><strong>How to implement</strong><p>Four steps: enable, create endpoints, grant permissions, point clients. Runtime controls: rate limits, spend caps, service policies (tool gating + approval workflows).</p></div>
     </div>
     <div class="seq-step r">
       <div class="seq-num">5</div>
-      <div class="seq-body"><strong>Gotchas and a production checklist</strong><p>What breaks quietly, and what to verify before launch.</p></div>
+      <div class="seq-body"><strong>Critical gotchas</strong><p>Never place the gateway in internal OBO paths. Understand fail-closed guardrails. Service policies extend beyond content filtering. Production checklist before launch.</p></div>
     </div>
   </div>
 </div>
@@ -442,27 +442,27 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="4">
   <div class="label r">What it is</div>
-  <h2 class="r">One gateway, three traffic surfaces.</h2>
-  <p class="r muted" style="max-width:80ch">Every AI call &mdash; from a developer&rsquo;s coding tool, a production agent, a tool call to an MCP server, or a request to an external API &mdash; routes through the same control point. Same permissions, same audit, same cost surface.</p>
+  <h2 class="r">Three architectural layers, one control point.</h2>
+  <p class="r muted" style="max-width:80ch"><strong>AI assets:</strong> Unity Catalog securables (models, MCP Services, Agent Services, connections). <strong>AI traffic:</strong> Central control plane for rate limits, fallbacks, spend caps, usage tracking, and inference logging. <strong>AI service behavior:</strong> Service Policies govern content and tool calls; guardrails are a built-in subset.</p>
   <div class="three-col mt3">
     <div class="card card-red r">
-      <span class="badge badge-red">Surface 1</span>
-      <h4 style="margin-top:8px">LLMs</h4>
-      <p>Agents, LLM serving endpoints, coding agents (Cursor, Codex CLI, Gemini CLI, Claude Code), and Databricks Apps agents. Native multi-provider APIs &mdash; OpenAI, Anthropic, Gemini.</p>
+      <span class="badge badge-red">Traffic Layer</span>
+      <h4 style="margin-top:8px">LLMs &amp; Coding Agents</h4>
+      <p>Agents, LLM endpoints, coding agents (Cursor, Codex CLI, Claude Code), Databricks Apps agents. Native multi-provider: OpenAI, Anthropic, Cohere, Bedrock, Vertex AI, Gemini Enterprise, custom OpenAI-compatible.</p>
     </div>
     <div class="card card-blue r">
-      <span class="badge badge-blue">Surface 2</span>
-      <h4 style="margin-top:8px">MCPs</h4>
-      <p>External, custom (Databricks Apps), and Databricks-managed MCP servers &mdash; registered as Unity Catalog securables, under the same permissions and audit as LLM calls.</p>
+      <span class="badge badge-blue">Traffic Layer</span>
+      <h4 style="margin-top:8px">MCP Services</h4>
+      <p>MCP servers registered as Unity Catalog securables. Tool-level filtering and service policies govern which tools are callable by whom, under what conditions.</p>
     </div>
     <div class="card card-green r">
-      <span class="badge badge-green">Surface 3</span>
-      <h4 style="margin-top:8px">Serving endpoints &amp; APIs</h4>
-      <p>Gateway features layered onto existing model serving endpoints, plus arbitrary external HTTP APIs &mdash; same rate limits, guardrails, and logging.</p>
+      <span class="badge badge-green">Traffic Layer</span>
+      <h4 style="margin-top:8px">Agent Services</h4>
+      <p>AI agents registered as UC securables. Governed alongside tables, models, and functions in the same identity model.</p>
     </div>
   </div>
   <div class="card card-ink mt2 r" style="text-align:center">
-    <p><strong>One control point.</strong> Permissions &middot; rate limits &middot; guardrails &middot; spend caps &middot; usage tracking &middot; inference logging &middot; fallback routing.</p>
+    <p><strong>Control plane governs:</strong> permissions (UC) &middot; rate limits &middot; service policies &middot; spend caps &middot; usage tracking &middot; inference logging &middot; fallback routing.</p>
   </div>
 </div>
 
@@ -472,20 +472,20 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="5">
   <div class="label r">What it is &middot; Request flow</div>
-  <h2 class="r">A single request, end to end.</h2>
-  <p class="r muted">Six touchpoints, all on one trace, regardless of which of the three surfaces the call belongs to.</p>
+  <h2 class="r">Two enforcement points: ON CALL and ON RESULT.</h2>
+  <p class="r muted">Service policies evaluate before invocation (ON CALL) and after response (ON RESULT). Both fail closed &mdash; a misconfigured or errored policy blocks the interaction.</p>
   <div class="arch-wrap r">
     <div class="arch-vstack">
       <div class="abox sp r delay-1">Caller<small>agent &middot; coding tool &middot; app</small></div>
       <div class="arch-varrow delay-2">&darr;</div>
-      <div class="abox uc r delay-3">Unity AI Gateway<small style="color:var(--red);opacity:.75">1. Authn &middot; 2. Authz &middot; 3. Rate limit &middot; 4. Input guardrails</small></div>
+      <div class="abox uc r delay-3" style="background:rgba(204,51,17,.10);border:2px solid var(--red)"><strong>ON CALL</strong><small style="color:var(--red);opacity:.85">Authentication &middot; Authorization &middot; Rate limits &middot; Input policies</small></div>
       <div class="arch-varrow delay-4">&darr;</div>
-      <div class="abox grp r delay-5">Destination<small>LLM provider &middot; MCP tool &middot; external API</small></div>
+      <div class="abox grp r delay-5">Destination<small>LLM &middot; MCP service &middot; external API</small></div>
       <div class="arch-varrow delay-6">&darr;</div>
-      <div class="abox uc r delay-7">Unity AI Gateway<small style="color:var(--red);opacity:.75">5. Output guardrails &middot; 6. Usage + inference logging</small></div>
+      <div class="abox uc r delay-7" style="background:rgba(204,51,17,.10);border:2px solid var(--red)"><strong>ON RESULT</strong><small style="color:var(--red);opacity:.85">Output policies &middot; Usage logging &middot; Inference tables</small></div>
       <div class="arch-varrow delay-8">&darr;</div>
       <div class="card card-green r delay-9" style="text-align:center;max-width:560px">
-        <p>All six touchpoints land in <strong><code>system.ai_gateway.usage</code></strong> and inference tables &mdash; one <code>request_id</code> ties the whole trace together.</p>
+        <p>One <code>request_id</code> joins all events: <strong><code>system.ai_gateway.usage</code></strong> (cost, principal, blocking decisions) and inference tables (payloads, policy evaluations, latency).</p>
       </div>
     </div>
   </div>
@@ -493,24 +493,25 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 6 · WHAT — IDENTITY / RUNTIME / OBSERVABILITY
+     SLIDE 6 · WHAT — SERVICE POLICIES (ABAC)
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="6">
-  <div class="label r">What it is &middot; Three pillars</div>
-  <h2 class="r">Identity, runtime, and observability.</h2>
-  <p class="r muted" style="max-width:80ch">The same three questions apply to every call, on every surface: who is allowed to make it, what happens to it in flight, and what gets recorded.</p>
+  <div class="label r">What it is &middot; Service policies</div>
+  <h2 class="r">Attribute-based access control for AI services.</h2>
+  <p class="r muted" style="max-width:80ch">Service policies govern content and tool calls based on caller identity and request attributes. They run at ON CALL (before invocation) and ON RESULT (after response), and they fail closed &mdash; a blocked policy returns HTTP 400, a timeout also blocks.</p>
   <div class="r flex1 mt2" style="overflow-x:auto">
-    <table style="min-width:680px">
-      <thead><tr><th style="width:18%">Pillar</th><th style="width:22%">Mechanism</th><th>What it answers</th></tr></thead>
+    <table style="min-width:720px">
+      <thead><tr><th style="width:24%">Category</th><th style="width:20%">Scope</th><th>Examples</th></tr></thead>
       <tbody>
-        <tr><td><strong>Identity</strong></td><td>Unity Catalog</td><td>Who can access which models, MCP servers, connections, and prompts. <code>EXECUTE</code> grants; same identity model as tables.</td></tr>
-        <tr><td><strong>Runtime</strong></td><td>AI Gateway v2</td><td>Rate limits, guardrails, service policies (ABAC), spend caps, and routing &mdash; applied before the request reaches a model and before the response reaches a caller.</td></tr>
-        <tr><td><strong>Observability</strong></td><td>System tables + inference tables</td><td>What happened, who did it, what it cost, and whether it was blocked &mdash; joinable to billing, queryable with SQL.</td></tr>
+        <tr><td><strong>Content guardrails</strong></td><td>LLM input/output</td><td>PII redaction/blocking, unsafe content, jailbreak detection, hallucination detection, custom (user-defined)</td></tr>
+        <tr><td><strong>Tool call policies</strong></td><td>MCP service invocation</td><td>Block a tool, require approval before execution, allow only specific contexts</td></tr>
+        <tr><td><strong>Caller-based policies</strong></td><td>Identity + context</td><td>Different rules for different users, groups, service principals; context from caller attributes</td></tr>
+        <tr><td><strong>Approval workflows</strong></td><td>Human-in-the-loop</td><td>Pause and request human approval before proceeding (content, tool invocation, or both)</td></tr>
       </tbody>
     </table>
   </div>
   <div class="card card-ink mt2 r">
-    <p><strong>Guardrails are one lever, not the whole story.</strong> Service policies extend beyond content filtering to govern tool calls and require human approval &mdash; something a content filter alone cannot do.</p>
+    <p><strong>Fail-closed by default:</strong> A misconfigured service policy, an evaluator timeout, or a policy evaluation error blocks the request. Use <code>mode=LOG</code> to test policies on production traffic without enforcing.</p>
   </div>
 </div>
 
@@ -519,9 +520,9 @@ tr:hover td{background:var(--surface)}
      SLIDE 7 · WHAT — SIX GUARDRAIL TEMPLATES
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="7">
-  <div class="label r">What it is &middot; Guardrails</div>
+  <div class="label r">What it is &middot; Guardrails (built-in service policies)</div>
   <h2 class="r">Six guardrail templates, evaluated on every call.</h2>
-  <p class="r muted">An LLM evaluator (recommended: <code>databricks-gpt-5-nano</code>) scores every request and response. Configure per phase (input/output), per action (block/sanitize/alert).</p>
+  <p class="r muted">An LLM evaluator (recommended: <code>databricks-gpt-5-nano</code>) scores every request and response. Configure per phase (input/output), per action (block/sanitize), per mode (enforce or log).</p>
   <div class="r flex1 mt2" style="overflow-x:auto">
     <table style="min-width:700px">
       <thead><tr><th style="width:20%">Template</th><th style="width:14%">Phase</th><th style="width:14%">Action</th><th>What it catches</th></tr></thead>
@@ -530,13 +531,13 @@ tr:hover td{background:var(--surface)}
         <tr><td><strong>PII Blocking</strong></td><td>Input / Output</td><td>Block</td><td>Refuses the request entirely if the payload contains PII &mdash; stricter option for regulated workloads.</td></tr>
         <tr><td><strong>Unsafe Content</strong></td><td>Input / Output</td><td>Block</td><td>Hate speech, harassment, violence, self-harm, sexual content, weapons, extremism.</td></tr>
         <tr><td><strong>Jailbreak</strong></td><td>Input only</td><td>Block</td><td>Instruction overrides, obfuscated payloads, role-play exploits, prompt extraction attempts.</td></tr>
-        <tr><td><strong>Hallucination</strong></td><td>Output only</td><td>Block / Alert</td><td>Output unsupported by retrieved context &mdash; useful where grounding matters (RAG).</td></tr>
-        <tr><td><strong>Custom</strong></td><td>Input / Output</td><td>You choose</td><td>Your own evaluator prompt, up to 5,000 characters &mdash; domain-specific policy (no internal codenames, no competitor mentions).</td></tr>
+        <tr><td><strong>Hallucination</strong></td><td>Output only</td><td>Block</td><td>Output unsupported by retrieved context &mdash; useful where grounding matters (RAG).</td></tr>
+        <tr><td><strong>Custom</strong></td><td>Input / Output</td><td>You choose</td><td>Your own evaluator prompt, up to 5,000 characters &mdash; domain-specific policy.</td></tr>
       </tbody>
     </table>
   </div>
   <div class="card card-ink mt2 r" style="text-align:center">
-    <p><strong>Fail-closed by default.</strong> A blocked request returns HTTP 400. An evaluator timeout or parse error also blocks &mdash; it does not silently pass the request through.</p>
+    <p><strong>Fail-closed.</strong> Blocked request returns HTTP 400. Evaluator timeout or parse error also blocks (use <code>mode=LOG</code> for dry-run). Service policies extend beyond content filtering to govern tool calls and approvals.</p>
   </div>
 </div>
 
@@ -546,21 +547,21 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="8">
   <div class="label r">What it is &middot; Where the gateway fits</div>
-  <h2 class="r">Four traffic patterns. The gateway is the right answer for exactly one of them.</h2>
+  <h2 class="r">Managed paths vs. passthrough: the critical trade-off.</h2>
   <div class="r flex1 mt1" style="overflow-x:auto">
     <table style="min-width:760px">
-      <thead><tr><th style="width:30%">Traffic</th><th style="width:20%">Pattern</th><th>Governance mechanism</th></tr></thead>
+      <thead><tr><th style="width:30%">Traffic</th><th style="width:18%">Routing</th><th>What you keep</th><th>What you lose</th></tr></thead>
       <tbody>
-        <tr><td>Agent &harr; Genie, FM API, Agent Bricks, Vector Search, UC Functions, custom MCP on Apps</td><td><span class="badge badge-green">No gateway</span></td><td>OBO or M2M, direct &mdash; UC row filters and column masks enforce at the data plane</td></tr>
-        <tr><td>LLM endpoint traffic needing rate limits, guardrails, or cost tracking</td><td><span class="badge badge-red">AI Gateway</span></td><td>Databricks AI Gateway configured on the endpoint or as a standalone gateway endpoint</td></tr>
-        <tr><td>Agent calling external APIs, third-party MCP servers, or external LLMs</td><td><span class="badge badge-amber">UC Connections</span></td><td>UC HTTP Connections + Serverless Network Policy &mdash; credential never enters application code</td></tr>
-        <tr><td>External clients (enterprise apps, partners) calling into Databricks</td><td><span class="badge badge-blue">External API gateway</span></td><td>Customer-managed gateway (APIM, Kong, AWS API Gateway) &mdash; additive, sits in front</td></tr>
+        <tr><td>Agent &harr; Genie, Agent Bricks, Vector Search, custom MCP on Apps</td><td><span class="badge badge-green">Direct</span></td><td>Per-user data access control via OBO. Row filters, column masks apply correctly.</td><td>N/A &mdash; internal Databricks traffic.</td></tr>
+        <tr><td>LLM endpoints, external models (OpenAI, Anthropic, Bedrock, Vertex AI, Gemini)</td><td><span class="badge badge-red">Managed</span></td><td>Usage tracking, rate limits, service policies, model access control, inference tables, cost attribution via request tags.</td><td>None. This is the right path.</td></tr>
+        <tr><td>External LLM API with features we don&rsquo;t yet wrap (e.g. batch endpoints, files API)</td><td><span class="badge badge-amber">Passthrough</span></td><td>Route the request unmapped. Selective header/query param forwarding.</td><td>Usage tracking, rate limits, service policies, model access control, inference tables. Operator beware.</td></tr>
+        <tr><td>External clients (enterprise apps, partners) calling Databricks</td><td><span class="badge badge-blue">External gateway</span></td><td>Boundary crossing from external identity &rarr; Databricks token. Then managed paths or direct.</td><td>None &mdash; external gateway is additive.</td></tr>
       </tbody>
     </table>
   </div>
   <div class="r mt2">
     <div class="card card-amber" style="padding:clamp(.6rem,1.2vw,1rem)">
-      <p><strong>The one pattern to get right:</strong> traffic that&rsquo;s already internal to Databricks &mdash; an agent calling Genie, Agent Bricks, or a custom MCP server &mdash; should <strong>not</strong> route through a gateway. More on why in the How section.</p>
+      <p><strong>Critical:</strong> Never put the gateway in the OBO path. Internal agent-to-Genie or agent-to-MCP calls must stay direct. The gateway re-issues its own token, so <code>current_user()</code> becomes the gateway&rsquo;s identity, and row filters silently evaluate wrong.</p>
     </div>
   </div>
 </div>
@@ -647,13 +648,13 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="12">
   <div class="label r">How &middot; Getting it running</div>
-  <h2 class="r">From zero to governed, in one sitting.</h2>
+  <h2 class="r">Four steps to a governed endpoint.</h2>
   <div class="two-col mt1">
     <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="seq-step r"><div class="seq-num">1</div><div class="seq-body"><strong>Enable</strong><p>Account admin enables Unity AI Gateway from the account console. Workspace-wide flip.</p></div></div>
-      <div class="seq-step r"><div class="seq-num">2</div><div class="seq-body"><strong>Create endpoint</strong><p>Pick a target served entity (FMAPI, external model, custom). Set rate limits and guardrails inline.</p></div></div>
-      <div class="seq-step r"><div class="seq-num">3</div><div class="seq-body"><strong>Grant access</strong><p>Add users, groups, and service principals to the endpoint&rsquo;s permission list &mdash; same identity model as UC.</p></div></div>
-      <div class="seq-step r"><div class="seq-num">4</div><div class="seq-body"><strong>Point clients</strong><p>Update agents, coding tools, and external apps to the gateway base URL. Existing SDKs work unchanged.</p></div></div>
+      <div class="seq-step r"><div class="seq-num">1</div><div class="seq-body"><strong>Enable</strong><p>Account admin enables Unity AI Gateway from the account console (workspace-wide flip).</p></div></div>
+      <div class="seq-step r"><div class="seq-num">2</div><div class="seq-body"><strong>Create model service</strong><p>Pick a target model (FMAPI, external provider, custom). Attach rate limits, guardrails, and service policies.</p></div></div>
+      <div class="seq-step r"><div class="seq-num">3</div><div class="seq-body"><strong>Grant permissions</strong><p>Add users, groups, and service principals to UC securable <code>EXECUTE</code> grants &mdash; same identity model as UC tables.</p></div></div>
+      <div class="seq-step r"><div class="seq-num">4</div><div class="seq-body"><strong>Point clients</strong><p>Update agents, coding tools, and apps to the gateway base URL. Existing SDKs work unchanged.</p></div></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="label" style="margin-bottom:0">Native provider APIs</div>
@@ -662,14 +663,14 @@ client = OpenAI(
   base_url=<span class="st">"https://&lt;uag&gt;/v1"</span>,
   api_key=DATABRICKS_TOKEN,
 )
-client.responses.create(...)</pre>
+response = client.chat.completions.create(...)</pre>
       <pre class="r"><span class="kw">from</span> anthropic <span class="kw">import</span> Anthropic
 client = Anthropic(
-  base_url=<span class="st">"https://&lt;uag&gt;/anthropic"</span>,
+  base_url=<span class="st">"https://&lt;uag&gt;/anthropic/v1"</span>,
   api_key=DATABRICKS_TOKEN,
 )
-client.messages.create(...)</pre>
-      <p class="r" style="font-size:var(--xs);color:var(--muted)">Same pattern for Gemini (<code>/gemini/v1</code>) and coding agents (<code>/cursor/v1</code>, <code>/codex/v1</code>).</p>
+response = client.messages.create(...)</pre>
+      <p class="r" style="font-size:var(--xs);color:var(--muted)">Same for Gemini, Cohere, custom OpenAI-compatible. Coding agents use <code>/cursor/v1</code>, <code>/codex/v1</code>.</p>
     </div>
   </div>
 </div>
@@ -715,51 +716,61 @@ client.messages.create(...)</pre>
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="14">
   <div class="label r">How &middot; Configuring runtime controls</div>
-  <h2 class="r">Rate limits, spend caps, and access policy &mdash; three separate levers.</h2>
+  <h2 class="r">Rate limits, spend caps, and service policies &mdash; three separate levers.</h2>
   <div class="r flex1" style="overflow-x:auto">
-    <table style="min-width:680px">
-      <thead><tr><th style="width:22%">Lever</th><th style="width:30%">Governs</th><th>Detail</th></tr></thead>
+    <table style="min-width:720px">
+      <thead><tr><th style="width:20%">Lever</th><th style="width:22%">Governs</th><th style="width:58%">Detail</th></tr></thead>
       <tbody>
-        <tr><td><strong>Rate limits</strong></td><td>Call volume</td><td>QPM and TPM, per user/group/SP/endpoint. Precedence: endpoint ceiling &gt; named SP override &gt; user &gt; group &gt; default. Max 20 limits per endpoint.</td></tr>
-        <tr><td><strong>Spend caps</strong></td><td>Dollar budget</td><td>Blocks on threshold, per endpoint/user/account &mdash; not just alert-and-continue. Enforced on a near-real-time cost estimate, so treat it as a brake, not a guaranteed ceiling. Pair with rate limits.</td></tr>
-        <tr><td><strong>Service policies (ABAC)</strong></td><td>Access + tool calls</td><td>Allow, deny, or <strong>require human approval</strong> &mdash; extends beyond content filtering to govern which tools a principal may invoke.</td></tr>
+        <tr><td><strong>Rate limits</strong></td><td>Call volume</td><td>QPM (calls) and TPM (tokens), per endpoint/user/group/SP. Precedence: endpoint ceiling &gt; named SP override &gt; user default &gt; group default. Max 20 limits per endpoint. Updates propagate in ~60s.</td></tr>
+        <tr><td><strong>Spend caps</strong></td><td>Dollar budget</td><td>Hard block at threshold, per endpoint/user/account. Enforced on near-real-time cost estimate (can overspend slightly). Returns 429 when exhausted. Pair with rate limits for multi-layer cost control.</td></tr>
+        <tr><td><strong>Service policies</strong></td><td>Content + tools + approval</td><td>ABAC: enforce rules before invocation (ON CALL) and after response (ON RESULT). Allow, deny, or require human approval. Block tool invocation by principal or context. Fail closed.</td></tr>
       </tbody>
     </table>
   </div>
   <div class="card card-ink mt2 r">
-    <p><strong>Guardrails are a subset of service policies.</strong> Service policies can also gate tool invocation and require an approval step before the agent proceeds &mdash; something a content guardrail alone cannot do.</p>
+    <p><strong>Managed vs. passthrough trade-off:</strong> Managed paths give you all controls (rate limits, spend caps, service policies, inference tables, model access control). Passthrough bypasses governance for provider features not yet wrapped. Default to managed paths.</p>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 15 · HOW — SESSION-AWARE POLICIES (OMNIGENT)
+     SLIDE 15 · HOW — EXTERNAL MODELS & CUSTOM REQUEST TAGS
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="15">
-  <div class="label r">How &middot; Beyond per-call rules</div>
-  <h2 class="r">A session-aware policy layer on top of the gateway.</h2>
+  <div class="label r">How &middot; Multi-provider support</div>
+  <h2 class="r">Supported external models and cost attribution.</h2>
   <div class="two-col mt1">
     <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="label r">Why a fifth lever</div>
-      <p style="font-size:var(--sm)">Rate limits, spend caps, and service policies each evaluate one call at a time. Omnigent, the coding-agent harness, adds a policy layer that <strong>remembers the session</strong> &mdash; it accumulates state across every tool call and model response, so a decision can depend on what already happened, not just the current request.</p>
-      <table class="r mt1">
-        <tbody>
-          <tr><td><span class="badge badge-green">ALLOW</span></td><td>Proceed as requested</td></tr>
-          <tr><td><span class="badge badge-red">DENY</span></td><td>Block the action outright</td></tr>
-          <tr><td><span class="badge badge-amber">ASK</span></td><td>Pause for human approval</td></tr>
-          <tr><td><span class="badge badge-blue">TRANSFORM</span></td><td>Rewrite the action, then proceed</td></tr>
-        </tbody>
-      </table>
+      <div class="card r">
+        <h4>Supported providers</h4>
+        <ul style="font-size:var(--sm)">
+          <li>OpenAI, Azure OpenAI</li>
+          <li>Anthropic</li>
+          <li>Cohere</li>
+          <li>Amazon Bedrock (Anthropic, Cohere, AI21, Amazon models)</li>
+          <li>Google Vertex AI</li>
+          <li>Google Gemini Enterprise</li>
+          <li>Custom OpenAI-compatible</li>
+          <li>Other Databricks serving endpoints</li>
+        </ul>
+      </div>
+      <div class="card card-amber r">
+        <h4>Request tagging for cost</h4>
+        <p style="font-size:var(--sm)">Pass custom tags via <code>Databricks-Ai-Gateway-Request-Tags</code> header (JSON key-value pairs). Tags appear in <code>system.ai_gateway.usage</code> for cost attribution to projects, teams, or workflows. Join to <code>system.billing.usage</code> for unified spend reporting.</p>
+      </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="card card-ink r">
-        <h4>Intent-based authorization</h4>
-        <p style="font-size:var(--sm)">The policy remembers the user&rsquo;s stated task for the session and scopes which tools the agent may call to what that task actually needs &mdash; tightening further as the session accumulates risk, rather than granting the agent&rsquo;s full permission set up front.</p>
-      </div>
-      <div class="card r">
-        <h4>Cost as a session-state policy</h4>
-        <p style="font-size:var(--sm)">A running spend total is the same mechanism applied to dollars: a soft threshold triggers <span class="badge badge-amber" style="font-size:var(--xs)">ASK</span>, a hard cap triggers <span class="badge badge-blue" style="font-size:var(--xs)">TRANSFORM</span> to a cheaper model. Full depth in the agent cost governance deck.</p>
-      </div>
+      <div class="label r">Example: request tags</div>
+      <pre class="r" style="font-size:var(--sm)"><span class="kw">curl -X POST</span> \\
+  -H <span class="st">"Databricks-Ai-Gateway-Request-Tags: {...}"</span> \\
+  https://&lt;workspace&gt;/ai-gateway/openai/v1/...
+
+<span class="cm"># Tags logged to system.ai_gateway.usage:</span>
+{
+  <span class="st">"project"</span>: <span class="st">"chatbot-v2"</span>,
+  <span class="st">"team"</span>: <span class="st">"platform"</span>,
+  <span class="st">"priority"</span>: <span class="st">"high"</span>
+}</pre>
     </div>
   </div>
 </div>
@@ -772,14 +783,14 @@ client.messages.create(...)</pre>
   <div class="label r">Things to know</div>
   <h2 class="r">What breaks quietly if you skip the fine print.</h2>
   <div class="r flex1" style="overflow-x:auto">
-    <table style="min-width:700px">
-      <thead><tr><th>Issue</th><th>Detail</th></tr></thead>
+    <table style="min-width:720px">
+      <thead><tr><th style="width:28%">Issue</th><th>Detail</th></tr></thead>
       <tbody>
-        <tr><td><strong>Gateway placed in the OBO path</strong></td><td>Don&rsquo;t put a gateway in the OBO path. It breaks per-user data access &mdash; the gateway re-issues its own token, so <code>current_user()</code> resolves to the gateway&rsquo;s identity instead of the human&rsquo;s, and row filters evaluate silently wrong. Keep internal Databricks-to-Databricks traffic direct.</td></tr>
-        <tr><td><strong>Evaluator timeout treated as pass-through</strong></td><td>It isn&rsquo;t. Guardrails fail closed &mdash; a timeout or parse error blocks the request.</td></tr>
-        <tr><td><strong>Spend cap assumed to be a soft alert</strong></td><td>It&rsquo;s a hard block. Calls return 429 once the budget is hit, with no manual override until the period resets.</td></tr>
-        <tr><td><strong>External gateway and AI Gateway treated as either/or</strong></td><td>They&rsquo;re additive. External gateway handles boundary crossing (external identity &rarr; Databricks token); AI Gateway handles LLM governance at the endpoint; UC handles data access.</td></tr>
-        <tr><td><strong>Custom MCP server traffic routed through the gateway by default</strong></td><td>Only do this for the MCP-as-a-governed-tool pattern. Internal agent-to-agent or agent-to-Genie calls should stay direct.</td></tr>
+        <tr><td><strong>Gateway in OBO path</strong></td><td>Critical: never put the gateway in the OBO path between an agent and Genie, Agent Bricks, or a custom MCP server. The gateway re-issues its own token, so <code>current_user()</code> becomes the gateway&rsquo;s identity, and row filters evaluate silently wrong. Keep internal Databricks-to-Databricks traffic direct.</td></tr>
+        <tr><td><strong>Guardrails don&rsquo;t soft-fail</strong></td><td>Guardrails fail closed. An evaluator timeout, parse error, or misconfiguration blocks the request (HTTP 400). Use <code>mode=LOG</code> for dry-run testing without enforcement.</td></tr>
+        <tr><td><strong>Spend cap is a hard block</strong></td><td>Not a soft alert. Requests return 429 once the budget is hit. No manual override until the billing period resets or an admin raises the cap.</td></tr>
+        <tr><td><strong>Output guardrails + streaming</strong></td><td>Output guardrails evaluate post-response, so streaming responses bypass them. Use input guardrails or non-streaming requests for output policy enforcement.</td></tr>
+        <tr><td><strong>Passthrough loses governance</strong></td><td>Passthrough paths (provider features not yet wrapped) bypass rate limits, service policies, and inference tables. Operator beware.</td></tr>
       </tbody>
     </table>
   </div>
@@ -793,12 +804,12 @@ client.messages.create(...)</pre>
   <div class="label r">Production checklist</div>
   <h2 class="r">Before this goes live.</h2>
   <div class="gate-grid flex1 mt1">
-    <div class="gate-cell r"><h4>Least-privilege endpoint permissions</h4><p>Specific groups, not workspace-wide. Coding agents accessible only to developer groups.</p></div>
-    <div class="gate-cell r"><h4>Rate limits per principal</h4><p>QPM and TPM caps, tighter for service principals than for human users.</p></div>
-    <div class="gate-cell r"><h4>Guardrails on input <em>and</em> output</h4><p>PII block + unsafe + jailbreak on input. PII redact + unsafe on output.</p></div>
-    <div class="gate-cell r"><h4>Fallback configured for critical endpoints</h4><p>Multi-entity setup with fallback enabled so provider outages route automatically.</p></div>
-    <div class="gate-cell r"><h4>Inference tables in a catalog with retention</h4><p>Audit-grade UC catalog, lifecycle policy for payload data, ACLs scoped to security and engineering.</p></div>
-    <div class="gate-cell r"><h4>Internal OBO traffic verified as direct</h4><p>Confirm no gateway sits between an agent and Genie, Agent Bricks, or a custom MCP server.</p></div>
+    <div class="gate-cell r"><h4>UC permissions: least privilege</h4><p>Grant <code>EXECUTE</code> to specific groups, not workspace-wide. Coding agents accessible only to developer groups.</p></div>
+    <div class="gate-cell r"><h4>Rate limits per principal</h4><p>QPM and TPM caps; tighter limits for service principals than human users. Endpoint ceiling &gt; individual overrides.</p></div>
+    <div class="gate-cell r"><h4>Service policies in LOG mode first</h4><p>Test guardrails on production traffic in <code>mode=LOG</code> dry-run before switching to <code>mode=ENFORCE</code>.</p></div>
+    <div class="gate-cell r"><h4>Spend caps + rate limits together</h4><p>Rate limits control traffic volume. Spend caps control dollars. Use both as multi-layer cost control.</p></div>
+    <div class="gate-cell r"><h4>Inference tables configured</h4><p>UC catalog with retention policy, audit-grade access controls. Join to <code>system.billing.usage</code> for cost analysis.</p></div>
+    <div class="gate-cell r"><h4>Internal Databricks traffic stays direct</h4><p>Confirm no gateway sits between agent and Genie, Agent Bricks, or custom MCP server. OBO path must be direct.</p></div>
   </div>
 </div>
 

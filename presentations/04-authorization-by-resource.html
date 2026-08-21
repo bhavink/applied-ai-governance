@@ -326,10 +326,10 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide slide-title active" data-slide="1">
   <h1 class="r">Authorization by <em>Resource Type</em></h1>
-  <div class="sub r">How access control actually works at each Databricks AI component &mdash; serving endpoints, Genie, vector search, functions, connections, tables, and Lakebase.</div>
+  <div class="sub r">What access control looks like at each Databricks AI resource &mdash; the identity model, OAuth scopes, the gotcha for each, and the pattern that works.</div>
   <div class="red-rule r"></div>
   <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:640px">
-    Companion to Identity &amp; Auth Foundations. That deck covers the token; this one covers what happens once the token arrives at a resource.
+    Companion to token fundamentals. That covers how you get the token; this covers what each resource enforces once it arrives.
   </p>
 </div>
 
@@ -339,17 +339,17 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="2">
   <div class="label r">Agenda</div>
-  <h2 class="r">What this deck covers</h2>
+  <h2 class="r">Seven resources. Seven different authorization models.</h2>
   <div class="two-col mt2">
     <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="card r"><p><strong>1.</strong> Why authorization differs by resource, not just by token path</p></div>
-      <div class="card r"><p><strong>2.</strong> Serving endpoints, Genie, and Vector Search &mdash; identity model and gotchas each</p></div>
-      <div class="card r"><p><strong>3.</strong> UC Functions and UC HTTP Connections as the safe patterns for writes and external calls</p></div>
+      <div class="card r"><p><strong>1.</strong> OAuth scopes &mdash; what they control, the endpoint vs scope confusion, M2M vs OBO tokens</p></div>
+      <div class="card r"><p><strong>2.</strong> Serving endpoints, Genie, Vector Search &mdash; identity model for each</p></div>
+      <div class="card r"><p><strong>3.</strong> UC Functions and HTTP Connections &mdash; safe boundaries for writes and external systems</p></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="card r"><p><strong>4.</strong> Tables &mdash; row filters, column masks, and the <code>current_user()</code> vs <code>is_member()</code> trap</p></div>
-      <div class="card r"><p><strong>5.</strong> Lakebase &mdash; the one resource that isn't governed by Unity Catalog</p></div>
-      <div class="card r"><p><strong>6.</strong> A decision guide and gotcha checklist for production readiness</p></div>
+      <div class="card r"><p><strong>4.</strong> Tables &mdash; row filters, column masks, <code>current_user()</code> vs <code>is_member()</code></p></div>
+      <div class="card r"><p><strong>5.</strong> Lakebase &mdash; PostgreSQL-native grants and RLS, not Unity Catalog</p></div>
+      <div class="card r"><p><strong>6.</strong> Decision guide and production-readiness checklist</p></div>
     </div>
   </div>
 </div>
@@ -359,27 +359,27 @@ tr:hover td{background:var(--surface)}
      SLIDE 3 · THE ISSUE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="3">
-  <div class="label r">The issue</div>
-  <h2 class="r">The same token hits a different enforcement model at every resource it touches.</h2>
+  <div class="label r">The problem</div>
+  <h2 class="r">Authorization is enforced at the resource, not by the app.</h2>
   <div class="two-col mt2">
     <div style="display:flex;flex-direction:column;gap:12px">
       <div class="callout r">
-        Teams that get the token path right in Identity &amp; Auth Foundations still get burned here &mdash; because Genie checks a different scope set than Model Serving, Vector Search has no per-user concept at all, and Lakebase doesn't use Unity Catalog.
+        The same token can be valid for Model Serving but rejected by Genie. Vector Search sees one user, Lakebase sees another. Row filters in UC work one way in notebooks and a different way in Agent Bricks. Getting the token right is table stakes, but it's only the first check.
       </div>
       <div class="r" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
         <div class="card card-red" style="text-align:center;padding:14px 10px">
           <div class="stat">7</div>
-          <div class="stat-label">resources, seven different auth stories</div>
+          <div class="stat-label">resources to understand</div>
         </div>
         <div class="card card-red" style="text-align:center;padding:14px 10px">
-          <div class="stat">1</div>
-          <div class="stat-label">resource that isn't governed by UC at all</div>
+          <div class="stat">3</div>
+          <div class="stat-label">different OAuth endpoints</div>
         </div>
       </div>
     </div>
     <div class="card card-ink r">
-      <h4>What this deck answers</h4>
-      <p>For each resource: what identity model applies, what the #1 gotcha is, and the concrete pattern that avoids it.</p>
+      <h4>What this means for builders</h4>
+      <p>Before you trust the result, know: which endpoint issued the token, which resource is enforcing it, and what identity it sees.</p>
     </div>
   </div>
 </div>
@@ -389,28 +389,28 @@ tr:hover td{background:var(--surface)}
      SLIDE 4 · THE RESOURCE LENS + SUMMARY
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="4">
-  <div class="label r">What &mdash; The resource lens</div>
+  <div class="label r">What — The resource lens</div>
   <h2 class="r">Seven resources. Six use Unity Catalog. One doesn't.</h2>
   <div class="resource-grid r mt1">
-    <div class="resource-card"><div class="icon">&#9881;</div><div class="name">Serving Endpoints</div><div class="meta">UC + scopes</div></div>
-    <div class="resource-card"><div class="icon">&#128172;</div><div class="name">Genie</div><div class="meta">UC + genie scopes</div></div>
-    <div class="resource-card"><div class="icon">&#128269;</div><div class="name">Vector Search</div><div class="meta">UC SELECT</div></div>
-    <div class="resource-card"><div class="icon">&#119891;</div><div class="name">UC Functions</div><div class="meta">UC EXECUTE</div></div>
-    <div class="resource-card"><div class="icon">&#128279;</div><div class="name">UC HTTP Connections</div><div class="meta">USE CONNECTION</div></div>
-    <div class="resource-card"><div class="icon">&#128451;</div><div class="name">Tables</div><div class="meta">Row filters &amp; masks</div></div>
-    <div class="resource-card"><div class="icon">&#128024;</div><div class="name" style="color:var(--red)">Lakebase</div><div class="meta" style="color:var(--red)">PG-native, NOT UC</div></div>
+    <div class="resource-card"><div class="icon">&#9881;</div><div class="name">Serving Endpoints</div><div class="meta">OBO or M2M</div></div>
+    <div class="resource-card"><div class="icon">&#128172;</div><div class="name">Genie</div><div class="meta">OBO only</div></div>
+    <div class="resource-card"><div class="icon">&#128269;</div><div class="name">Vector Search</div><div class="meta">M2M + filter</div></div>
+    <div class="resource-card"><div class="icon">&#119891;</div><div class="name">UC Functions</div><div class="meta">Inherits caller</div></div>
+    <div class="resource-card"><div class="icon">&#128279;</div><div class="name">HTTP Connections</div><div class="meta">M2M + auth method</div></div>
+    <div class="resource-card"><div class="icon">&#128451;</div><div class="name">Tables</div><div class="meta">Row/column filters</div></div>
+    <div class="resource-card"><div class="icon">&#128024;</div><div class="name" style="color:var(--red)">Lakebase</div><div class="meta" style="color:var(--red)">PostgreSQL, not UC</div></div>
   </div>
   <div class="r flex1" style="overflow-x:auto;margin-top:12px">
     <table style="min-width:700px">
-      <thead><tr><th>Resource</th><th>Recommended path</th><th>current_user() returns</th><th>#1 gotcha</th></tr></thead>
+      <thead><tr><th>Resource</th><th>Path</th><th>current_user()</th><th>#1 gotcha</th></tr></thead>
       <tbody>
-        <tr><td><strong>Serving Endpoints</strong></td><td><span class="badge badge-blue">OBO</span> or <span class="badge badge-ink">M2M</span></td><td>Human (OBO) or SP UUID (M2M)</td><td><code>ModelServingUserCredentials()</code> only inside Model Serving</td></tr>
-        <tr><td><strong>Genie</strong></td><td><span class="badge badge-blue">OBO</span></td><td>Human email</td><td><code>is_member()</code> evaluates the execution service, not the caller</td></tr>
-        <tr><td><strong>Vector Search</strong></td><td><span class="badge badge-ink">M2M</span></td><td>App SP UUID</td><td>No native OBO &mdash; use pre/post-filter for per-user results</td></tr>
-        <tr><td><strong>UC Functions</strong></td><td>Inherits context</td><td>Caller (OBO &rarr; human, M2M &rarr; SP)</td><td>Grant EXECUTE to the agent SP, never raw table writes</td></tr>
-        <tr><td><strong>UC HTTP Connections</strong></td><td><span class="badge badge-ink">M2M</span> + per-user OAuth</td><td>Caller (Databricks side)</td><td>Only U2M Per User / Managed OAuth give per-user identity externally</td></tr>
-        <tr><td><strong>Tables</strong></td><td>Any</td><td>Caller identity</td><td><code>is_member()</code> fails silently in Genie + Agent Bricks OBO</td></tr>
-        <tr><td><strong style="color:var(--red)">Lakebase</strong></td><td><span class="badge badge-ink">M2M</span></td><td>SP client ID (PG role)</td><td><span class="badge badge-red">PG GRANT + RLS</span> &mdash; not UC</td></tr>
+        <tr><td><strong>Serving Endpoints</strong></td><td><span class="badge badge-blue">OBO</span> or <span class="badge badge-ink">M2M</span></td><td>Human (OBO) / SP (M2M)</td><td><code>ModelServingUserCredentials()</code> only in serving context</td></tr>
+        <tr><td><strong>Genie</strong></td><td><span class="badge badge-blue">OBO</span></td><td>Human email</td><td>Both <code>genie</code> + <code>dashboards.genie</code> scopes required</td></tr>
+        <tr><td><strong>Vector Search</strong></td><td><span class="badge badge-ink">M2M</span></td><td>App SP UUID</td><td>No native OBO — apply pre/post-filter in app layer</td></tr>
+        <tr><td><strong>UC Functions</strong></td><td>Inherits caller</td><td>Caller identity</td><td>Grant EXECUTE, never INSERT/UPDATE on table directly</td></tr>
+        <tr><td><strong>HTTP Connections</strong></td><td><span class="badge badge-ink">M2M</span> + auth</td><td>Databricks side only</td><td>Only U2M Per User / Managed OAuth pass identity to external service</td></tr>
+        <tr><td><strong>Tables</strong></td><td>Any</td><td>Caller identity</td><td><code>is_member()</code> breaks in Genie + Agent Bricks OBO</td></tr>
+        <tr><td><strong style="color:var(--red)">Lakebase</strong></td><td><span class="badge badge-ink">M2M</span></td><td>SP client ID (PG role)</td><td>PG GRANT + RLS, not UC policy</td></tr>
       </tbody>
     </table>
   </div>
@@ -421,23 +421,23 @@ tr:hover td{background:var(--surface)}
      SLIDE 5 · SERVING ENDPOINTS
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="5">
-  <div class="label r">What &mdash; Serving Endpoints</div>
-  <h2 class="r">Agent Bricks and Model Serving: OBO or M2M, but never mix up the API.</h2>
+  <div class="label r">What — Serving Endpoints &amp; Agent Bricks</div>
+  <h2 class="r">OBO extracts the user, but only inside the serving endpoint itself.</h2>
   <div class="two-col mt2">
     <div class="card card-blue r">
       <h4>Identity model</h4>
       <ul class="mt1">
-        <li><strong>OBO:</strong> <code>ModelServingUserCredentials()</code> extracts the user &mdash; inside Model Serving only</li>
-        <li><strong>M2M:</strong> <code>WorkspaceClient()</code> no-args in Databricks App context</li>
-        <li>Scope required: <code>model-serving</code></li>
-        <li>Agent Bricks supervisor auto-forwards OBO to up to 20 sub-agents</li>
+        <li><strong>OBO:</strong> Pass user's OAuth token in <code>Authorization: Bearer {token}</code> header</li>
+        <li>Inside endpoint: <code>ModelServingUserCredentials()</code> extracts user identity</li>
+        <li>Scope: <code>model-serving</code></li>
+        <li><strong>M2M:</strong> App SP credentials auto-injected by platform</li>
       </ul>
     </div>
     <div class="card card-red r">
-      <h4>Two-proxy gotcha</h4>
-      <p>App A calling App B: App B's proxy strips App A's forwarded user token and replaces it with App A's own SP identity.</p>
+      <h4>The ModelServingUserCredentials trap</h4>
+      <p><code>ModelServingUserCredentials()</code> only works in Model Serving context. In Databricks Apps, it silently falls back to SP credentials — wrong identity, no error.</p>
       <div class="card card-ink mt2" style="padding:10px 12px">
-        <p style="font-size:var(--sm);color:#fff"><strong>Fix:</strong> use <code>X-Forwarded-Email</code> (proxy-signed, survives hops, cannot be forged) plus M2M SQL with an email-based row filter.</p>
+        <p style="font-size:var(--sm);color:#fff"><strong>Fix:</strong> In apps, read <code>X-Forwarded-Access-Token</code> and pass explicitly to the endpoint.</p>
       </div>
     </div>
   </div>
@@ -448,24 +448,24 @@ tr:hover td{background:var(--surface)}
      SLIDE 6 · GENIE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="6">
-  <div class="label r">What &mdash; Genie Spaces</div>
-  <h2 class="r">Genie: OBO is the only supported path, and the scope UI lies to you.</h2>
+  <div class="label r">What — Genie Spaces</div>
+  <h2 class="r">OBO only. Both scopes required. is_member() breaks silently.</h2>
   <div class="two-col mt2">
     <div class="card card-blue r">
       <h4>Identity model</h4>
       <ul class="mt1">
-        <li>OBO only &mdash; user's token forwarded via <code>X-Forwarded-Access-Token</code></li>
-        <li>Both <code>genie</code> AND <code>dashboards.genie</code> scopes required</li>
-        <li><code>current_user()</code> = calling human; <code>is_member()</code> = execution service</li>
-        <li>Rate limit: 5 queries/min (sliding window)</li>
+        <li>OBO only — user's token via <code>Authorization: Bearer {user_token}</code></li>
+        <li>Both <code>genie</code> AND <code>dashboards.genie</code> scopes required (UI doesn't show both)</li>
+        <li><code>current_user()</code> = caller human email</li>
+        <li><code>is_member()</code> = Genie execution service (not the caller)</li>
       </ul>
     </div>
     <div class="card card-amber r">
-      <h4>The scope bug</h4>
-      <p>The App integration UI only shows <code>dashboards.genie</code>. The Genie API checks for <strong>both</strong> scopes.</p>
-      <pre class="mt1">HTTP 403
-"required scopes: genie"</pre>
-      <p class="mt1" style="font-size:var(--sm)"><strong>Fix:</strong> <code>PATCH /api/2.0/preview/accounts/{account_id}/oidc/custom-app-integration/{id}</code> with <code>{"scopes": ["dashboards.genie","genie","sql"]}</code> &mdash; the UI won't show this option.</p>
+      <h4>The scope trap</h4>
+      <p>App integration UI lists only <code>dashboards.genie</code>. Genie API checks for both. Missing <code>genie</code> scope = 403 with cryptic error.</p>
+      <div class="card card-ink mt2" style="padding:10px 12px">
+        <p style="font-size:var(--sm);color:#fff"><strong>Fix:</strong> Add both scopes via account API or CLI, not the UI.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -475,26 +475,27 @@ tr:hover td{background:var(--surface)}
      SLIDE 7 · VECTOR SEARCH
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="7">
-  <div class="label r">What &mdash; Vector Search</div>
-  <h2 class="r">Vector Search: M2M by default, per-user filtering is your application's job.</h2>
+  <div class="label r">What — Vector Search</div>
+  <h2 class="r">M2M only. Same results for all users. Filtering is application-layer.</h2>
   <div class="two-col mt2">
     <div class="card card-blue r">
       <h4>Identity model</h4>
       <ul class="mt1">
-        <li>M2M only &mdash; App SP has <code>SELECT</code> on the index</li>
-        <li><code>WorkspaceClient()</code> no-args picks up auto-injected SP credentials</li>
-        <li>Scope: <code>vector-search</code>; Delta Sync auto-updates on source change</li>
+        <li>M2M only — App SP has <code>CAN_SELECT</code> on the index</li>
+        <li><code>WorkspaceClient()</code> auto-discovers SP credentials</li>
+        <li>Scope: <code>vector-search</code></li>
+        <li><code>current_user()</code> = App SP UUID (not per-user)</li>
       </ul>
       <div class="card card-amber mt2" style="padding:10px 12px">
-        <p style="font-size:var(--sm)"><strong>No native per-user context.</strong> The SP retrieves results; your code enforces per-user visibility.</p>
+        <p style="font-size:var(--sm)"><strong>No native per-user identity.</strong> Vector Search returns the same top-K to all users. Per-user access is your responsibility.</p>
       </div>
     </div>
     <div class="card r">
-      <h4>Per-user filtering strategies</h4>
+      <h4>Filtering options</h4>
       <table class="mt1">
-        <tr><td><strong>Pre-filter</strong></td><td>Include a <code>user_group</code> column in the index, pass as a filter in the query. Faster, needs group info indexed.</td></tr>
-        <tr><td><strong>Post-filter</strong></td><td>Retrieve top-K, then check each against user permissions. Flexible for complex/external ACLs, wastes retrieval budget.</td></tr>
-        <tr><td><strong>Shared KB</strong></td><td>M2M is correct as-is &mdash; same docs for every user, no filtering needed.</td></tr>
+        <tr><td><strong>Pre-filter</strong></td><td>Include user/group metadata in index, filter in query. Fast but requires data enrichment.</td></tr>
+        <tr><td><strong>Post-filter</strong></td><td>App retrieves results, checks each against user ACL. Flexible, uses retrieval budget.</td></tr>
+        <tr><td><strong>Shared KB</strong></td><td>M2M as-is: everyone sees same docs, no filtering needed.</td></tr>
       </table>
     </div>
   </div>
@@ -505,34 +506,34 @@ tr:hover td{background:var(--surface)}
      SLIDE 8 · UC FUNCTIONS
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="8">
-  <div class="label r">What &mdash; UC Functions</div>
-  <h2 class="r">The safe pattern for agent writes: EXECUTE on the function, never raw table grants.</h2>
+  <div class="label r">What — UC Functions</div>
+  <h2 class="r">The authorization boundary for writes: EXECUTE on the function, not the table.</h2>
   <div class="two-col mt1">
     <div>
-      <pre class="r"><span class="kw">CREATE FUNCTION</span> prod.tools.approve_deal(
-  deal_id <span class="st">STRING</span>, approver <span class="st">STRING</span>
+      <pre class="r"><span class="kw">CREATE FUNCTION</span> prod.auth.approve(
+  deal_id <span class="st">STRING</span>
 )
 <span class="kw">RETURNS STRING LANGUAGE SQL</span>
 <span class="kw">RETURN</span> (
   <span class="kw">UPDATE</span> prod.sales.deals
-  <span class="kw">SET</span> status = <span class="st">'approved'</span>,
-      approved_by = approver
+  <span class="kw">SET</span> status = <span class="st">'approved'</span>
   <span class="kw">WHERE</span> id = deal_id
     <span class="kw">AND</span> current_user() <span class="kw">IN</span> (
-      <span class="kw">SELECT</span> email <span class="kw">FROM</span> prod.sales.approvers
+      <span class="kw">SELECT</span> email <span class="kw">FROM</span>
+      prod.sales.approvers
     )
 );</pre>
     </div>
     <div class="card r">
-      <h4>What this achieves</h4>
+      <h4>Pattern</h4>
       <table class="mt1">
-        <tr><td><strong>Agent SP</strong></td><td>Has EXECUTE on the function</td></tr>
-        <tr><td><strong>Agent SP</strong></td><td>Does NOT have UPDATE on the table</td></tr>
-        <tr><td><strong>Function</strong></td><td>Enforces eligibility via <code>current_user()</code> internally</td></tr>
-        <tr><td><strong>Audit</strong></td><td>Function execution logged to <code>system.access.audit</code></td></tr>
+        <tr><td><strong>Agent SP</strong></td><td>Has EXECUTE on function only</td></tr>
+        <tr><td><strong>Agent SP</strong></td><td>NO UPDATE/INSERT on table</td></tr>
+        <tr><td><strong>Function</strong></td><td>Checks <code>current_user()</code> internally</td></tr>
+        <tr><td><strong>Audit log</strong></td><td>Function calls appear in <code>system.access.audit</code></td></tr>
       </table>
       <div class="card card-green mt2" style="padding:10px 12px">
-        <p style="font-size:var(--sm)">Functions are the authorization boundary for write operations &mdash; the agent never touches the table directly.</p>
+        <p style="font-size:var(--sm)">Function is the authorization boundary. Agent never has direct write access.</p>
       </div>
     </div>
   </div>
@@ -543,26 +544,26 @@ tr:hover td{background:var(--surface)}
      SLIDE 9 · UC HTTP CONNECTIONS
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="9">
-  <div class="label r">What &mdash; UC HTTP Connections</div>
-  <h2 class="r">Four auth methods, one governed boundary. Only two give identity on both sides.</h2>
+  <div class="label r">What — UC HTTP Connections</div>
+  <h2 class="r">Five auth methods. Only two pass per-user identity to the external service.</h2>
   <div class="r flex1" style="overflow-x:auto;margin-top:6px">
     <table style="min-width:680px">
-      <thead><tr><th>Method</th><th>External service sees</th><th>Use case</th></tr></thead>
+      <thead><tr><th>Method</th><th>External sees</th><th>Use case</th></tr></thead>
       <tbody>
-        <tr><td><strong>Bearer Token</strong></td><td>Shared (one static token)</td><td>Simple integrations, static API keys</td></tr>
-        <tr><td><strong>OAuth M2M</strong></td><td>Shared (app client credentials)</td><td>Org-level, service-to-service access</td></tr>
-        <tr><td><strong>OAuth U2M Shared</strong></td><td>Shared (one user's delegated token)</td><td>Admin-delegated access</td></tr>
-        <tr><td><strong style="color:var(--green)">OAuth U2M Per User</strong></td><td style="color:var(--green);font-weight:600">Per-user identity &#10003;</td><td>User-specific (Jira, GitHub as them)</td></tr>
-        <tr><td><strong style="color:var(--green)">Managed OAuth</strong></td><td style="color:var(--green);font-weight:600">Per-user identity &#10003;</td><td>Google, SharePoint &mdash; Databricks handles OAuth</td></tr>
+        <tr><td><strong>Bearer Token</strong></td><td>Shared static token</td><td>Simple integrations, static API keys</td></tr>
+        <tr><td><strong>OAuth M2M</strong></td><td>Shared app credentials</td><td>Service-to-service at org level</td></tr>
+        <tr><td><strong>OAuth U2M Shared</strong></td><td>One admin's delegated token</td><td>Shared admin access</td></tr>
+        <tr><td><strong style="color:var(--green)">U2M Per User</strong></td><td style="color:var(--green);font-weight:600">User's own identity ✓</td><td>As the user (Jira, GitHub, etc.)</td></tr>
+        <tr><td><strong style="color:var(--green)">Managed OAuth</strong></td><td style="color:var(--green);font-weight:600">User's own identity ✓</td><td>Google, Microsoft Graph — Databricks handles OAuth flow</td></tr>
       </tbody>
     </table>
   </div>
   <div class="two-col mt2">
     <div class="card card-ink r" style="padding:12px 14px">
-      <p style="font-size:var(--sm);color:#fff"><strong>Runtime kill switch.</strong> <code>REVOKE USE CONNECTION</code> removes agent access to the tool immediately &mdash; no redeploy, no code change.</p>
+      <p style="font-size:var(--sm);color:#fff"><strong>Kill switch.</strong> <code>REVOKE USE CONNECTION</code> immediately blocks agent access — no redeploy needed.</p>
     </div>
     <div class="card card-amber r" style="padding:12px 14px">
-      <p style="font-size:var(--sm)"><strong>No read-only scope at the connection level.</strong> UC controls who can use the connection, not what they can do through it &mdash; create separate connections with different external credentials for read-only vs. read-write.</p>
+      <p style="font-size:var(--sm)"><strong>No granular scopes.</strong> UC controls WHO can use connection. For different operations (read vs write), create separate connections with different credentials.</p>
     </div>
   </div>
 </div>
@@ -572,15 +573,15 @@ tr:hover td{background:var(--surface)}
      SLIDE 10 · TABLES
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="10">
-  <div class="label r">What &mdash; Tables</div>
-  <h2 class="r">Row filters and column masks fire everywhere &mdash; but only one function reads correctly everywhere.</h2>
+  <div class="label r">What — Tables</div>
+  <h2 class="r">Row filters and column masks work everywhere, but is_member() has a gotcha in OBO.</h2>
   <div class="two-col mt2">
     <div class="card r">
       <h4>Row filters &amp; column masks</h4>
       <ul class="mt1">
         <li>SQL function evaluated at query time, attached to the table</li>
-        <li>Fires regardless of access path: notebook, API, Genie, agent</li>
-        <li>Column masks transform values per user with the same trigger rules</li>
+        <li>Fires in all access paths: notebooks, apps, Genie, agents, API</li>
+        <li>Column masks transform values per user — same trigger rules as row filters</li>
       </ul>
     </div>
     <div class="card card-red r">
@@ -588,13 +589,13 @@ tr:hover td{background:var(--surface)}
       <table class="mt1">
         <thead><tr><th>Access path</th><th>current_user()</th><th>is_member()</th></tr></thead>
         <tbody>
-          <tr><td>Notebook (U2M)</td><td style="color:var(--green)">Human &#10003;</td><td style="color:var(--green)">Human groups &#10003;</td></tr>
-          <tr><td>App SQL (OBO)</td><td style="color:var(--green)">Human &#10003;</td><td style="color:var(--green)">Human groups &#10003;</td></tr>
-          <tr><td>Genie (OBO)</td><td style="color:var(--green)">Human &#10003;</td><td style="color:var(--red);font-weight:600">Exec service &#10007;</td></tr>
-          <tr><td>Agent Bricks (OBO)</td><td style="color:var(--green)">Human &#10003;</td><td style="color:var(--red);font-weight:600">Exec service &#10007;</td></tr>
+          <tr><td>Notebook</td><td style="color:var(--green)">Human ✓</td><td style="color:var(--green)">Human groups ✓</td></tr>
+          <tr><td>App SQL (OBO)</td><td style="color:var(--green)">Human ✓</td><td style="color:var(--green)">Human groups ✓</td></tr>
+          <tr><td>Genie (OBO)</td><td style="color:var(--green)">Human ✓</td><td style="color:var(--red)">Genie service ✗</td></tr>
+          <tr><td>Agent Bricks (OBO)</td><td style="color:var(--green)">Human ✓</td><td style="color:var(--red)">Agent service ✗</td></tr>
         </tbody>
       </table>
-      <p class="mt1" style="font-size:var(--sm)"><strong>Rule:</strong> use <code>current_user()</code> everywhere. It's correct in every access path; <code>is_member()</code> breaks silently in Genie and Agent Bricks OBO.</p>
+      <p class="mt1" style="font-size:var(--sm)"><strong>Rule:</strong> Use <code>current_user()</code> everywhere. It works in all paths. <code>is_member()</code> breaks silently in Genie and Agent Bricks OBO — no error, just wrong rows.</p>
     </div>
   </div>
 </div>
@@ -604,23 +605,24 @@ tr:hover td{background:var(--surface)}
      SLIDE 11 · LAKEBASE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="11">
-  <div class="label r">What &mdash; Lakebase</div>
-  <h2 class="r">The one exception: PostgreSQL-native authorization, not Unity Catalog.</h2>
+  <div class="label r">What — Lakebase</div>
+  <h2 class="r">PostgreSQL-native authorization. Not governed by Unity Catalog.</h2>
   <div class="two-col mt2">
     <div class="card card-red r">
-      <h4>PG-native, not UC</h4>
+      <h4>Lakebase identity model</h4>
       <ul class="mt1">
-        <li>AuthN: Databricks OAuth token as PG password, or native PG roles</li>
-        <li>App's SP client ID becomes the PG role name, auto-created on resource binding</li>
-        <li>Role gets <code>CONNECT + CREATE</code>; SELECT/INSERT added manually</li>
+        <li>Scope: <code>postgres</code> (for management API only)</li>
+        <li>Auth: Databricks OAuth token as PG password OR native PG role</li>
+        <li>App's SP client ID = PG role name (auto-created on binding)</li>
+        <li>Access: GRANT on schema/table + PostgreSQL RLS policies</li>
       </ul>
       <div class="badge badge-red mt2">NOT Unity Catalog</div>
     </div>
     <div class="card card-amber r">
-      <h4>Two authorization paths, same data</h4>
-      <p><strong>Direct PG connection</strong> (apps, psql): PG roles + GRANT + RLS govern access.</p>
-      <p class="mt1"><strong>Via lakehouse / DBSQL:</strong> UC policies apply instead of PG grants.</p>
-      <p class="mt1" style="color:var(--amber);font-weight:600">Same data, different auth model depending on access path.</p>
+      <h4>Two access paths, different auth</h4>
+      <p><strong>Direct PG connection:</strong> PG roles + GRANT + RLS enforce access.</p>
+      <p class="mt1"><strong>Via lakehouse API:</strong> Unity Catalog policies apply.</p>
+      <p class="mt1" style="color:var(--amber);font-weight:600">Same table. Different authorization model per access path.</p>
     </div>
   </div>
 </div>
@@ -631,23 +633,23 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="12">
   <div class="label r">Why it matters</div>
-  <h2 class="r">Getting resource-level authorization wrong doesn't throw an error. It just returns the wrong data.</h2>
+  <h2 class="r">Authorization failures return wrong data, not errors.</h2>
   <div class="three-col mt2">
     <div class="card card-red r">
-      <h4>Risk</h4>
-      <p style="font-size:var(--sm)">A row filter using <code>is_member()</code> in a Genie space leaks data silently &mdash; no 403, just the wrong rows returned to the wrong person.</p>
+      <h4>Security</h4>
+      <p style="font-size:var(--sm)">A row filter using <code>is_member()</code> in Genie leaks data silently — no error, just wrong rows to the wrong user.</p>
     </div>
     <div class="card card-amber r">
       <h4>Compliance</h4>
-      <p style="font-size:var(--sm)">Auditors ask which resource enforced which control. &ldquo;UC row filter&rdquo; and &ldquo;PG RLS policy&rdquo; are different answers for the same-looking table &mdash; know which one applies.</p>
+      <p style="font-size:var(--sm)">Lakebase data behind both UC and PG policies. Auditors need to know which layer enforced which control. You need to know too.</p>
     </div>
     <div class="card card-green r">
-      <h4>Velocity</h4>
-      <p style="font-size:var(--sm)">Wrapping writes in a UC Function once means every future agent that needs the same write inherits the same authorization boundary &mdash; no re-derivation per agent.</p>
+      <h4>Scaling</h4>
+      <p style="font-size:var(--sm)">UC Function as authorization boundary means every new agent gets the same safety boundary without re-derivation.</p>
     </div>
   </div>
   <div class="card card-ink r mt2" style="text-align:center">
-    <p>Authorization is enforced at the resource, not at the application. Every token path from the previous deck still has to clear this layer.</p>
+    <p>Authorization lives at the resource. The right token path is only the first check. Know which resource enforces which control.</p>
   </div>
 </div>
 
@@ -656,26 +658,26 @@ tr:hover td{background:var(--surface)}
      SLIDE 13 · HOW — DECISION GUIDE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="13">
-  <div class="label r">How &mdash; Decision guide</div>
-  <h2 class="r">Three questions that determine the resource-level pattern.</h2>
+  <div class="label r">How — Decision guide</div>
+  <h2 class="r">Three questions that determine the authorization pattern.</h2>
   <div class="three-col mt2">
     <div class="card r">
       <div class="label" style="margin-bottom:6px">Question 1</div>
-      <h4 style="font-size:var(--h3)">Does the resource use UC for authorization?</h4>
-      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-green">Yes</span> &mdash; 6 of 7 resources: standard pattern of SP grants, row filters, OAuth scopes.</p>
-      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-red">No</span> &mdash; Lakebase only: PG-native roles, GRANT, RLS policies.</p>
+      <h4 style="font-size:var(--h3)">Which resource?</h4>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-green">Serving Endpoints, Genie, Vector Search, Functions, HTTP Connections, Tables</span> — UC + scopes.</p>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-red">Lakebase</span> — PG GRANT + RLS, not UC.</p>
     </div>
     <div class="card r">
       <div class="label" style="margin-bottom:6px">Question 2</div>
-      <h4 style="font-size:var(--h3)">Does the user need per-user identity at the external service?</h4>
-      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-green">Yes</span> &mdash; UC Connection with U2M Per User or Managed OAuth.</p>
-      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-muted">No</span> &mdash; Bearer or M2M OAuth connection is sufficient.</p>
+      <h4 style="font-size:var(--h3)">Per-user identity needed externally?</h4>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-green">Yes</span> — U2M Per User or Managed OAuth connection.</p>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-muted">No</span> — Bearer token or M2M OAuth.</p>
     </div>
     <div class="card r">
       <div class="label" style="margin-bottom:6px">Question 3</div>
-      <h4 style="font-size:var(--h3)">Does the agent need to write to a table?</h4>
-      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-green">Yes</span> &mdash; wrap in a UC Function, grant EXECUTE, not table writes.</p>
-      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-muted">No</span> &mdash; row filters + column masks on the table directly.</p>
+      <h4 style="font-size:var(--h3)">Agent needs to write?</h4>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-green">Yes</span> — UC Function with EXECUTE grant (boundary for writes).</p>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-muted">No</span> — Row filters and column masks on the table.</p>
     </div>
   </div>
 </div>
@@ -685,19 +687,19 @@ tr:hover td{background:var(--surface)}
      SLIDE 14 · HOW — GOTCHAS
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="14">
-  <div class="label r">How &mdash; Gotchas checklist</div>
-  <h2 class="r">Verify these before calling a resource production-ready.</h2>
+  <div class="label r">How — Production-readiness checklist</div>
+  <h2 class="r">Verify these before shipping.</h2>
   <div class="r flex1" style="overflow-x:auto;margin-top:8px">
     <table style="min-width:700px">
-      <thead><tr><th>Resource</th><th>Verify</th></tr></thead>
+      <thead><tr><th>Resource</th><th>Checklist item</th></tr></thead>
       <tbody>
-        <tr><td><strong>Serving Endpoints</strong></td><td><code>ModelServingUserCredentials()</code> only inside Model Serving; use <code>X-Forwarded-Email</code> across app-to-app hops</td></tr>
-        <tr><td><strong>Genie</strong></td><td>Both <code>genie</code> + <code>dashboards.genie</code> scopes patched via the account API; row filters use <code>current_user()</code>, never <code>is_member()</code></td></tr>
-        <tr><td><strong>Vector Search</strong></td><td>Pre-filter or post-filter applied &mdash; SP retrieval alone returns the same results to everyone</td></tr>
-        <tr><td><strong>UC Functions</strong></td><td>Agent SP has EXECUTE only, no direct INSERT/UPDATE grants on the underlying table</td></tr>
-        <tr><td><strong>UC HTTP Connections</strong></td><td>Connection ownership set to the app SP; re-grant <code>USE CONNECTION</code> after every redeploy (new deploy = new SP = zero grants)</td></tr>
-        <tr><td><strong>Tables</strong></td><td>Row filters audited for stray <code>is_member()</code> calls, especially on tables also queried through Genie</td></tr>
-        <tr><td><strong>Lakebase</strong></td><td>PG GRANT + RLS configured per table; do not assume UC governs direct PG connections</td></tr>
+        <tr><td><strong>Serving Endpoints</strong></td><td>Use <code>ModelServingUserCredentials()</code> inside Model Serving only. From apps, read <code>X-Forwarded-Access-Token</code> header explicitly.</td></tr>
+        <tr><td><strong>Genie</strong></td><td>Both <code>genie</code> + <code>dashboards.genie</code> scopes present (add via CLI, not UI). Row filters use <code>current_user()</code>, not <code>is_member()</code>.</td></tr>
+        <tr><td><strong>Vector Search</strong></td><td>Pre-filter or post-filter implemented in application — M2M SP retrieval returns same results to all users by default.</td></tr>
+        <tr><td><strong>UC Functions</strong></td><td>Agent SP has EXECUTE only. No INSERT/UPDATE/DELETE direct on table. Grant is on the function.</td></tr>
+        <tr><td><strong>HTTP Connections</strong></td><td>Connection owner = app SP. <code>GRANT USE CONNECTION</code> re-run after each redeploy (new SP = new grants needed).</td></tr>
+        <tr><td><strong>Tables</strong></td><td>Row filter audit: grep for <code>is_member()</code>, especially if table queried via Genie. Use <code>current_user()</code> instead.</td></tr>
+        <tr><td><strong>Lakebase</strong></td><td>PG GRANT and RLS policies configured per table. Do NOT assume UC row filters apply to direct PG connections.</td></tr>
       </tbody>
     </table>
   </div>
@@ -709,13 +711,13 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide slide-calli" data-slide="15">
   <div class="calli-hero r">
-    SEVEN RESOURCES.
-    <span class="line2">SIX USE UC.</span>
-    <span class="line3">ONE DOESN'T.</span>
+    AUTHORIZATION LIVES
+    <span class="line2">AT THE RESOURCE.</span>
+    <span class="line3">Know which one applies.</span>
   </div>
   <div class="calli-rule r"></div>
-  <div class="calli-sub r">Authorization lives at the resource. Know which model applies before you trust the result.</div>
-  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Databricks Applied AI Governance Series &middot; Authorization by Resource Type</div>
+  <div class="calli-sub r">Different resources, different models. Get the token right, then verify what each resource enforces.</div>
+  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Applied AI Governance &middot; Authorization by Resource Type</div>
 </div>
 
 

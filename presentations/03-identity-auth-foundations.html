@@ -518,37 +518,37 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="6">
   <div class="label r">What &mdash; Identity models</div>
-  <h2 class="r">Three token patterns. Every resource auth decision reduces to one of these.</h2>
+  <h2 class="r">Three token paths. Who authenticates, who is credited, and which path applies.</h2>
   <div class="three-col mt2">
     <div class="card card-blue r">
-      <div class="badge badge-blue mb1">OBO (U2M)</div>
-      <p style="font-size:var(--sm);font-weight:600">User-to-Machine. The platform acts on behalf of a known human.</p>
+      <div class="badge badge-blue mb1">OBO</div>
+      <p style="font-size:var(--sm);font-weight:600">On-Behalf-Of. The human authenticates; the app forwards their token.</p>
       <table class="mt2">
-        <tr><td style="font-weight:600;width:80px">Token</td><td>User's scoped OAuth via Apps proxy</td></tr>
+        <tr><td style="font-weight:600;width:80px">Auth</td><td>Human via workspace IdP</td></tr>
         <tr><td style="font-weight:600">Identity</td><td><code>current_user()</code> = human email</td></tr>
-        <tr><td style="font-weight:600">Audit</td><td>Full per-user attribution</td></tr>
+        <tr><td style="font-weight:600">Audit</td><td>Attributed to the human</td></tr>
       </table>
-      <p class="mt1" style="font-size:var(--xs);color:var(--muted)"><strong>Best for:</strong> internal apps, dashboards, agent tools where users have Databricks accounts.</p>
+      <p class="mt1" style="font-size:var(--xs);color:var(--muted)"><strong>When:</strong> Databricks Apps, custom tools, any flow where per-user data access matters.</p>
     </div>
     <div class="card card-ink r">
       <div class="badge badge-ink mb1">M2M</div>
-      <p style="font-size:var(--sm);font-weight:600">Machine-to-Machine. A service principal with its own credentials, no human in the loop.</p>
+      <p style="font-size:var(--sm);font-weight:600">Machine-to-Machine. No human involved. App SP authenticates with its own credentials.</p>
       <table class="mt2">
-        <tr><td style="font-weight:600;width:80px">Token</td><td>SP OAuth client-credentials grant</td></tr>
-        <tr><td style="font-weight:600">Identity</td><td><code>current_user()</code> = SP UUID</td></tr>
-        <tr><td style="font-weight:600">Audit</td><td>SP-level only, no human attribution</td></tr>
+        <tr><td style="font-weight:600;width:80px">Auth</td><td>SP client credentials (auto-injected by platform)</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td><code>current_user()</code> = SP application UUID</td></tr>
+        <tr><td style="font-weight:600">Audit</td><td>Attributed to the SP only</td></tr>
       </table>
-      <p class="mt1" style="font-size:var(--xs);color:var(--muted)"><strong>Best for:</strong> background jobs, scheduled pipelines, shared knowledge bases, Lakebase.</p>
+      <p class="mt1" style="font-size:var(--xs);color:var(--muted)"><strong>When:</strong> pipelines, shared knowledge bases, Vector Search, any operation without a user in the loop.</p>
     </div>
     <div class="card card-red r">
       <div class="badge badge-red mb1">Federation</div>
-      <p style="font-size:var(--sm);font-weight:600">External IdP JWT exchanged for a Databricks token via token exchange (RFC 8693).</p>
+      <p style="font-size:var(--sm);font-weight:600">External IdP JWT exchanged for Databricks tokens via RFC 8693 token exchange.</p>
       <table class="mt2">
-        <tr><td style="font-weight:600;width:80px">Token</td><td>IdP JWT &rarr; Databricks OAuth token</td></tr>
-        <tr><td style="font-weight:600">Identity</td><td>Role-based SP, or the user directly</td></tr>
-        <tr><td style="font-weight:600">Audit</td><td>SP-level + app-layer human attribution</td></tr>
+        <tr><td style="font-weight:600;width:80px">Auth</td><td>External IdP JWT &rarr; Databricks token</td></tr>
+        <tr><td style="font-weight:600">Identity</td><td>Role-mapped SP or user role</td></tr>
+        <tr><td style="font-weight:600">Audit</td><td>SP-level; app server verifies the external user</td></tr>
       </table>
-      <p class="mt1" style="font-size:var(--xs);color:var(--muted)"><strong>Best for:</strong> partner portals, CI/CD, external apps that must not hold Databricks secrets.</p>
+      <p class="mt1" style="font-size:var(--xs);color:var(--muted)"><strong>When:</strong> external users, partner apps, any identity from an IdP outside Databricks.</p>
     </div>
   </div>
 </div>
@@ -734,31 +734,33 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="13">
   <div class="label r">How &mdash; Configuring OBO</div>
-  <h2 class="r">Databricks Apps handles the OAuth flow. You configure scopes and read one header.</h2>
+  <h2 class="r">Three requirements: read the proxy header, add required scopes, configure User Authorization.</h2>
   <div class="two-col mt1">
     <div>
-      <div class="label r" style="margin-bottom:0">Read the forwarded token</div>
-      <pre class="r"><span class="cm"># App code — no login flow, no redirects</span>
-<span class="kw">token</span> = request.headers[
-  <span class="st">"x-forwarded-access-token"</span>
-]
-<span class="kw">workspace_client</span> = WorkspaceClient(
-    host=databricks_host,
-    token=token,
+      <div class="label r" style="margin-bottom:0">Step 1: Read the forwarded token (Streamlit)</div>
+      <pre class="r"><span class="kw">import streamlit as st</span>
+
+<span class="cm"># Use st.context.headers, not request.headers</span>
+<span class="kw">token</span> = st.context.headers.get(
+  <span class="st">"x-forwarded-access-token"</span>, <span class="st">""</span>
 )
-<span class="cm"># current_user() now returns the human</span></pre>
+<span class="kw">host</span> = st.context.headers.get(
+  <span class="st">"x-forwarded-host"</span>, <span class="st">""</span>
+)
+<span class="cm"># current_user() returns the human</span></pre>
     </div>
     <div>
-      <div class="label r" style="margin-bottom:0">Scopes configured in the App UI</div>
+      <div class="label r" style="margin-bottom:0">Step 2: Enable User Authorization + scopes</div>
+      <p class="r" style="font-size:var(--sm);color:var(--muted);margin-bottom:8px">Account Console → App integrations → enable User Authorization → select scopes:</p>
       <table class="r">
-        <tr><td><code>sql</code></td><td>SQL warehouse access</td></tr>
-        <tr><td><code>genie</code> + <code>dashboards.genie</code></td><td>Genie Conversation API (both required)</td></tr>
-        <tr><td><code>serving</code></td><td>Model Serving endpoints</td></tr>
-        <tr><td><code>files.files</code></td><td>Files &amp; directories</td></tr>
-        <tr><td><code>apps</code></td><td>Call other Databricks Apps</td></tr>
+        <tr><td><code>sql</code></td><td>SQL statement execution</td></tr>
+        <tr><td><code>genie</code> + <code>dashboards.genie</code></td><td>Genie API (both required)</td></tr>
+        <tr><td><code>serving.serving-endpoints</code></td><td>Model Serving / Agent Bricks</td></tr>
+        <tr><td><code>catalog.connections</code></td><td>External MCP (UC HTTP)</td></tr>
+        <tr><td><code>unity-catalog</code></td><td>UC governance operations</td></tr>
       </table>
-      <div class="card card-amber r mt1">
-        <p style="font-size:var(--sm)">Configure only what your app needs &mdash; least privilege. Scopes are the ceiling: a token without <code>serving</code> cannot call Model Serving even if UC grants would otherwise allow it.</p>
+      <div class="card card-green r mt1">
+        <p style="font-size:var(--sm)">UI User Authorization (not CLI) produces real OBO tokens with effective scopes. Users consent on next login.</p>
       </div>
     </div>
   </div>
@@ -766,35 +768,41 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 14 · HOW — CONFIGURING FEDERATION
+     SLIDE 14 · HOW — CONFIGURING M2M & FEDERATION
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="14">
-  <div class="label r">How &mdash; Configuring Federation</div>
-  <h2 class="r">One token exchange call. Three claims Databricks validates before it trusts the JWT.</h2>
+  <div class="label r">How &mdash; M2M OAuth &amp; Federation</div>
+  <h2 class="r">M2M uses two token endpoints: workspace-level and account-level. Federation uses token exchange (RFC 8693).</h2>
   <div class="two-col mt1">
     <div>
-      <div class="label r" style="margin-bottom:0">Token exchange (RFC 8693)</div>
-      <pre class="r"><span class="kw">POST</span> {databricks_host}/oidc/v1/token
+      <div class="label r" style="margin-bottom:0">M2M OAuth token endpoints</div>
+      <pre class="r"><span class="cm"># Workspace-level (typical)</span>
+<span class="kw">POST</span> https://&lt;workspace-host&gt;
+  /oidc/v1/token
 
-<span class="kw">grant_type</span>=urn:ietf:params:oauth:
-  grant-type:token-exchange
-&amp;<span class="kw">subject_token</span>={external_idp_jwt}
+<span class="cm"># Account-level (for account ops)</span>
+<span class="kw">POST</span> https://accounts.cloud
+  .databricks.com/oidc/accounts
+  /&lt;account-id&gt;/v1/token
+
+<span class="kw">grant_type</span>=client_credentials
+&amp;<span class="kw">client_id</span>=&lt;app-uuid&gt;
+&amp;<span class="kw">client_secret</span>=&lt;secret&gt;
+&amp;<span class="kw">scope</span>=all-apis</pre>
+    </div>
+    <div>
+      <div class="label r" style="margin-bottom:0">Federation token exchange (RFC 8693)</div>
+      <pre class="r"><span class="kw">POST</span> https://&lt;workspace-host&gt;
+  /oidc/v1/token
+
+<span class="kw">grant_type</span>=urn:ietf:params:
+  oauth:grant-type:token-exchange
+&amp;<span class="kw">subject_token</span>=&lt;external_jwt&gt;
 &amp;<span class="kw">subject_token_type</span>=
   urn:ietf:params:oauth:token-type:jwt
 &amp;<span class="kw">scope</span>=sql genie serving
-<span class="cm"># scopes are configurable per use case —</span>
-<span class="cm"># request only what the app needs</span></pre>
-    </div>
-    <div>
-      <div class="label r" style="margin-bottom:0">What gets validated on every exchange</div>
-      <table class="r">
-        <tr><td style="font-weight:600;width:60px"><code>iss</code></td><td>Must match the IdP's issuer URL exactly (trailing slash matters)</td></tr>
-        <tr><td style="font-weight:600"><code>aud</code></td><td>Must match the workspace URL registered in the federation policy</td></tr>
-        <tr><td style="font-weight:600"><code>sub</code></td><td>Must match the client ID registered on the target SP</td></tr>
-      </table>
-      <div class="card card-ink r mt1">
-        <p style="font-size:var(--sm);color:#fff">Databricks fetches the IdP's JWKS keys and verifies the RS256 signature independently &mdash; it never trusts the caller's own claims. Token TTL: Databricks copies the IdP's <code>exp</code> claim verbatim, typically 1 hour, not refreshable. Plan re-exchange in client code.</p>
-      </div>
+
+<span class="cm"># Databricks validates iss/aud/sub</span></pre>
     </div>
   </div>
 </div>
@@ -805,16 +813,16 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="15">
   <div class="label r">How &mdash; Gotchas</div>
-  <h2 class="r">What breaks quietly if you skip the fine print.</h2>
+  <h2 class="r">Silent failures. These break with no error or confusing 403.</h2>
   <div class="r flex1" style="overflow-x:auto;margin-top:8px">
     <table style="min-width:700px">
       <thead><tr><th>Issue</th><th>Detail</th></tr></thead>
       <tbody>
-        <tr><td><strong>UI only shows <code>dashboards.genie</code></strong></td><td>Genie's API checks for both <code>genie</code> and <code>dashboards.genie</code>. Missing <code>genie</code> returns <code>403: "required scopes: genie"</code>. Patch via the account-level OAuth integration API.</td></tr>
-        <tr><td><strong><code>application_id</code> vs <code>principal_id</code></strong></td><td>UC GRANTs reference <code>application_id</code> (UUID). Workspace ACLs reference <code>principal_id</code> (integer). Not interchangeable.</td></tr>
-        <tr><td><strong>M2M mistaken for per-user</strong></td><td><code>current_user()</code> under M2M returns the SP UUID, never a human. Don't rely on it for per-user row filters.</td></tr>
-        <tr><td><strong>Account Federation needs SCIM</strong></td><td>Users must be synced via SCIM before account-wide token federation works. Workload Identity Federation (WIF) needs no SCIM &mdash; it's SP-only.</td></tr>
-        <tr><td><strong><code>iss</code> trailing-slash mismatch</strong></td><td>A federation policy issuer URL that differs from the IdP's actual issuer by a trailing slash fails validation with a 401, not a helpful error.</td></tr>
+        <tr><td><strong><code>genie</code> scope not shown in UI</strong></td><td>Genie API requires both <code>genie</code> AND <code>dashboards.genie</code> scopes. The UI only shows <code>dashboards.genie</code>. Add <code>genie</code> via API: account custom-app-integration update.</td></tr>
+        <tr><td><strong><code>unity-catalog</code> scope for External MCP</strong></td><td>The External MCP proxy checks <code>USE CONNECTION</code> privilege and requires the <code>unity-catalog</code> scope. Missing it returns <code>403: "does not have required scopes: unity-catalog"</code>. Not in docs.</td></tr>
+        <tr><td><strong><code>st.context.headers</code> not <code>request.headers</code></strong></td><td>In Streamlit, <code>request.headers</code> (Flask pattern) does not have the proxy headers. Always use <code>st.context.headers</code>.</td></tr>
+        <tr><td><strong><code>application_id</code> vs <code>principal_id</code></strong></td><td>UC GRANTs reference <code>application_id</code> (UUID). Workspace ACLs use <code>principal_id</code> (integer). Using one where the other is needed returns cryptic errors.</td></tr>
+        <tr><td><strong><code>iss</code> trailing-slash must match exactly</strong></td><td>Federation validates the IdP issuer URL exactly. A trailing slash mismatch fails validation with a 401, not a helpful error message.</td></tr>
       </tbody>
     </table>
   </div>

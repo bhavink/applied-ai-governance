@@ -466,7 +466,7 @@ tr:hover td{background:var(--surface)}
     </table>
   </div>
   <div class="card r mt2">
-    <p>All four enforce <code>USE CONNECTION</code> on the Databricks side. The auth method determines <em>how</em> the external credential is obtained; USE CONNECTION determines <em>who</em> is allowed to use it.</p>
+    <p>All four enforce <code>USE CONNECTION</code> on the Databricks side. The auth method determines <em>how</em> the external credential is obtained; USE CONNECTION determines <em>who</em> is allowed to use it. All OAuth methods require RFC 6750 compliance from the external service.</p>
   </div>
 </div>
 
@@ -484,7 +484,7 @@ tr:hover td{background:var(--surface)}
         <li>Store an API key or static token in the connection</li>
         <li>All callers with USE CONNECTION share the same credential</li>
         <li>Databricks injects the token into the <code>Authorization</code> header at proxy time</li>
-        <li>Rotation requires updating the connection and is manual</li>
+        <li>Rotation is manual; requires connection update</li>
       </ul>
     </div>
     <div>
@@ -492,16 +492,16 @@ tr:hover td{background:var(--surface)}
       <div class="card r" style="margin-top:8px">
         <ul>
           <li style="color:var(--green)">+ Simple setup</li>
-          <li style="color:var(--green)">+ Works with any API that accepts a static token</li>
+          <li style="color:var(--green)">+ Works with any API that accepts static tokens</li>
           <li style="color:var(--red)">- No auto-refresh</li>
-          <li style="color:var(--red)">- No per-user identity at the external service</li>
-          <li style="color:var(--red)">- Token expiration requires manual intervention</li>
+          <li style="color:var(--red)">- No per-user identity at external service</li>
+          <li style="color:var(--red)">- Manual rotation on expiration</li>
         </ul>
       </div>
     </div>
   </div>
   <div class="card card-red r mt2">
-    <p>Token expiration requires manual intervention. Use OAuth methods when the external service supports them.</p>
+    <p>Expiration requires manual intervention. Prefer OAuth methods when the external service supports them. Monitor token lifecycle closely.</p>
   </div>
 </div>
 
@@ -614,7 +614,10 @@ tr:hover td{background:var(--surface)}
     </div>
   </div>
   <div class="card r mt2">
-    <p><strong>Supported providers:</strong> Google (Drive, Docs, Gmail, Calendar), GitHub, Glean, SharePoint, and custom OAuth providers.</p>
+    <p><strong>Supported providers:</strong> Google (Drive, Docs, Gmail, Calendar), GitHub, Glean, Microsoft 365, and custom OAuth providers. For many providers, Databricks manages OAuth credentials in the backend — no manual app registration required.</p>
+  </div>
+  <div class="card card-blue r mt2">
+    <p><strong>Advanced:</strong> Dynamic Client Registration (RFC 7591) — when the external OAuth server supports it, Databricks discovers endpoints and registers credentials automatically. Zero manual OAuth setup required.</p>
   </div>
 </div>
 
@@ -677,11 +680,11 @@ tr:hover td{background:var(--surface)}
       <div class="label" style="margin-bottom:6px">Mandatory requirements</div>
       <table>
         <tbody>
-          <tr><td style="font-weight:700;width:170px">Authorization Code Grant</td><td>RFC 6749 Section 4.1. User redirected to consent page, provider redirects back with auth code.</td></tr>
-          <tr><td style="font-weight:700">Refresh tokens</td><td>Provider must issue a <code>refresh_token</code>. Scope varies: Google (<code>offline_access</code>), Microsoft (<code>offline_access</code>), Salesforce (<code>refresh_token</code>).</td></tr>
+          <tr><td style="font-weight:700;width:170px">RFC 6750 compliance</td><td>OAuth responses must use standard fields: <code>access_token</code>, <code>expires_in</code>, <code>token_type</code>. Non-compliant services will fail.</td></tr>
+          <tr><td style="font-weight:700">Authorization Code Grant</td><td>RFC 6749 Section 4.1. User redirected to consent, provider redirects back with auth code.</td></tr>
+          <tr><td style="font-weight:700">Refresh tokens</td><td>Provider must issue <code>refresh_token</code>. Include required scope per provider: Google (<code>offline_access</code>), Microsoft (<code>offline_access</code>).</td></tr>
           <tr><td style="font-weight:700">Custom redirect URIs</td><td>Must allow registering <code>&lt;workspace&gt;/login/oauth/http.html</code> as a redirect URI.</td></tr>
           <tr><td style="font-weight:700">Confidential client</td><td>Client ID + Client Secret (not public/PKCE-only clients).</td></tr>
-          <tr><td style="font-weight:700">Standard token endpoint</td><td><code>grant_type=authorization_code</code> for initial exchange, <code>grant_type=refresh_token</code> for renewal.</td></tr>
           <tr><td style="font-weight:700">HTTPS endpoints</td><td>All authorization and token endpoints must be HTTPS.</td></tr>
         </tbody>
       </table>
@@ -698,7 +701,7 @@ tr:hover td{background:var(--surface)}
         </table>
       </div>
       <div class="card card-red r">
-        <p><strong>Common blockers:</strong> No auth code grant (M2M only), no refresh tokens, proprietary auth extensions, admin policy blocking third-party apps, redirect URI domain restrictions.</p>
+        <p><strong>Common blockers:</strong> Non-standard OAuth responses, no auth code grant, no refresh tokens, proprietary extensions, admin policies blocking third-party apps, redirect URI restrictions.</p>
       </div>
     </div>
   </div>
@@ -762,29 +765,29 @@ tr:hover td{background:var(--surface)}
   <div class="three-col mt2">
     <div class="card r" style="border-left:none;border-top:3px solid var(--red)">
       <h4><code>redirect_uri_mismatch</code></h4>
-      <p>URI must exactly match what the provider expects. No trailing slash. Check the error details page for the exact value the provider received.</p>
+      <p>URI must exactly match the provider&rsquo;s expectation. No trailing slash, no extra spaces. Check error details for the exact value received.</p>
     </div>
     <div class="card r" style="border-left:none;border-top:3px solid var(--amber)">
-      <h4><code>admin_policy_enforced</code></h4>
-      <p>Org admin blocks unauthorized OAuth apps. Allowlist the Client ID in the provider&rsquo;s admin console before attempting consent.</p>
+      <h4><code>offline_access</code> scope</h4>
+      <p>Required for refresh tokens. Without it, the connection works ~1 hour then fails silently. Verify the scope is enabled and requested.</p>
     </div>
     <div class="card r" style="border-left:none;border-top:3px solid var(--blue)">
-      <h4><code>offline_access</code> scope</h4>
-      <p>Required for a refresh token. Without it, the connection works for ~1 hour then fails silently. Always include this scope.</p>
+      <h4><code>admin_policy_enforced</code></h4>
+      <p>Org admin blocks unauthorized apps. Allowlist the Client ID in the provider&rsquo;s admin console before attempting consent.</p>
     </div>
   </div>
   <div class="three-col mt2">
     <div class="card r" style="border-left:none;border-top:3px solid var(--border)">
       <h4>Immutable name</h4>
-      <p>Connection name cannot be changed after creation. Choose carefully. Consumers reference it by name in SQL and tool configs.</p>
+      <p>Connection name cannot be changed post-creation. Choose carefully. Consumers reference it by name in SQL and tool configurations.</p>
     </div>
     <div class="card r" style="border-left:none;border-top:3px solid var(--border)">
-      <h4>Owner access</h4>
-      <p>The creator has irrevocable USE CONNECTION. Transfer ownership to a service principal if you need to control access fully.</p>
+      <h4>Owner irrevocable access</h4>
+      <p>Creator has permanent USE CONNECTION. Transfer ownership to a service principal for full GRANT/REVOKE control.</p>
     </div>
     <div class="card r" style="border-left:none;border-top:3px solid var(--border)">
       <h4>MCP flag locked</h4>
-      <p><code>isMcpConnection</code> cannot be toggled after creation. If you need to change it, delete the connection and recreate it.</p>
+      <p><code>isMcpConnection</code> flag is immutable. If you need to change it, delete and recreate the connection.</p>
     </div>
   </div>
 </div>
@@ -828,7 +831,7 @@ tr:hover td{background:var(--surface)}
   <div class="card r mt2">
     <p><strong>Combined:</strong> SNP controls which destinations are reachable. USE CONNECTION controls which identities can authenticate. Neither alone is sufficient; together they form a complete egress governance layer.</p>
   </div>
-  <p class="r" style="margin-top:14px;color:var(--muted);font-size:var(--xs)">Reference: github.com/bhavink/applied-ai-governance</p>
+  <p class="r" style="margin-top:14px;color:var(--muted);font-size:var(--xs)">Reference: docs.databricks.com, learn.microsoft.com/en-us/azure/databricks/</p>
 </div>
 
 
