@@ -20,7 +20,7 @@ sequenceDiagram
     actor Dev as Developer
     participant Agent as Agent (any harness)
     participant Policy as Omnigent policies
-    participant Box as Sandbox + egress
+    participant Sbx as Sandbox + egress
     participant Gateway as Unity AI Gateway
     participant Model as Model
 
@@ -30,9 +30,9 @@ sequenceDiagram
     else ASK (git push, curl to new host)
         Policy->>Dev: request approval
         Dev-->>Policy: approve or reject
-        Policy->>Box: run only if approved
+        Policy->>Sbx: run only if approved
     else ALLOW (commit, ls, pytest)
-        Policy->>Box: run
+        Policy->>Sbx: run
     end
     Agent->>Gateway: model request
     Gateway->>Model: governed call (PII, moderation)
