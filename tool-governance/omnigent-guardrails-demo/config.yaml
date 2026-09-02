@@ -1,0 +1,128 @@
+# Omnigent agent-guardrails demo config (companion to the "You can't put the brakes
+# inside the car" blog). One agent, all seven OOTB contextual policies attached, no custom code.
+#
+# Harness-agnostic: shown here on Pi. The model is served by your Databricks workspace via
+# Unity AI Gateway and is configured in ~/.omnigent/config.yaml (the provider block), not here,
+# so no keys or workspace URLs live in this spec. Replace the generic placeholders below
+# (your-org/your-allowed-repo, YOUR-ARTIFACT-HOST, your-workspace.cloud.databricks.com) with
+# your own values. Nothing in this file is a secret.
+
+spec_version: 1
+name: agent-guardrails-demo
+description: >-
+  Guardrailed coding agent: OOTB Omnigent contextual policies at the tool-call boundary,
+  ALLOW/ASK/DENY, stateful and fail-closed. Model access via Databricks Unity AI Gateway.
+
+executor:
+  type: omnigent
+  config:
+    harness: pi              # any harness works; the policies run in the server, not the CLI
+
+os_env:
+  type: caller_process
+  cwd: .                     # workspace-relative on purpose (the managed server rejects absolute paths)
+  sandbox:
+    type: none               # local/unsandboxed. On Databricks, select the managed sandbox host instead.
+
+guardrails:
+  policies:
+    # safety.ask_on_add_policy is AUTO-INJECTED by Omnigent (always on): a human ASK is required
+    # before the agent can add or alter a policy, so it is not declared here.
+
+    ask_on_os_tools:              # human approval before ANY file or shell tool
+      type: function
+      on: [tool_call]
+      function:
+        path: omnigent.policies.builtins.safety.ask_on_os_tools
+
+    blast_radius:                 # DENY catastrophic shell (rm -rf /, force-push, hard-reset to remote);
+      type: function              # ASK on risky-but-recoverable (git push, deploy)
+      on: [tool_call]
+      function:
+        path: omnigent.policies.builtins.orchestration.blast_radius
+        arguments:
+          gate_pushes: true
+          risky_action: ASK
+
+    block_working_dir_changes:    # confine the agent to its working directory
+      type: function
+      on: [tool_call]
+      function:
+        path: omnigent.policies.builtins.working_dir.block_working_dir_changes
+        arguments:
+          action: deny
+          allowed_dirs:
+            - .                   # the agent's working repo; add more as needed
+
+    detect_loop:                  # ASK when the agent repeats identical tool calls
+      type: function
+      on: [tool_call]
+      function:
+        path: omnigent.policies.builtins.safety.detect_loop
+        arguments:
+          window: 10
+          threshold: 3
+
+    max_tool_calls_per_session:   # hard cap on total tool calls in a session
+      type: function
+      on: [tool_call]
+      function:
+        path: omnigent.policies.builtins.safety.max_tool_calls_per_session
+        arguments:
+          limit: 100
+
+    install_source_allowlist:     # package-install SOURCE allowlist (llms.txt / slopsquatting defense).
+      type: function              # Allow default PyPI/npm + one trusted artifact host + one repo; else ASK.
+      on: [tool_call]
+      function:
+        path: omnigent.policies.builtins.cel.cel_policy
+        arguments:
+          reason: Install/clone from a non-allowlisted source. Approve only if you trust it.
+          expression: |
+            event.type == "tool_call"
+            && has(event.data) && has(event.data.arguments) && has(event.data.arguments.command)
+            && event.data.arguments.command.matches("(pip3?|uv pip|npm|pnpm|yarn) +(install|add)|git +clone|gh +repo +clone")
+            && !(
+                  event.data.arguments.command.contains("your-org/your-allowed-repo")
+                  || event.data.arguments.command.contains("YOUR-ARTIFACT-HOST")
+                  || !(
+                       event.data.arguments.command.contains("--index-url")
+                       || event.data.arguments.command.contains("--extra-index-url")
+                       || event.data.arguments.command.contains("--registry")
+                       || event.data.arguments.command.contains("git+")
+                       || event.data.arguments.command.contains("github.com")
+                       || event.data.arguments.command.contains("gitlab.com")
+                     )
+               )
+              ? {"result": "ASK", "reason": "Install/clone from a non-allowlisted source. Approve only if you trust it."}
+              : {"result": "ALLOW"}
+
+    egress_allowlist:             # network-egress allowlist (lateral movement / data-exfil defense).
+      type: function              # Gate curl/wget/nc/ssh/scp/telnet + /dev/tcp to non-allowlisted hosts -> ASK.
+      on: [tool_call]
+      function:
+        path: omnigent.policies.builtins.cel.cel_policy
+        arguments:
+          reason: Network egress to a non-allowlisted host. Approve only if you trust it.
+          expression: |
+            event.type == "tool_call"
+            && has(event.data) && has(event.data.arguments) && has(event.data.arguments.command)
+            && (event.data.arguments.command.matches("(^| |;|[&]|[|])(curl|wget|nc|ncat|netcat|ssh|scp|sftp|telnet)( |$)")
+                || event.data.arguments.command.contains("/dev/tcp/"))
+            && !(
+                  event.data.arguments.command.contains("localhost")
+                  || event.data.arguments.command.contains("127.0.0.1")
+                  || event.data.arguments.command.contains("your-workspace.cloud.databricks.com")
+                  || event.data.arguments.command.contains("pypi.org")
+                  || event.data.arguments.command.contains("github.com")
+               )
+              ? {"result": "ASK", "reason": "Network egress to a non-allowlisted host. Approve only if you trust it."}
+              : {"result": "ALLOW"}
+
+prompt: |
+  You are a guardrailed coding assistant operating inside a single working repository.
+  You run against a Databricks-hosted model via Unity AI Gateway, with contextual-policy
+  guardrails enforced by the Omnigent server (harness-agnostic).
+
+  Operate only within this repository. Favor reading and analysis; when you need a file
+  write or shell action, expect a human approval prompt. That is by design, not an error.
