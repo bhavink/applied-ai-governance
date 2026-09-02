@@ -7,7 +7,7 @@ UC Connections govern external service access. `GRANT USE CONNECTION` is the on/
 ## Reading Order
 
 1. [AI Gateway Patterns](ai-gateway-patterns.md): Four traffic patterns (internal, LLM governance, outbound external, inbound external) and when to use each
-2. [Omnigent Governance](omnigent-governance.md): the governed harness for coding agents — sits on top of AI Gateway, adds session-level spend caps and contextual policies
+2. [Omnigent Governance](omnigent-governance.md): the governed harness for coding agents — sits on top of AI Gateway, adds session-level spend caps and contextual policies. Runnable example: [omnigent-guardrails-demo/](omnigent-guardrails-demo/) (7-policy config, scenarios, and expected verdicts)
 3. [ucode Governance](ucode-governance.md): Databricks' lighter, session-less coding-agent launcher — same per-harness AI Gateway routing as Omnigent, without the session/sandbox/policy layer
 4. [UC Connections](uc-connections.md): Four authentication methods (Bearer, M2M, U2M Shared, U2M Per User), setup walkthrough, governance model
 
