@@ -11,6 +11,35 @@ DENY before it runs. On Databricks, model access is governed through the Unity A
 
 See also [omnigent-governance.md](../omnigent-governance.md) for the wider governance model.
 
+## How a tool call flows
+
+Every tool call is evaluated by the policies before it runs, and returns ALLOW, ASK, or DENY. Model requests are governed by the gateway. Everything executes inside the sandbox, with network egress denied by default.
+
+```mermaid
+sequenceDiagram
+    actor Dev as Developer
+    participant Agent as Agent (any harness)
+    participant Policy as Omnigent policies
+    participant Box as Sandbox + egress
+    participant Gateway as Unity AI Gateway
+    participant Model as Model
+
+    Agent->>Policy: tool call (shell, file, install, egress)
+    alt DENY (rm -rf /, force-push)
+        Policy-->>Agent: blocked, fails closed
+    else ASK (git push, curl to new host)
+        Policy->>Dev: request approval
+        Dev-->>Policy: approve or reject
+        Policy->>Box: run only if approved
+    else ALLOW (commit, ls, pytest)
+        Policy->>Box: run
+    end
+    Agent->>Gateway: model request
+    Gateway->>Model: governed call (PII, moderation)
+    Model-->>Gateway: response
+    Gateway-->>Agent: governed response
+```
+
 ## Contents
 
 | File | What it is |
