@@ -1,11 +1,17 @@
 # Omnigent agent-guardrails demo config (companion to the "You can't put the brakes
-# inside the car" blog). One agent, all seven OOTB contextual policies attached, no custom code.
+# inside the car" blog). One agent, the OOTB contextual policies attached, no custom code.
 #
 # Harness-agnostic: shown here on Pi. The model is served by your Databricks workspace via
 # Unity AI Gateway and is configured in ~/.omnigent/config.yaml (the provider block), not here,
 # so no keys or workspace URLs live in this spec. Replace the generic placeholders below
 # (your-org/your-allowed-repo, YOUR-ARTIFACT-HOST, your-workspace.cloud.databricks.com) with
 # your own values. Nothing in this file is a secret.
+#
+# Two hardening choices this config bakes in (both learned from live testing):
+#   1. The agent runs in a confined ./workspace, NOT a directory that holds this spec or any
+#      credentials. Everything it can write lives there; sensitive files sit outside it.
+#   2. A network-isolating sandbox confines writes to that workspace and enforces an egress
+#      allowlist. That sandbox is the load-bearing control (see the file-mutation note below).
 
 spec_version: 1
 name: agent-guardrails-demo
@@ -20,23 +26,51 @@ executor:
 
 os_env:
   type: caller_process
-  cwd: .                     # workspace-relative on purpose (the managed server rejects absolute paths)
+  # Run the agent in a confined scratch workspace, NOT a directory holding this spec, credentials,
+  # or other sensitive files. The spec and host files then sit outside the workspace and outside the
+  # sandbox write_paths, so a file-mutation tool cannot reach them no matter which harness runs
+  # (see the file-mutation boundary note in guardrails below).
+  cwd: ./workspace
   sandbox:
-    type: none               # local/unsandboxed. On Databricks, select the managed sandbox host instead.
+    # Quick start:   type: none            # no isolation, fastest way to see the policies fire.
+    # Hardened local: a network-isolating backend confines writes + enforces egress_rules.
+    #   darwin_seatbelt (macOS), linux_bwrap (Linux), or `auto` to pick the platform default.
+    # On Databricks:  select the managed sandbox host in the UI (ephemeral, isolated cloud box).
+    type: auto
+    allow_network: true
+    write_paths:
+      - .                    # only the confined workspace is writable; everything else is read-only/denied
+    egress_rules:            # default-deny; only these hosts are reachable from inside the sandbox
+      - "* your-workspace.cloud.databricks.com/**"   # model calls via the Unity AI Gateway
+      - "* pypi.org/**"                              # allowed package index
+      - "* files.pythonhosted.org/**"                 # pip package downloads
+      - "* github.com/**"                             # allowed git host
+      - "* *.github.com/**"
+    # Optional (linux_bwrap only): a secretless credential_proxy keeps real tokens OUT of the sandbox
+    # entirely, swapping a placeholder for the real credential on egress. See the AGENT_YAML_SPEC.
 
 guardrails:
   policies:
     # safety.ask_on_add_policy is AUTO-INJECTED by Omnigent (always on): a human ASK is required
     # before the agent can add or alter a policy, so it is not declared here.
+    #
+    # File-mutation boundary (important, harness-specific):
+    #   The policies below gate SHELL commands (they inspect the command string). For the Pi and
+    #   Claude harnesses, ask_on_os_tools also gates the native write/edit file tools, so those
+    #   prompt on file changes. For Codex, file changes (apply_patch) are governed by Codex's own
+    #   approval path, not the Omnigent policy hook, so no contextual policy can gate them. The
+    #   reliable, harness-agnostic control for file mutations is therefore the SANDBOX: write_paths
+    #   (above) confines writes to the workspace, so the agent cannot reach this spec or host files
+    #   regardless of harness. This is why the sandbox, not the policy layer, is the wall.
 
-    ask_on_os_tools:              # human approval before ANY file or shell tool
+    ask_on_os_tools:              # human approval before OS/shell tools (and write/edit for Pi/Claude)
       type: function
       on: [tool_call]
       function:
         path: omnigent.policies.builtins.safety.ask_on_os_tools
 
     blast_radius:                 # DENY catastrophic shell (rm -rf /, force-push, hard-reset to remote);
-      type: function              # ASK on risky-but-recoverable (git push, deploy)
+      type: function              # ASK on risky-but-recoverable (git push, deploy). Shell commands only.
       on: [tool_call]
       function:
         path: omnigent.policies.builtins.orchestration.blast_radius
@@ -44,15 +78,13 @@ guardrails:
           gate_pushes: true
           risky_action: ASK
 
-    block_working_dir_changes:    # confine the agent to its working directory
+    block_working_dir_changes:    # confine the agent to its working dir (deny any cd/git -C escape)
       type: function
       on: [tool_call]
       function:
         path: omnigent.policies.builtins.working_dir.block_working_dir_changes
         arguments:
           action: deny
-          allowed_dirs:
-            - .                   # the agent's working repo; add more as needed
 
     detect_loop:                  # ASK when the agent repeats identical tool calls
       type: function
@@ -99,7 +131,7 @@ guardrails:
 
     egress_allowlist:             # network-egress allowlist (lateral movement / data-exfil defense).
       type: function              # Gate curl/wget/nc/ssh/scp/telnet + /dev/tcp to non-allowlisted hosts -> ASK.
-      on: [tool_call]
+      on: [tool_call]             # NB: this is the ASK layer; the sandbox egress_rules above are the hard deny.
       function:
         path: omnigent.policies.builtins.cel.cel_policy
         arguments:
@@ -118,6 +150,20 @@ guardrails:
                )
               ? {"result": "ASK", "reason": "Network egress to a non-allowlisted host. Approve only if you trust it."}
               : {"result": "ALLOW"}
+
+    github_policy:                # explicit per-repo write gate for git/gh AND the GitHub MCP surface.
+      type: function              # Reads allowed; writes only to the allowlisted repo; force-push, tag-push,
+      on: [tool_call]             # and destructive ops denied. Complements blast_radius (which gates by command shape).
+      function:
+        path: omnigent.policies.builtins.github.github_policy
+        arguments:
+          read_all: true                       # reads allowed anywhere; flip to false + read_repos to restrict
+          write_repos:
+            - your-org/your-allowed-repo        # the only repo the agent may push to (replace with yours)
+          # write_branches: [develop]           # uncomment to protect main: only these branches are writable
+          allow_destructive: false              # deny repo/branch deletes even on the allowed repo
+          deny_force_push: true                 # deny --force / --force-with-lease
+          deny_tag_push: true                   # deny pushing tags (they trigger releases / CI)
 
 prompt: |
   You are a guardrailed coding assistant operating inside a single working repository.

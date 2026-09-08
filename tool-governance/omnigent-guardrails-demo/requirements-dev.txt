@@ -1,0 +1,6 @@
+# Test-only dependencies for the policy test suite (tests/).
+# The suite also requires Omnigent itself, which is the runtime under test and is
+# installed separately (e.g. `uv tool install "omnigent[databricks]"` or `pip install`).
+# Omnigent brings its own pinned deps, including cel-python for the CEL policies.
+pytest==8.3.4
+PyYAML==6.0.2

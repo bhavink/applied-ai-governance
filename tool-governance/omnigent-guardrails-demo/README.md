@@ -4,7 +4,7 @@
 > Omnigent + Databricks." The guardrails can't live inside the agent you're trying to guard; they
 > live outside it, in a control plane.
 
-This folder holds a runnable, harness-agnostic agent that attaches seven out-of-the-box Omnigent
+This folder holds a runnable, harness-agnostic agent that attaches the out-of-the-box Omnigent
 contextual policies at the tool-call boundary, with no custom code. Every action an agent takes (a
 shell command, a file write, an install, a network call, adding a policy) is gated ALLOW / ASK /
 DENY before it runs. On Databricks, model access is governed through the Unity AI Gateway.
@@ -44,10 +44,11 @@ sequenceDiagram
 
 | File | What it is |
 |---|---|
-| [config.yaml](config.yaml) | The agent spec: one agent, all seven OOTB policies. Sanitized; replace the placeholder hosts. |
+| [config.yaml](config.yaml) | The agent spec: one agent, all the OOTB policies. Sanitized; replace the placeholder hosts. |
 | [scenarios.md](scenarios.md) | Four failure modes plus the guardrail-disable case, with the commands to attempt and the expected verdicts. |
+| [tests/](tests/) | An executable version of `scenarios.md`: a pytest suite that loads the policies from `config.yaml` and asserts each ALLOW/ASK/DENY verdict. |
 
-## The seven policies
+## The policies
 
 | Policy | Guards against |
 |---|---|
@@ -58,6 +59,7 @@ sequenceDiagram
 | `max_tool_calls_per_session` | unbounded sessions |
 | `install_source_allowlist` | installing unowned code (slopsquatting) |
 | `egress_allowlist` | lateral movement and data exfiltration |
+| `github_policy` | writes to a non-allowlisted repo/branch, force-push, tag-push, repo deletes |
 
 Plus `safety.ask_on_add_policy`, auto-injected by Omnigent, so the agent cannot silently disable its
 own guardrails.
@@ -79,6 +81,25 @@ isolation (`os_env.sandbox`), or none for speed.
 2. In the managed Omnigent UI, pick this agent and a host: the managed Databricks Sandbox (isolated,
    ephemeral) or your own machine.
 3. Model calls are governed by the AI Gateway; agent actions are governed by the policies here.
+
+## Test it
+
+The suite in [tests/](tests/) turns `scenarios.md` into executable assertions. It loads the
+policies straight from `config.yaml` (the same spec the agent runs) and fires the documented
+commands at each one, checking the ALLOW / ASK / DENY verdict. It runs the policy functions
+directly, so it needs no live model and no approval prompts, and is fully deterministic.
+
+```bash
+# In an environment that has Omnigent installed (the runtime under test):
+pip install -r requirements-dev.txt
+cd tests && pytest -v
+```
+
+`policy_harness.py` also runs standalone for a quick verdict table: `python tests/policy_harness.py`.
+
+Three controls are enforced outside the policy functions and so are not asserted by this suite:
+the Unity AI Gateway PII check (server-side), the sandbox `write_paths` wall (OS-level), and
+`ask_on_add_policy` (auto-injected by the engine). Exercise those through a live run.
 
 ## Notes
 

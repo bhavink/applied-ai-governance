@@ -1,0 +1,12 @@
+# Python / pytest artifacts
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+venv/
+
+# The agent's confined scratch workspace. Keep the dir (README explains it) but never
+# commit what the agent writes there, including deliberately-risky test inputs
+# (a slopsquat llms.txt, an exfil target, rm -rf fixtures).
+workspace/*
+!workspace/README.txt
