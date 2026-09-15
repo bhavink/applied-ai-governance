@@ -303,7 +303,7 @@ resource "databricks_model_serving" "gpt_4o" {
         provider = "openai"
         task     = "llm/v1/chat"
         openai_config {
-          openai_api_key = "{{secrets/llm_scope/openai_api_key}}"
+          openai_api_key = "{% raw %}{{secrets/llm_scope/openai_api_key}}{% endraw %}"
         }
       }
     }
@@ -577,7 +577,7 @@ Service policies are configured through the Unity AI Gateway UI (sidebar) and th
 external_model=ExternalModel(
     name="gpt-4o-mini", provider="openai", task="llm/v1/chat",
     openai_config=OpenAiConfig(
-        openai_api_key="{{secrets/scope/openai_key}}"
+        openai_api_key="{% raw %}{{secrets/scope/openai_key}}{% endraw %}"
     ),
 )
 
@@ -589,7 +589,7 @@ external_model=ExternalModel(
         openai_api_base="https://my-resource.openai.azure.com",
         openai_api_version="2024-02-01",
         openai_deployment_name="gpt-4o-deploy",
-        openai_api_key="{{secrets/scope/azure_key}}",
+        openai_api_key="{% raw %}{{secrets/scope/azure_key}}{% endraw %}",
     ),
 )
 
@@ -597,7 +597,7 @@ external_model=ExternalModel(
 external_model=ExternalModel(
     name="claude-sonnet-4", provider="anthropic", task="llm/v1/chat",
     anthropic_config=AnthropicConfig(
-        anthropic_api_key="{{secrets/scope/anthropic_key}}"
+        anthropic_api_key="{% raw %}{{secrets/scope/anthropic_key}}{% endraw %}"
     ),
 )
 
@@ -617,7 +617,7 @@ external_model=ExternalModel(
     custom_provider_config=CustomProviderConfig(
         custom_provider_url="https://api.provider.com/chat/completions",
         bearer_token_auth=BearerTokenAuth(
-            token="{{secrets/scope/custom_token}}"
+            token="{% raw %}{{secrets/scope/custom_token}}{% endraw %}"
         ),
     ),
 )

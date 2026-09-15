@@ -16,7 +16,7 @@
 
 ## TL;DR
 
-The MLflow Prompt Registry stores versioned prompt templates in **Unity Catalog** (as UC functions). Prompts use `{{variable}}` syntax, are immutable per version (edit = new version), and can be loaded at runtime by name + version. Stored in UC means they get governance (permissions, lineage, audit) for free. Part of MLflow 3.1+.
+The MLflow Prompt Registry stores versioned prompt templates in **Unity Catalog** (as UC functions). Prompts use `{% raw %}{{variable}}{% endraw %}` syntax, are immutable per version (edit = new version), and can be loaded at runtime by name + version. Stored in UC means they get governance (permissions, lineage, audit) for free. Part of MLflow 3.1+.
 
 ---
 
@@ -58,7 +58,7 @@ Developer                    Unity Catalog                   Agent/App
 
 - **Storage**: Each prompt is a UC function in `catalog.schema.prompt_name`
 - **Versioning**: Immutable -- editing creates a new version, old versions remain
-- **Variables**: Double-brace syntax `{{variable_name}}`
+- **Variables**: Double-brace syntax `{% raw %}{{variable_name}}{% endraw %}`
 - **Linking**: Tag experiment with `mlflow.promptRegistryLocation` = `catalog.schema`
 
 Two prompt formats supported: **Text** (single template string) and **Chat** (list of role-based messages for conversational models targeting chat-style LLMs).
@@ -86,9 +86,9 @@ uc_schema = "main.default"
 prompt_name = "summarization_prompt"
 
 template = """\
-Summarize the following content in {{num_sentences}} sentences.
+Summarize the following content in {% raw %}{{num_sentences}}{% endraw %} sentences.
 
-Content: {{content}}
+Content: {% raw %}{{content}}{% endraw %}
 """
 
 prompt = mlflow.genai.register_prompt(
@@ -172,12 +172,12 @@ def summarize(content: str, num_sentences: int):
 
 ```python
 new_template = """\
-You are an expert summarizer. Condense the following into exactly {{num_sentences}} sentences.
+You are an expert summarizer. Condense the following into exactly {% raw %}{{num_sentences}}{% endraw %} sentences.
 
-Content: {{content}}
+Content: {% raw %}{{content}}{% endraw %}
 
 Requirements:
-- Exactly {{num_sentences}} sentences
+- Exactly {% raw %}{{num_sentences}}{% endraw %} sentences
 - Only the most important information
 - Neutral, objective tone
 """
@@ -216,7 +216,7 @@ results = mlflow.genai.search_prompts(
 
 1. Navigate to MLflow experiment > **Prompts** tab
 2. Click **New Prompt** > select UC schema > name the prompt
-3. Click **Create new version** > type template with `{{variables}}` > **Save**
+3. Click **Create new version** > type template with `{% raw %}{{variables}}{% endraw %}` > **Save**
 4. Compare versions: click prompt name > **Compare** > select versions
 
 ---
@@ -240,7 +240,7 @@ results = mlflow.genai.search_prompts(
 | **UC schema permissions** | Need `CREATE FUNCTION` + `EXECUTE` + `MANAGE` on the schema -- not just `USE SCHEMA` |
 | **Experiment must be linked** | Set `mlflow.promptRegistryLocation` tag before registering prompts |
 | **Versions are immutable** | Cannot edit in place -- must create new version |
-| **Variable syntax** | Double braces `{{var}}` -- single braces `{var}` won't work |
+| **Variable syntax** | Double braces `{% raw %}{{var}}{% endraw %}` -- single braces `{var}` won't work |
 | **Name format** | Must be fully qualified: `catalog.schema.prompt_name` |
 | **Search filter format** | Must specify both `catalog` and `schema`: `"catalog = 'x' AND schema = 'y'"` — not just catalog |
 | **Prompt name constraints** | Names can only contain letters, numbers, hyphens, underscores, and dots — no spaces or special chars |

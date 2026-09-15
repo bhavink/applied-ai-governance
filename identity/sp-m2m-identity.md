@@ -219,8 +219,8 @@ Or inject directly into a job's environment via secret substitution — no code 
 ```json
 {
   "spark_env_vars": {
-    "DATABRICKS_CLIENT_ID": "{{secrets/pipeline-sp/client-id}}",
-    "DATABRICKS_CLIENT_SECRET": "{{secrets/pipeline-sp/client-secret}}"
+    "DATABRICKS_CLIENT_ID": "{% raw %}{{secrets/pipeline-sp/client-id}}{% endraw %}",
+    "DATABRICKS_CLIENT_SECRET": "{% raw %}{{secrets/pipeline-sp/client-secret}}{% endraw %}"
   }
 }
 ```

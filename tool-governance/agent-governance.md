@@ -547,7 +547,7 @@ def retrieve_deals(query: str, rep_email: str) -> list[dict]:
     results = w.vector_search_indexes.query_index(
         index_name="main.sales.opportunities_idx",
         query_text=query,
-        filters_json=f'{{"owner_email": "{rep_email}"}}',
+        filters_json=f'{% raw %}{{"owner_email": "{rep_email}"}}{% endraw %}',
         num_results=5,
     )
     return [{"score": row[-1], "name": row[1]} for row in results.result.data_array]
