@@ -87,7 +87,7 @@ Full recipe, error catalog, and IdP supplements: [Federation blueprint](federati
 1. **Account SSO enabled** and a **federated token issuer** registered for the custom IdP (max **5** issuers per account).
 2. **Users SCIM-synced** to the Databricks account — federation *maps* an identity, it does not create one. The JWT `subject_claim` must resolve to a real account user.
 3. **The IdP publishes a public JWKS** so Databricks can validate the exchanged JWT's signature. ← *the load-bearing requirement; see next section.*
-4. **Row filters / column masks** defined on the UC tables — this is what enforces RLS. See [Data Governance](../data-governance/uc-governance.md).
+4. **Row filters / column masks** defined on the UC tables — this is what enforces RLS. See the Databricks docs on [row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/).
 5. The user holds the needed **UC grants** (USE CATALOG/SCHEMA, SELECT), **CAN USE** on the warehouse, and access to the resource (e.g. Genie space).
 
 ---
@@ -117,7 +117,7 @@ Make the custom IdP the workspace's **Unified Login SSO** provider and have the 
 
 ## RLS lives in Unity Catalog, not in the IdP or the API
 
-The token only establishes *who* the user is. Enforcement is a UC **row filter** (or dynamic view) on each table the query touches, gated by `current_user()` / `is_account_group_member()`. Group-based filters also require the **groups** to be SCIM-synced, not just users. See [Data Governance — row filters and column masks](../data-governance/uc-governance.md) and the Databricks docs on [row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/).
+The token only establishes *who* the user is. Enforcement is a UC **row filter** (or dynamic view) on each table the query touches, gated by `current_user()` / `is_account_group_member()`. Group-based filters also require the **groups** to be SCIM-synced, not just users. See the Databricks docs on [row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/).
 
 Because the federated token *is* the user, Genie/SQL row filters fire automatically — no special handling in the application. See the [Genie Conversation API](https://docs.databricks.com/aws/en/genie/conversation-api) for the worked data-API example.
 
@@ -139,7 +139,7 @@ Three layers have to line up for per-user access to hold end to end. Each is ind
    | `current_user()` | The actual OBO/federated caller | Correct choice — always reflects the token's identity |
    | `is_member('group')` | **Workspace-level** group membership only | Returns FALSE whenever groups are managed at the account level (the recommended, SCIM-synced setup) — use a lookup table keyed on `current_user()` instead |
 
-   Row filter and column mask recipes: [Data Governance](../data-governance/uc-governance.md) and the Databricks docs on [row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/).
+   Row filter and column mask recipes: the Databricks docs on [row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/).
 
 Skip any one of these three layers and access degrades quietly instead of failing loudly: a dropped token falls back to the calling app's own identity, and an `is_member()` filter against account-level groups returns no rows for anyone.
 
@@ -231,8 +231,6 @@ Thanks! :pray: #1 alone unblocks most of the design.
 - [OAuth Scopes](oauth-scopes-reference.md) — scopes required on the federated/OBO token per downstream API
 - [Authorization](authorization.md) — the three token patterns overview
 - [Federation](federation.md) — bridging external IdPs to Databricks
-- [Data Governance](../data-governance/uc-governance.md) — defining the RLS that actually fires
-
 ## Public References
 
 - [OAuth token federation (overview)](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation)

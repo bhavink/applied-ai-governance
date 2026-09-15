@@ -278,7 +278,7 @@ The framework is designed to absorb change at every layer:
 | New external tool (e.g., new MCP server) | Connection governance, confused deputy defense | `CREATE CONNECTION` + `GRANT USE CONNECTION`: one SQL command |
 | New identity source (e.g., new IDP) | Token exchange, SP mapping, UC groups | Update federation policy; same SP architecture, same UC groups |
 | New compliance requirement (e.g., new data classification) | ABAC framework, governed tags | Add tag + row filter; no code changes |
-| New attack surface (e.g., prompt injection via tool) | Defense in depth: each layer denies independently | UC enforcement at SQL layer blocks unauthorized data access regardless of prompt manipulation. Indirect injection (via retrieved docs, tool responses, cross-agent data) requires additional mitigations — see [Prompt Security](prompt-security/) |
+| New attack surface (e.g., prompt injection via tool) | Defense in depth: each layer denies independently | UC enforcement at SQL layer blocks unauthorized data access regardless of prompt manipulation. Prompt security is a cross-cutting concern addressing identity (who sent the prompt), data governance (UC blocks unauthorized access regardless of injection), tool governance (tool description poisoning, response injection), and observability (detecting successful injection) |
 | New AI coding tool | Developer guardrail patterns | Context-aware classification adapts; threat categories are stable |
 
 The pattern: **new capabilities are additive, not architectural**. You never redesign the governance framework. You extend it by adding a connection, a grant, a tag, or a policy.
@@ -299,20 +299,17 @@ The competitive moat: no other platform has a single governance plane that spans
 
 ## Using This Repository
 
-This repository is organized around the pillars:
+This repository's reference documentation is organized around the pillars:
 
 | Pillar | Key Documents |
 |--------|--------------|
-| Identity & Access | [Authentication](identity/authentication.md), [Authorization](identity/authorization.md), [Federation](identity/federation.md), [Proxy Architecture](identity/proxy-architecture.md), [OAuth Scopes](identity/oauth-scopes-reference.md), [Cloud Auth](identity/cloud-auth-patterns.md) |
-| Data Governance | [UC Governance](data-governance/uc-governance.md) |
-| Tool Governance | [AI Gateway Patterns](tool-governance/ai-gateway-patterns.md), [UC Connections](tool-governance/uc-connections.md), [MCP Governance](tool-governance/mcp-governance.md), [Agent Governance](tool-governance/agent-governance.md) |
-| Observability | [Audit Reference](observability/audit-reference.md) |
+| Identity & Access | [Identity/](identity/): [Authentication](identity/authentication.md), [Authorization](identity/authorization.md), [Federation](identity/federation.md), [Proxy Architecture](identity/proxy-architecture.md), [OAuth Scopes](identity/oauth-scopes-reference.md), [Cloud Auth Patterns](identity/cloud-auth-patterns.md), [Service Principal M2M](identity/sp-m2m-identity.md), [U2M External OBO](identity/u2m-external-obo.md) |
+| Observability & Audit | [Observability/](observability/): [Audit Reference](observability/audit-reference.md), [Agent Tracing](observability/agent-tracing.md), [App Observability](observability/app-observability.md), [Endpoint Telemetry](observability/endpoint-telemetry.md) |
+| Agent Runtime Harness | [Harness/](harness/): [Omnigent Guardrails Demo](harness/omnigent-guardrails-demo/) (identity and observability at the agent runtime boundary) |
 
-**Cross-cutting:** [Prompt Security](prompt-security/) — attack surfaces, hardening patterns, and defense-in-depth for every surface where prompts are accepted. Not a separate pillar; a concern that touches Identity (who sent the prompt), Data Governance (UC blocks unauthorized access regardless of prompt manipulation), Tool Governance (tool description poisoning, response injection), and Observability (detecting successful injection after the fact).
+The presentation library ([presentations/](presentations/)) spans 14 talks covering identity, authorization, federation, cost control, UC governance, orchestration, and the applied AI governance model end-to-end.
 
-Network access controls and developer guardrails are covered in companion resources:
-- Network: [bhavink/databricks](https://github.com/bhavink/databricks) (multi-cloud Private Link, VPC-SC, NCC patterns)
-- Developer guardrails: future work
+Pillars 0, 1, 3, 4, and 6 (Developer Guardrails, Network, Data Governance, Tool Governance, and Policy/Compliance) are enforced through Databricks platform features (UC row filters and column masks for data governance, UC Connections for tool governance, system.access.audit for compliance) and are covered implicitly through the identity and observability documentation. Prompt security is a cross-cutting concern addressed in the Identity and Observability pillars.
 
 ---
 

@@ -39,6 +39,6 @@ Every AI service on Databricks (Genie, Agent Bricks, Model Serving, Apps, custom
 
 ## Related Pillars
 
-- [Data Governance](../data-governance/): Row filters, column masks, ABAC that fire after identity is established
-- [Tool Governance](../tool-governance/): USE CONNECTION controls which identities can call external services
 - [Observability](../observability/): Audit records which identity did what
+- [Harness](../harness/): How identity and observability show up in the agent runtime
+- Databricks docs: [row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/) fire after identity is established; [Unity Catalog external connections](https://docs.databricks.com/aws/en/query-federation/http) control which identities can call external services

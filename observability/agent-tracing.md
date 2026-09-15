@@ -324,7 +324,7 @@ When the app propagates a request ID through to the endpoint call, this join rec
 
 - [`audit-reference.md`](audit-reference.md) — System tables and the data-plane audit story
 - [`endpoint-telemetry.md`](endpoint-telemetry.md) — OTel logs/spans/metrics from inside model code
-- [`../tool-governance/agent-governance.md`](../tool-governance/agent-governance.md) — Agent design that produces well-tagged traces
+- [Harness — agent runtime](../harness/) — agent design that produces well-tagged traces
 
 ---
 

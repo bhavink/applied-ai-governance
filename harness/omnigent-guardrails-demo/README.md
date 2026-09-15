@@ -9,7 +9,7 @@ contextual policies at the tool-call boundary, with no custom code. Every action
 shell command, a file write, an install, a network call, adding a policy) is gated ALLOW / ASK /
 DENY before it runs. On Databricks, model access is governed through the Unity AI Gateway.
 
-See also [omnigent-governance.md](../omnigent-governance.md) for the wider governance model.
+See also the [harness overview](../README.md) for how this fits identity and observability in the agent runtime.
 
 ## How a tool call flows
 

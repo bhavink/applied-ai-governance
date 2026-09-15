@@ -70,7 +70,7 @@ h1 span { color: var(--red); }
     <div class="red-line"></div>
 
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(1rem,2vw,1.5rem);border-left:4px solid var(--ink);margin-bottom:2rem">
-        <p style="font-size:0.88rem;line-height:1.7">To build this on Databricks, you will use <strong>Genie</strong> for natural language analytics, <strong>Vector Search</strong> for knowledge retrieval, <strong>Agent Bricks</strong> for multi-agent orchestration, <strong>MCP servers</strong> for tool governance, <strong>Unity Catalog</strong> for data access control, and <strong>AI Gateway</strong> for model traffic management. This site shows you how to govern all of it.</p>
+        <p style="font-size:0.88rem;line-height:1.7">This repository is a gold standard for identity, observability, and agent runtime governance on Databricks. Reference documentation covers authentication, authorization, federation, audit, and the policy-guardrail harness. The presentation library spans 14 talks on IAM, AI Gateway, cost control, UC governance, and cross-IdP federation.</p>
     </div>
 
     <div class="section-label">Presentations</div>
@@ -104,13 +104,13 @@ h1 span { color: var(--red); }
             <p>Identity, runtime, and observability for LLM/MCP/API traffic. Includes Databricks vs. external gateway vs. UC-native controls.</p>
         </a>
     </div>
-    <p style="margin-top:12px"><a href="presentations/" style="color:var(--red);font-size:0.85rem;text-decoration:none">View all 12 decks &rarr;</a></p>
+    <p style="margin-top:12px"><a href="presentations/" style="color:var(--red);font-size:0.85rem;text-decoration:none">View all 14 decks &rarr;</a></p>
 
     <div class="section-label">Documentation</div>
     <div class="doc-grid">
         <a href="https://github.com/bhavink/applied-ai-governance/blob/main/GOVERNANCE-FRAMEWORK.md" class="doc-link">
             Governance Framework
-            <small>Seven pillars, design principles, adaptability model</small>
+            <small>Design principles, adaptability model, invariants</small>
         </a>
         <a href="https://github.com/bhavink/applied-ai-governance/blob/main/identity/authentication.md" class="doc-link">
             Authentication (AuthN)
@@ -118,23 +118,23 @@ h1 span { color: var(--red); }
         </a>
         <a href="https://github.com/bhavink/applied-ai-governance/blob/main/identity/authorization.md" class="doc-link">
             Authorization (AuthZ)
-            <small>OBO, M2M, Federation, UC model, scopes, SPs</small>
+            <small>OBO, M2M, Federation, OAuth scopes, service principals</small>
         </a>
         <a href="https://github.com/bhavink/applied-ai-governance/blob/main/identity/federation.md" class="doc-link">
             Federation Exchange
-            <small>External IdP token exchange, role-based SPs</small>
+            <small>External IdP token exchange, role-based service principals</small>
         </a>
         <a href="https://github.com/bhavink/applied-ai-governance/blob/main/identity/federation-implementation-blueprint.md" class="doc-link">
             Federation Blueprint
-            <small>12 prerequisites, 7-step flow, IdP reference, error catalog</small>
+            <small>Prerequisites, 7-step flow, IdP reference, error catalog</small>
         </a>
-        <a href="https://github.com/bhavink/applied-ai-governance/blob/main/data-governance/uc-governance.md" class="doc-link">
-            UC Governance
-            <small>Row filters, column masks, ABAC, Genie patterns</small>
+        <a href="https://github.com/bhavink/applied-ai-governance/blob/main/observability/agent-tracing.md" class="doc-link">
+            Agent Tracing & MLflow
+            <small>Trace instrumentation, observability patterns, debugging</small>
         </a>
-        <a href="https://github.com/bhavink/applied-ai-governance/blob/main/tool-governance/orchestration-architecture.md" class="doc-link">
-            Orchestration Architecture
-            <small>Model Serving, MCP, AI Gateway, Lakebase</small>
+        <a href="https://github.com/bhavink/applied-ai-governance/blob/main/observability/audit-reference.md" class="doc-link">
+            Audit Reference
+            <small>System tables, access logs, compliance forensics</small>
         </a>
     </div>
 

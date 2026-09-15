@@ -19,5 +19,5 @@ Three complementary audit layers. Platform audit captures what the system sees. 
 ## Related Pillars
 
 - [Identity](../identity/): Audit records which identity made each request
-- [Data Governance](../data-governance/): Platform audit records every row filter and column mask evaluation
-- [Policy & Compliance](../policy-compliance/): Audit is the evidence layer for compliance
+- [Harness](../harness/): Policy verdicts and traces from the agent runtime
+- Databricks docs: the platform audit log records every [row filter and column mask](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/) evaluation as compliance evidence

@@ -20,7 +20,7 @@
 | Track custom model latency at sub-step granularity | Yes — custom OTel spans on retrieval, parsing, post-processing |
 | Emit business metrics from inside the model (e.g., per-class prediction counts) | Yes — OTel `MeterProvider` |
 | Compliance: persist all inference activity in UC | Yes — UC-governed Delta tables |
-| Capture request/response payloads themselves | Use **inference tables** instead (see [`../tool-governance/model-serving-governance.md`](../tool-governance/model-serving-governance.md)) |
+| Capture request/response payloads themselves | Use **inference tables** instead (see [model serving inference tables](https://docs.databricks.com/aws/en/machine-learning/model-serving/inference-tables)) |
 | Agent serving endpoints | Yes — agent serving endpoints support inference table telemetry alongside custom model serving endpoints |
 | Foundation Model API endpoints | Not applicable — telemetry attaches to model serving endpoints, not Foundation Model API |
 
@@ -253,7 +253,7 @@ Joining `trace_id` across tables lets you correlate a structured log line back t
 
 - [`audit-reference.md`](audit-reference.md) — End-to-end audit story across system tables and telemetry
 - [`agent-tracing.md`](agent-tracing.md) — MLflow Tracing for the agent application plane
-- [`../tool-governance/model-serving-governance.md`](../tool-governance/model-serving-governance.md) — Endpoint permissions, identity propagation, inference tables
+- [Model serving inference tables](https://docs.databricks.com/aws/en/machine-learning/model-serving/inference-tables) — endpoint permissions, identity propagation, inference tables
 
 ---
 

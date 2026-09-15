@@ -142,7 +142,7 @@ The Copilot Studio MCP connector to Genie offers an explicit toggle between shar
 - [Per-User BYO-IdP Federation](byoidp-peruser-federation.md) — the general pattern this specializes for Teams/Copilot Studio
 - [Federation blueprint](federation-implementation-blueprint.md) — RFC 8693 exchange recipe this reuses
 - [Authorization](authorization.md) — the three token patterns overview
-- [Data Governance](../data-governance/uc-governance.md) — where the publish-mode gate ultimately resolves at the SQL layer
+- [Row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/) — where the publish-mode gate ultimately resolves at the SQL layer
 
 ## Public References
 
