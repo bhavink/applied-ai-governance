@@ -466,7 +466,7 @@ tr:hover td{background:var(--surface)}
     </table>
   </div>
   <div class="card r mt2">
-    <p>All four enforce <code>USE CONNECTION</code> on the Databricks side. The auth method determines <em>how</em> the external credential is obtained; USE CONNECTION determines <em>who</em> is allowed to use it. All OAuth methods require RFC 6750 compliance from the external service.</p>
+    <p>All four enforce <code>USE CONNECTION</code> on the Databricks side. The auth method determines <em>how</em> the external credential is obtained; USE CONNECTION determines <em>who</em> is allowed to use it. All OAuth methods require RFC 6750 compliance from the external service. DCR and U2M Per User cannot use the SQL <code>http_request()</code> function; use the Python SDK or a proxy endpoint instead.</p>
   </div>
 </div>
 
@@ -617,7 +617,7 @@ tr:hover td{background:var(--surface)}
     <p><strong>Supported providers:</strong> Google (Drive, Docs, Gmail, Calendar), GitHub, Glean, Microsoft 365, and custom OAuth providers. For many providers, Databricks manages OAuth credentials in the backend — no manual app registration required.</p>
   </div>
   <div class="card card-blue r mt2">
-    <p><strong>Advanced:</strong> Dynamic Client Registration (RFC 7591) — when the external OAuth server supports it, Databricks discovers endpoints and registers credentials automatically. Zero manual OAuth setup required.</p>
+    <p><strong>Advanced:</strong> Dynamic Client Registration (RFC 7591) — when the external OAuth server supports it, you provide only the host URL and Databricks discovers the OAuth endpoints, registers the client, and manages per-user consent automatically. This is the recommended auth method for MCP servers that support DCR. Zero manual OAuth setup required.</p>
   </div>
 </div>
 

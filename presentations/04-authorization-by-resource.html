@@ -699,6 +699,7 @@ tr:hover td{background:var(--surface)}
         <tr><td><strong>UC Functions</strong></td><td>Agent SP has EXECUTE only. No INSERT/UPDATE/DELETE direct on table. Grant is on the function.</td></tr>
         <tr><td><strong>HTTP Connections</strong></td><td>Connection owner = app SP. <code>GRANT USE CONNECTION</code> re-run after each redeploy (new SP = new grants needed).</td></tr>
         <tr><td><strong>Tables</strong></td><td>Row filter audit: grep for <code>is_member()</code>, especially if table queried via Genie. Use <code>current_user()</code> instead.</td></tr>
+        <tr><td><strong>Databricks Apps</strong></td><td>Apps declare least-privilege user API scopes (e.g. sql, files, genie, ai-gateway) for OBO user authorization calls. M2M app identity (service principal) handles background operations. Scope consent is managed by admins. Both identity models share UC governance rules.</td></tr>
         <tr><td><strong>Lakebase</strong></td><td>PG GRANT and RLS policies configured per table. Do NOT assume UC row filters apply to direct PG connections.</td></tr>
       </tbody>
     </table>

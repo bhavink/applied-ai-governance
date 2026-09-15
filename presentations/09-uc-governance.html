@@ -406,19 +406,20 @@ ALTER TABLE customers
   <div class="two-col mt-2">
     <div class="card reveal" style="border-left:4px solid var(--blue)">
       <h4 style="color:var(--blue)">Governed Tags: Classification</h4>
-      <p style="font-size:var(--sz-small);margin-bottom:8px">Account-level tags with enforced naming rules. Applied to catalogs, schemas, tables, columns, volumes, and service objects (model services, MCP services). Tags inherit downward.</p>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">Account-level tags with enforced naming rules. Applied to catalogs, schemas, tables, columns, volumes, and service objects (model services, MCP services). Tags inherit downward. Reserved tag families include databricks:, class.*, sap.*, system.*, and ai.* (for foundation models like ai.model_creator).</p>
       <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Tag a table</span>
 ALTER TABLE customer_data
   SET TAGS ('sensitivity' = 'high',
             'region' = 'EMEA');
 
-<span style="color:var(--green)">-- Tag a service</span>
+<span style="color:var(--green)">-- Tag a foundation model service</span>
 ALTER SERVICE my_model
-  SET TAGS ('sensitivity' = 'restricted');</pre>
+  SET TAGS ('ai.model_creator' = 'data-science',
+            'sensitivity' = 'restricted');</pre>
     </div>
     <div class="card reveal" style="border-left:4px solid #7c3aed">
       <h4 style="color:#7c3aed">ABAC Policies: Enforcement</h4>
-      <p style="font-size:var(--sz-small);margin-bottom:8px">Policies reference tags to dynamically control access. One policy can govern thousands of objects without manual per-object configuration.</p>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">Policies reference tags to dynamically control access. One policy can govern thousands of objects without manual per-object configuration. GRANT policies (Beta) dynamically grant privileges like EXECUTE on models based on tag attributes, while DENY policies (Beta) explicitly block access and take precedence over grants.</p>
       <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Query tags at runtime</span>
 SELECT * FROM system.information_schema
   .column_tags
@@ -628,7 +629,7 @@ ALTER TABLE deals ALTER COLUMN margin_pct SET MASK mask_margin;</pre>
   <div class="two-col mt-2">
     <div class="card card-blue reveal">
       <h4>Auto-Classification</h4>
-      <p style="font-size:var(--sz-small);margin-bottom:8px">Agentic AI scans columns and detects PII (email, SSN, credit card, etc). Results written as <code>databricks:classifier:*</code> tags.</p>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">Agentic AI scans columns and detects PII (email, SSN, credit card, etc). Results written as <code>databricks:classifier:*</code> tags. The results view shows User Access exposure metrics for the last 7 days, revealing how many distinct users accessed masked versus unmasked data by classification type.</p>
       <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- See classified columns</span>
 SELECT catalog_name, table_name,
        column_name, tag_value
@@ -636,7 +637,7 @@ FROM system.information_schema
   .column_tags
 WHERE tag_name =
   'databricks:classifier:pii_type';</pre>
-      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Scans new tables within 24h. Can be automatic or manual review only.</p>
+      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Scans new tables within 24h. Can be automatic or manual review only. Detection exclusions (Beta) let you dismiss false positives, which removes the tag and feeds back to improve future scans.</p>
     </div>
     <div class="card card-amber reveal">
       <h4>Apply Masks to Tagged Columns</h4>

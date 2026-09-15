@@ -788,7 +788,10 @@ tr:hover td{background:var(--surface)}
 <span class="kw">grant_type</span>=client_credentials
 &amp;<span class="kw">client_id</span>=&lt;app-uuid&gt;
 &amp;<span class="kw">client_secret</span>=&lt;secret&gt;
-&amp;<span class="kw">scope</span>=all-apis</pre>
+&amp;<span class="kw">scope</span>=all-apis  <span class="cm">/* or: sql, jobs, clusters */</span></pre>
+      <div class="card card-green r" style="margin-top:10px;padding:10px 12px">
+        <p style="font-size:var(--sm)">M2M service principals can now request scoped OAuth secrets that restrict a token to specific API scopes (for example sql, jobs, clusters) instead of blanket all-apis access, reducing blast radius if a secret is compromised.</p>
+      </div>
     </div>
     <div>
       <div class="label r" style="margin-bottom:0">Federation token exchange (RFC 8693)</div>

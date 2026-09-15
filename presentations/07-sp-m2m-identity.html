@@ -656,6 +656,9 @@ Content-Type: application/x-www-form-urlencoded
     <div class="card card-green" style="padding:clamp(.5rem,1vw,.8rem)">
       <p><strong>Layered defense:</strong> UC group membership controls which data the SP can read. Token scope controls which API surface the SP can reach. Compromise one layer and the other still limits the blast radius.</p>
     </div>
+    <div class="card card-blue r" style="margin-top:8px;padding:clamp(.5rem,1vw,.8rem)">
+      <p><strong>Scoped OAuth secrets:</strong> M2M service principals can now issue scoped OAuth secrets restricted to specific API scopes (for example sql, jobs, clusters) instead of blanket all-apis access. This reduces blast radius further: a compromised secret grants only the minimum API surface needed, never the full platform.</p>
+    </div>
   </div>
 </div>
 
