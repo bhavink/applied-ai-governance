@@ -164,11 +164,11 @@ Use guardrails to enforce what the model can say. Use service policies to enforc
 
 All Databricks-hosted foundation models become UC securables in `system.ai`.
 
-- `REVOKE EXECUTE` on a model disables it org-wide (PPT, PT, Batch)
-- 1P products (Genie, Assistant, Agent Bricks, AI Functions) are NOT governed
-- `AI_QUERY()` IS governed (calls user-owned endpoints)
-- Position as last-resort lever for legal/regulatory allow/ban requirements
-- Enroll: `go/fm-permissions/enroll` via Salesforce preview portal
+- `REVOKE EXECUTE` on a foundation model disables it org-wide across serving modes (provisioned throughput, pay-per-token, and batch)
+- These permissions apply to the foundation model securables in `system.ai`; first-party experiences such as Genie, the Assistant, Agent Bricks, and AI Functions reach models through their own managed paths rather than through these securables
+- `AI_QUERY()` is governed, since it calls user-owned endpoints
+- Use as a last-resort control for legal or regulatory allow/ban requirements
+- Enable Foundation Model permissions from the workspace Previews page
 
 ## Where Things Live
 
