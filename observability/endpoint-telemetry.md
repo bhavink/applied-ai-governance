@@ -1,7 +1,7 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: ai/endpoint-telemetry.md
-  Public docs grounding:
+  Public docs grounding: 
     - https://learn.microsoft.com/en-us/azure/databricks/machine-learning/model-serving/custom-model-serving-uc-logs
   This file is auto-prepared and human-reviewed before publish.
 -->

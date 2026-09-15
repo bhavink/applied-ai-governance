@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-08-17
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: auth/oauth-scopes.md, governance/unity-catalog.md
   Public docs grounding:
     - https://docs.databricks.com/api/workspace/api/scopes

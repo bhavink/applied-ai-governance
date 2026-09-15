@@ -1,59 +1,69 @@
 <!--
-  Synced from databricks-fieldkit on 2026-08-17
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: ai/ucode.md
   Public docs grounding:
     - https://github.com/databricks/ucode
     - https://docs.databricks.com/aws/en/ai-gateway/model-provider-services
     - https://docs.databricks.com/aws/en/ai-gateway/query-model-provider-services
     - https://docs.databricks.com/aws/en/ai-gateway/coding-agent-integration-model-provider-services
-    - https://docs.databricks.com/aws/en/ai-gateway/budgets
-
-  Source-inspection grounding (claims not covered by the docs pages above):
-    Read from the public databricks/ucode repo at commit ecb14e7 (2026-08-05).
-    - Per-agent provider support and the credential-less subscription relay:
-      ucode/databricks.py
-    - Provider header injection into each agent's managed config:
-      ucode/agents/claude.py, ucode/agents/codex.py
-    - Loopback token-swap proxy: ucode/gateway_proxy.py
-    Every ucode build reports v0.1.0, so verify capability by flag or by reading
-    the pinned commit, never by version string.
-
   This file is auto-prepared and human-reviewed before publish.
 -->
 
-# ucode — Lightweight Coding-Agent Launcher
-## Unified Auth · Per-Harness AI Gateway Routing
+<!-- additional source: hands-on source inspection of the installed package (ucode/databricks.py) | last_checked: 2026-08-05 -->
 
-> **Audience**: Developers and platform teams standing up coding-agent access to Databricks
-> **Cloud**: Agnostic
-
----
+# ucode
 
 ## TL;DR
 
-ucode is Databricks' own lightweight CLI launcher for running coding agents — Codex, Claude Code, Gemini CLI, OpenCode, GitHub Copilot CLI, and Pi — through Databricks. It handles OAuth automatically and routes each agent's model calls through Unity AI Gateway using the developer's own workspace credentials. It does not include [Omnigent](omnigent-governance.md)'s session sharing, sandboxing, or policy engine — it's purely an auth-and-routing layer.
+ucode is Databricks' own, lightweight CLI launcher for running coding
+agents through Databricks — "a lightweight launcher for running Codex,
+Claude Code, Gemini CLI, OpenCode, GitHub Copilot CLI, and Pi through
+Databricks." It handles OAuth automatically (or falls back to a PAT), so
+by default there are no separate API keys to manage. It does not have
+Omnigent's session sharing, sandboxing, or policy engine — it's purely an
+auth + routing layer.
 
-Teams that already pay for OpenAI, Anthropic, or a Claude subscription do not have to switch models to get governance: a Unity Catalog **model provider service** lets the gateway front an external provider with your own credential. What you gain and give up on that path is the subject of [Governance by inference path](#governance-by-inference-path) below — read it before promising a team "same governance, your models."
+Inference does **not** have to be a Databricks-hosted foundation model. Via a
+Unity Catalog **Model Provider Service** you can bring your own OpenAI /
+Anthropic / Bedrock key, or relay an existing Claude Max/Team/Enterprise
+subscription — but the governance you get back differs by path. See
+[Bring your own model](#bring-your-own-model-external-providers-and-subscriptions).
+
+> **Version strings are useless for this page.** Every build to date reports
+> `ucode v0.1.0`, so `--version` cannot tell you what features you have.
+> This page is pinned to commit **`ecb14e7`** (2026-08-04). Check capability
+> by flag (`ucode codex --help`) and upgrade with
+> `uv tool install --reinstall git+https://github.com/databricks/ucode`.
 
 | You want... | Use ucode? |
 |---|---|
-| The simplest path from "installed coding agent" to "routed through Databricks" | Yes |
-| OAuth handled for you, zero API keys to manage | Yes |
-| Keep your existing provider account or Claude subscription, but centralize the credential and the audit trail | Yes — via a model provider service |
-| A guaranteed dollar ceiling on coding-agent spend | No — budgets block only approximately, and do not see external-provider spend; use rate limits |
-| Team collaboration, session sharing, a client-side cost-cap policy engine | No — see [Omnigent](omnigent-governance.md) |
+| Quick, no-frills way to point an existing coding agent at Databricks | Yes |
+| Team collaboration, session sharing, persistent multi-turn history across devices | No — use [Omnigent](omnigent.md) |
+| A client-side cost cap / contextual policy engine | No — use Omnigent |
+| Just want per-user identity + usage tracking on coding-agent LLM calls with zero setup friction | Yes |
+| Keep using your own OpenAI/Anthropic key or Claude subscription, but govern it centrally | Yes — via a Model Provider Service, with caveats |
+| A hard dollar spend cap on coding-agent traffic | No — budgets alert only, and don't see BYO spend at all; use rate limits |
 
 ---
 
 ## When to use / Anti-patterns
 
 **Use when:**
-- You want per-user identity and usage tracking on coding-agent LLM calls with minimal setup
-- You don't need session sharing, sandboxing, or contextual policies
+- You want the simplest possible path from "installed coding agent" to "routed through Databricks," with OAuth handled for you
+- You don't need session sharing, sandboxing, or Omnigent's policy engine
+- You want per-user identity and usage tracking without provisioning API keys per developer
 
 **Anti-patterns:**
-- Do not expect ucode to govern **Cursor's inference**. `ucode cursor` exists but registers MCP servers only: `cursor-agent` runs models on the user's own Cursor account and exposes no gateway base URL. The result is governed tools alongside ungoverned model calls. To govern Cursor's inference, point its OpenAI-compatible base URL at the gateway manually with a token
-- Do not present budgets as a spend cap for coding agents. See [Governance by inference path](#governance-by-inference-path)
+- Do not expect session sharing, team collaboration, or contextual policies — those are Omnigent features, not ucode's
+- Do not expect ucode to govern **Cursor's inference**. `ucode cursor` exists but is **MCP-only**: `cursor-agent` runs models on the user's own Cursor account and exposes no gateway base URL, so ucode registers Databricks MCP servers for it and configures no models. You get governed tools with ungoverned inference. To govern Cursor's model calls, wire its OpenAI-compatible base URL to the gateway by hand with a PAT (see [ai-gateway.md](ai-gateway.md#cursor))
+- Do not rely on **budgets** as a hard cap on coding-agent spend. "Block usage" is available on Unity AI Gateway (not Genie-only — corrected 2026-08-05), but it enforces on a near-real-time cost estimate and can overshoot the threshold, and Model Provider Service spend is invisible to budgets entirely. Rate limits are the enforceable control
+
+---
+
+## Prerequisites
+
+- Python 3.12+ and `uv`
+- A Databricks workspace with Unity AI Gateway available
 
 ---
 
@@ -70,57 +80,81 @@ ucode gemini       # Gemini CLI
 ucode opencode     # OpenCode
 ucode copilot      # GitHub Copilot CLI
 ucode pi           # Pi
-ucode cursor       # Cursor Agent — registers MCP servers only, not inference
+ucode cursor       # Cursor Agent — MCP servers only, NOT inference
 ```
 
-First launch prompts for the workspace URL and authenticates via browser SSO, writing each agent's config automatically. Subsequent launches go straight to the agent.
+First launch prompts for the workspace URL and authenticates via browser
+SSO; it writes each agent's config file automatically. Subsequent
+launches go straight to the agent.
 
-Useful per-launch flags: `--workspace <url>` targets one launch at a specific workspace (authenticating it if needed), which is what lets two agents sit on two different workspaces without reconfiguring in between; `--provider <catalog>.<schema>.<name>` routes through a model provider service; `--skip-preflight` skips the per-launch re-validation.
+**Per-launch flags on the launch commands** (`codex`, `claude`, and peers):
+
+| Flag | Effect |
+|---|---|
+| `--workspace <url>` | Target this launch at a specific workspace, setting it up and authenticating if needed. Overrides the single `current_workspace` default, so two agents can sit on two workspaces without reconfiguring between sessions |
+| `--provider <catalog>.<schema>.<name>` | Route through a Unity Catalog Model Provider Service (BYO key / subscription). Skips Databricks model pinning. Pass before any `--` separator |
+| `--skip-preflight` | Skip the per-launch auth + gateway re-validation, trusting a prior `ucode configure`. The cheap way to speed up repeat launches |
+| `--enable-smart-routing` / `--disable-smart-routing` | Gateway model routing for sessions **and subagents** (codex and claude; needs Codex >= 0.145.0) |
+
+Agent-specific pass-through flags still work, and extra args are forwarded to
+the agent binary — `ucode codex -c key=value` reaches `codex` itself.
 
 ```bash
-ucode configure        # configure multiple agents (interactive picker)
-ucode configure mcp    # register Databricks MCP servers
-ucode usage             # last 7 days of AI Gateway usage
-ucode status            # current workspace, base URLs, managed config files, selected models
-ucode revert            # clear saved state and restore backed-up config files
+ucode configure          # configure multiple agents (interactive picker)
+ucode configure mcp      # register Databricks MCP servers on installed MCP-capable tools
+ucode configure skills   # expose UC functions as agent skills
+ucode configure tracing  # send coding-session traces to an MLflow experiment (Claude Code only)
+ucode usage              # last 7 days of AI Gateway usage
+ucode status             # current workspace, base URLs, managed config files, selected models
+ucode upgrade            # upgrade ucode itself from GitHub
+ucode revert             # clear saved state and restore backed-up config files
+ucode mcp web-search     # stdio web-search MCP server (invoked as a subprocess by Claude Code)
 ```
 
-Non-interactive setup is also available via `configure` flags: `--agents`, `--workspaces`, `--profiles` (use existing Databricks CLI profiles), `--use-pat` (authenticate with a PAT instead of OAuth), `--skip-validate`, and `--dry-run`.
+Non-interactive `configure` flags: `--agents <list>`, `--workspaces <urls>`, `--profiles <names>` (use existing Databricks CLI profiles), `--use-pat` (authenticate with the profile's PAT instead of OAuth; requires `--profiles`, intended for CI/headless), `--skip-validate` (skip the test-message send per agent), `--dry-run` (preview without writing), `--skip-upgrade` (don't prompt to upgrade agent CLIs), `--verbose low` (terse output).
 
-### Registering UC functions as agent skills
+Also on `configure`:
 
-`ucode configure skills` exposes Unity Catalog functions as agent skills, so governed UC functions become callable tools inside a coding agent. Because the functions live in Unity Catalog, the same `EXECUTE` grants and audit trail govern who can invoke them.
+- `--mcp <fq-names>` registers Databricks MCP services in the same command, e.g. `--agents claude --mcp system.ai.slack`. Use it without `--agents` for MCP-only clients such as Cursor.
+- `--tracing` enables MLflow tracing for the configured workspace(s).
+- `--enable-fable` / `--disable-fable` opts into the premium Claude Fable family for Claude Code (off by default; only takes effect if the workspace's gateway advertises a Fable model).
+- `--enable-databricks-ai-tools` / `--disable-...` installs Databricks AI Tools (skills + plugins that teach agents to use Databricks). **Installed by default** — pass the disable flag to opt out.
 
-```bash
-# Interactive: pick from UC functions to expose as skills
-ucode configure skills
+Agent-specific pass-through flags work as normal, e.g. `ucode claude -r` resumes the last Claude Code session.
 
-# Register skills from a specific UC schema into a local directory
-ucode configure skills --location main.default --path /local/dir
+### Per-tool routing (confirmed from source)
 
-# Expose UC functions as skills through MCP (adds them to the MCP config)
-ucode configure skills --location main.default --mcp
+`ucode/databricks.py` builds a distinct base URL per tool — its own code
+comment labels this **"AI Gateway v2 only — no fallback to
+/serving-endpoints"**:
+
+```python
+def build_tool_base_url(tool: str, workspace: str) -> str:
+    if tool == "codex":
+        return f"{workspace}/ai-gateway/codex/v1"
+    if tool == "claude":
+        return f"{workspace}/ai-gateway/anthropic"
+    if tool == "gemini":
+        return f"{workspace}/ai-gateway/gemini"
+    ...
 ```
 
-- `--location <catalog.schema>` selects the Unity Catalog schema whose functions become skills.
-- `--path <dir>` writes the skill definitions to a local directory.
-- `--mcp` registers the functions through MCP instead of writing local skill files, so they are surfaced to any MCP-capable tool.
-
-### Per-harness model routing
-
-Each tool routes to its own dedicated Unity AI Gateway surface, matching that tool's native wire format — the same routing pattern [Omnigent](omnigent-governance.md) uses for the same tools:
-
-| Tool | Base URL | Wire format |
-|---|---|---|
-| Claude Code | `{workspace}/ai-gateway/anthropic` | Anthropic Messages API |
-| Codex CLI | `{workspace}/ai-gateway/codex/v1` | OpenAI Responses API |
-| Gemini CLI | `{workspace}/ai-gateway/gemini` | Gemini API |
+These are the identical URLs Omnigent's Databricks credential provider
+uses for the same tools — see
+[omnigent.md's per-harness routing table](omnigent.md#per-harness-model-routing-databricks-credential).
+Pi and OpenCode and Copilot each speak multiple provider dialects to
+their own dedicated per-family paths (each provider's native wire format
+— Anthropic Messages, OpenAI Responses, Gemini generateContent, or OpenAI
+chat completions — appended to a per-family base URL).
 
 ### Authentication
 
-**Preferred: OAuth**, automatic — browser SSO on first launch. Per-user identity, usage tracking, and rate limiting key off this identity, with no shared secret to manage.
+**Preferred: OAuth**, handled automatically — browser SSO on first
+launch, no keys or PATs to manage. Per-user identity, usage tracking, and
+rate limiting all key off this identity.
 
-**Manual fallback: Databricks PAT**, for tools configured by hand instead of launched through ucode:
+**Manual fallback: Databricks PAT**, for tools not launched through ucode
+(e.g. Cursor configured by hand) or manual per-tool setup:
 
 | Tool | Manual PAT wiring |
 |---|---|
@@ -129,78 +163,218 @@ Each tool routes to its own dedicated Unity AI Gateway surface, matching that to
 | Gemini CLI | PAT set as a bearer token in `~/.gemini/.env` |
 | Claude Code | PAT configured through "Other Integrations" in the AI Gateway UI |
 
-### External developer access
-
-Non-Databricks developers need to be provisioned as workspace users first — via [AIM/JIT provisioning](https://learn.microsoft.com/en-us/azure/databricks/admin/users-groups/automatic-identity-management) (preferred) or SCIM — then generate a PAT or use OAuth. Once provisioned, per-user identity, usage tracking, and rate limiting all work correctly.
-
 ---
 
-## Bringing your own models
+## Bring your own model: external providers and subscriptions
 
-The common objection to routing coding agents through a platform is "we already pay for our own models." A Unity Catalog **model provider service** answers it. The service is a UC securable holding an external provider's connection details and encrypted credential; the gateway supplies the credential at request time, so the coding agent never handles the secret:
+You are **not** limited to Databricks-hosted foundation models. A Unity Catalog
+**Model Provider Service** (MPS) is a UC securable holding a provider's connection
+details and encrypted credentials; the gateway injects the credential at request
+time, so the coding agent never sees the secret. Route a launch at one with:
 
 ```bash
 ucode codex  --provider main.default.openai_prod
 ucode claude --provider main.default.anthropic_prod
 ```
 
-Two properties matter for governance. Access is a **Unity Catalog grant** — `EXECUTE` on the service decides who may use which provider, so provider access joins the same permission model as tables and functions. And the credential **stops living on laptops**, which removes the rotation and offboarding problem that per-developer API keys create.
+On the wire this is a single header, `Databricks-Model-Provider-Service:
+<catalog>.<schema>.<name>`, which ucode writes into the agent's managed provider
+block (`agents/codex.py:128`, `agents/claude.py:267`). Access is gated by the
+`EXECUTE` privilege on the service, so who may use which provider is a UC grant.
 
-Provider support is per agent and narrow: reading the ucode source, Claude Code accepts `anthropic` and `amazon_bedrock` services, Codex CLI accepts `openai`, and Gemini CLI, OpenCode, Copilot, and Pi have no model-provider-service support at all.
+### Which agent can use which provider
 
-> **Docs and source disagree on this one.** The Databricks page describes Claude Code as usable with "OpenAI, Anthropic, Amazon Bedrock, and other registered provider," and its example even shows `ucode claude --provider main.default.openai_prod`. The ucode source gates the pairing more narrowly than that. Treat the per-agent list as the binding constraint and do not promise a combination on the strength of the doc example alone.
->
-> **You may not be able to test this locally.** On a machine with enterprise-managed agent settings, that file sits at the highest precedence tier and can pin the base URL, model, and credential helper, so ucode cannot redirect the agent and `--provider` has no observable effect. A failure there tells you managed settings won, not that the pairing was rejected. Check the effective base URL before concluding anything about provider support.
+Hard-coded at `databricks.py:1473` — this is the whole list:
 
-### Using a Claude subscription instead of a key
+| Agent | Provider types it can route to |
+|---|---|
+| `claude` | `anthropic`, `amazon_bedrock` |
+| `codex` | `openai` |
 
-An Anthropic service can be registered **credential-less** to relay an existing Claude Max, Team, or Enterprise subscription. The developer's own subscription sign-in remains the credential the provider authenticates, while the Databricks credential travels in a separate header that a local loopback process refreshes per request. Practically: a team keeps the subscription it already pays for, and the platform still sees the traffic. This path is Claude Code only.
+Gemini, OpenCode, Copilot, and Pi have **no** MPS support. A Bedrock-backed service
+is only offered to `claude` if its targets include at least one Claude model, since
+Bedrock exposes non-canonical ids (e.g. `us.anthropic.claude-sonnet-4-6`) that ucode
+must pin explicitly via `ANTHROPIC_DEFAULT_*_MODEL`.
 
-> **Grounding**: this behaviour is read from the ucode source (`databricks.py` for the relay flag, `gateway_proxy.py` for the loopback refresh), not from the AI Gateway doc pages listed above, which describe API-key registration only. Confirm against the [ucode repo](https://github.com/databricks/ucode) before relying on it; the mechanism is unusual and could change without a doc update.
+### Claude subscription relay (Max / Team / Enterprise)
 
-### Governance by inference path
+A **credential-less** Anthropic MPS relays your existing Claude subscription instead
+of an API key. The mechanics are unusual and worth knowing:
 
-This is the part worth being precise about, because "route it through the gateway" does not mean "all controls apply." Governance degrades in two steps as you move away from platform-hosted models:
+- Claude Code keeps its **own subscription OAuth** in the `Authorization` header.
+- The Databricks credential rides separately in `X-Databricks-AI-Gateway-Token`.
+- Because that token is short-lived and a static settings file can't refresh it,
+  ucode runs a **loopback proxy on 127.0.0.1** and points `ANTHROPIC_BASE_URL` at
+  it, minting a fresh swap header per request (`gateway_proxy.py`). The proxy binds
+  loopback only and never logs header values or bodies.
+- Detected from `config.anthropic.relayed` on the service (`databricks.py:1533`).
+- **Claude Code only** — there is no Codex or Gemini equivalent.
 
-| Control | Databricks-hosted models | Your own key or subscription | Passthrough (forward all URL paths) |
+### Governance by path — the important part
+
+Routing BYO traffic through the gateway buys you most, but **not all**, of the
+governance you get on Databricks-hosted models:
+
+| Control | Databricks-hosted FM | BYO key via MPS | Claude subscription relay |
 |---|---|---|---|
-| Usage tracking | Yes | Yes | No token or cost tracking |
-| Payload logging (inference tables) | Yes | Yes | Yes |
-| Rate limits | Yes | Yes | Token-based limits do not apply |
-| Guardrails and service policies | Yes | Yes, on managed paths | Do not apply |
-| Model access control | Yes | Yes (`EXECUTE` on the service) | Does not apply |
-| Budgets and spend caps | Alert or block, approximately | **Not tracked at all** | Not tracked |
+| Usage tracking (`system.ai_gateway.usage`) | Yes | Yes | Yes |
+| Inference tables (payload logging) | Yes | Yes | Yes |
+| Rate limits | Yes | Yes (service level) | Yes |
+| Guardrails / service policies | Yes | Yes (managed paths only) | Yes (managed paths only) |
+| UC access control (`EXECUTE`) | n/a | Yes | Yes |
+| **Budgets / spend caps** | Alert only | **No — not tracked at all** | **No** |
 
-Three implications for anyone designing this:
+Two cliffs to state explicitly whenever this comes up:
 
-1. **Budgets bound spend approximately; they do not guarantee a ceiling.** Both actions are available on Unity AI Gateway: alert, or block further requests. But enforcement runs on a near-real-time cost estimate, so spend can overshoot before blocking engages, and the docs say plainly not to rely on it for an absolute cap. Separately, external-provider spend is outside budgets entirely — "spend from model provider services is not tracked in budgets" — so that bill arrives from your provider. Where a firm ceiling on coding-agent consumption matters, **rate limits** are the control that enforces.
-2. **Keep providers on managed paths.** Enabling "forward all URL paths" for unmapped provider endpoints is the single biggest governance downgrade available: usage and cost tracking, token-based rate limits, model access control, and service policies all stop applying to passthrough requests. Enable it only with a specific reason.
-3. **The audit trail survives the switch.** Usage tracking, payload logging, rate limits, and policies all continue to work with your own credential. Bringing your own model costs you budget visibility, not observability.
+1. **Budgets do not see MPS spend.** Per the docs: "Spend from model provider
+   services is not tracked in budgets. Budget notifications, alerts, and hard spend
+   caps do not apply to model provider service usage." Your provider bills you
+   directly. Use rate limits as the enforceable control.
+2. **Passthrough drops most governance.** If a service enables "Forward all URL
+   paths" for unmapped provider endpoints, then "usage token and cost tracking,
+   token-based rate limits, model access control, and service policies do not apply
+   to passthrough requests." Only the managed paths are fully governed.
+
+### Skills management
+
+Register schema-less utility tools (Unity Catalog functions exposed as agent skills) with:
+
+```bash
+# Interactive: pick from UC functions to expose as skills
+ucode configure skills
+
+# Download skills to a local directory from a UC schema
+ucode configure skills --location main.default --path /local/dir
+
+# Expose UC functions as skills via MCP (adds to MCP config)
+ucode configure skills --location main.default --mcp
+
+# Download only a subset, by leaf skill name (requires a single --location)
+ucode configure skills --location main.default --skill my-skill
+```
+
+`--location` takes a comma-separated list of `<catalog>.<schema>` scopes.
+Source: https://github.com/databricks/ucode
+
+---
+
+### MLflow tracing — Claude Code only
+
+`ucode configure tracing` (or `configure --tracing`) sends coding-session traces
+to a workspace MLflow experiment. Scope is **Claude Code and nothing else**:
+`TRACING_AGENTS = ("claude",)` at `tracing.py:43`. Claude's
+`mlflow autolog claude` Stop hook writes traces to the experiment's Unity Catalog
+table. Codex and OpenCode support was **removed** because the
+`@mlflow/codex`/`@mlflow/opencode` JS clients only reach the classic, non-UC trace
+store; Gemini's exporter is OTLP-only and was never wired in.
+
+The experiment must be UC-backed. If self-service
+`set_experiment_trace_location` binding is disabled on the workspace, an admin has
+to provision the experiment first — you cannot bootstrap it yourself.
+
+For Codex observability use the gateway usage table and inference tables instead
+(see [ai-gateway.md](ai-gateway.md#system-tables)).
+
+---
+
+### Web search
+
+Web search is supported through ucode when routed through Unity AI
+Gateway — either native model web search (OpenAI, Gemini models today)
+or MCP-based web search (model-agnostic, via a registered search MCP
+server).
+
+ucode also **ships its own** web-search MCP server: `ucode mcp web-search` runs a
+stdio server exposing a `web_search` tool backed by a Databricks-hosted GPT model's
+native Responses API search, spawned as a subprocess by Claude Code. It exists
+because Claude Code's built-in web search doesn't work when routed through
+Databricks. Model comes from `UCODE_WEB_SEARCH_MODEL`.
 
 ---
 
 ## Gotchas
 
-- **Model support varies per route** — e.g. Cursor's route doesn't support every model (open-source models like Qwen aren't supported there); check the AI Gateway UI for the per-route supported model list.
-- **Claude Code's large context window can hit default FMAPI rate-limit tiers quickly** (e.g. 200k input tokens/min default tier for Claude Sonnet). Monitor via AI Gateway usage tables and request a tier increase if needed.
-- **Codex requires a workspace that serves the OpenAI Responses API.** Codex speaks Responses, so a workspace whose endpoints only expose chat completions cannot host it, and the failure looks like "no models available" rather than a protocol error. Other agents use their own native dialects and are less constrained.
-- **Verify rate limits and policies behaviourally, not by reading configuration.** Controls configured through the model service surface do not appear in the older serving-endpoints gateway configuration, and the two surfaces do not synchronize. Send traffic and confirm you see a `429` or a policy block; a configuration read will mislead you.
-- **A polite refusal is not a policy block.** Guardrails on the current surface are model-evaluated classifiers rather than keyword matchers, so testing needs care: a `200` response saying "I can't share that" is the model declining, whereas an actual block is a `4xx` naming the policy and the phase. Built-in PII detection is the most deterministic to test against.
-- **Coding-agent traffic can be attributed with request tags.** Where several tools share one endpoint, a request tag is the practical way to separate their usage in the gateway usage table, and tags are queryable as a map column.
-- **Enterprise-managed agent settings can override ucode.** Claude Code honours a managed settings file at the highest precedence tier, above environment variables and command-line settings. If that file pins a base URL, an API-key helper, or custom headers, ucode cannot redirect the agent and provider routing headers are dropped. ucode warns when it detects those keys. Check the effective base URL rather than the reported model name, since the model can change while the endpoint stays pinned.
-- **Environment variables outrank ucode's config files.** A shell exporting a provider base URL or model override makes the agent ignore what ucode wrote. Launch from a clean shell if routing looks wrong.
+**Only specific models are supported per tool's route.** For example,
+Cursor's `/cursor/v1` route doesn't support every model (open-source
+models like Qwen aren't supported there) — check the AI Gateway UI for the
+per-route supported model list. Anthropic and OpenAI models are generally
+supported.
+
+**Non-Databricks (external) developers** need to be provisioned as
+workspace users first (via AIM/JIT provisioning or SCIM), then generate
+their own PAT or use OAuth — same per-user identity/usage-tracking/rate-
+limiting guarantees apply once provisioned.
+
+**Claude Code's large context window can hit FMAPI rate-limit tiers
+quickly** (e.g. 200k input tokens/min / 20k output tokens/min default tier
+for Claude Sonnet). Monitor via AI Gateway usage tables, request a tier
+increase, or spread load across users if the aggregate exceeds the tier.
+
+**Every build reports `ucode v0.1.0`.** Feature detection by version string is
+impossible; a months-old install and current HEAD are indistinguishable that way.
+Detect by flag (`ucode codex --help`) or by file presence in the installed package,
+and reinstall with `uv tool install --reinstall git+https://github.com/databricks/ucode`.
+When citing ucode behavior in a document, pin the commit.
+
+**One `current_workspace`, but `--workspace` overrides it per launch.** ucode tracks
+a single active workspace in `~/.ucode/state.json`, and each
+`ucode configure --workspaces <host>` flips it. Historically that forced a
+reconfigure when alternating between two agents on two workspaces; symptom of drift
+was "No models available for codex" (an Azure workspace has no OpenAI Responses
+route). Pass `--workspace <url>` on the launch command instead — it sets up and
+authenticates the workspace if needed, so a launch needs no prior `configure`.
+
+**Environment variables outrank ucode's config files.** An exported
+`ANTHROPIC_BASE_URL` (or `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_*_MODEL`,
+`CLAUDE_CODE_USE_GATEWAY`) makes Claude Code ignore `~/.claude/ucode-settings.json`
+and silently use the env-var target. Launch from a clean shell, or strip them with
+`env -u ANTHROPIC_BASE_URL ... ucode claude`.
+
+**Claude Code enterprise managed settings outrank everything, including ucode.** A
+`managed-settings.json` deployed by an enterprise MDM sits at the highest precedence
+tier — above env vars, `--settings`, and `CLAUDE_CONFIG_DIR`. If it pins
+`env.ANTHROPIC_BASE_URL`, `apiKeyHelper`, or `env.ANTHROPIC_CUSTOM_HEADERS`, ucode
+**cannot** redirect Claude Code to your workspace, and the MPS routing headers get
+dropped. ucode detects and warns about exactly these three keys
+(`agents/claude.py:147-165`). Verify with a base-URL check, not a model-name check:
+stripping env vars can change the reported model while the base URL stays pinned.
+
+**ucode owns the agent's provider block and rewrites it every launch.** For Codex,
+`MANAGED_KEYS` covers `model_providers.<name>` and its `http_headers`
+(`agents/codex.py:55-60`), so a header hand-added to `ucode.config.toml` is wiped on
+the next launch. To attach durable custom headers (e.g. request tags for cost
+attribution), use Codex's `env_http_headers` — a map of header name to **env var
+name** — layered at launch, since ucode forwards extra args to the agent binary:
+
+```bash
+export DATABRICKS_AI_GATEWAY_REQUEST_TAGS='{"source":"codex-cli","team":"platform"}'
+ucode codex -c 'model_providers.ucode-databricks.env_http_headers.Databricks-Ai-Gateway-Request-Tags="DATABRICKS_AI_GATEWAY_REQUEST_TAGS"'
+```
+
+Verified on `ecb14e7` against a local capture server: the header arrives on every
+request. `request_tags` is a filterable `map<string,string>` column in
+`system.ai_gateway.usage`, which is how you separate one agent's spend from another's
+on a shared Databricks-owned endpoint.
+
+**OAuth loopback listener only lives for the duration of the command.** `ucode
+configure` / `databricks auth login` opens a short-lived listener on port 8020. If
+the command already exited (slow browser approval, or run non-interactively) you get
+`ERR_CONNECTION_REFUSED` and a stale auth code. Re-run and approve promptly.
+
+**Codex needs the OpenAI Responses API, which not every workspace serves.** Codex
+routes to `/ai-gateway/codex/v1` with `wire_api = "responses"`; a workspace whose
+endpoints only expose `mlflow/v1/chat/completions` cannot host Codex. ucode discovers
+eligibility by checking each endpoint's `api_types` for `openai/v1/responses` with
+`ai_gateway_v2_supported = true` (`databricks.py:1115`). Claude and Gemini use their
+own native dialects and are less constrained.
 
 ---
 
 ## Related
 
-- [Omnigent Governance](omnigent-governance.md) — the fuller-featured alternative: same per-harness routing, plus session sharing, sandboxing, and a client-side policy engine
-- [AI Gateway Patterns](ai-gateway-patterns.md) — the governance layer ucode routes through
-
-## References
-
-- [ucode on GitHub](https://github.com/databricks/ucode)
-- [Govern external model providers (model provider services)](https://docs.databricks.com/aws/en/ai-gateway/model-provider-services)
-- [Query model provider services](https://docs.databricks.com/aws/en/ai-gateway/query-model-provider-services)
-- [Coding agent integration with model provider services](https://docs.databricks.com/aws/en/ai-gateway/coding-agent-integration-model-provider-services)
-- [Manage budgets](https://docs.databricks.com/aws/en/ai-gateway/budgets)
+- [omnigent-oss-vs-managed-vs-ucode.md](omnigent-oss-vs-managed-vs-ucode.md) — three-way comparison: when to pick ucode vs Omnigent OSS vs Omnigent managed, with architecture and request/response diagrams
+- [omnigent.md](omnigent.md) — the fuller-featured alternative: same
+  per-harness routing under the hood, plus session sharing, sandboxing,
+  and a client-side policy engine ucode doesn't have
+- [ai-gateway.md](ai-gateway.md) — the governance layer both tools route
+  through

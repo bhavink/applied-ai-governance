@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: auth/peruser-byoidp-federation.md, auth/token-federation.md, auth/obo-passthrough.md, governance/row-filters.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation

@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: apps/proxy-architecture.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth

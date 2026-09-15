@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: auth/oauth-scopes.md
   Public docs grounding:
     - https://docs.databricks.com/api/workspace/api/scopes
@@ -7,7 +7,7 @@
   This file is auto-prepared and human-reviewed before publish.
 -->
 
-# OAuth Scopes — Governance Reference
+# OAuth Scopes — Definitive Reference
 
 > **TL;DR**: Scopes are the **capability ceiling** — they gate which API endpoints a token can call. UC grants are the **actual authorization** — they determine what data within those endpoints the token can access. Both layers are required for true least-privilege access. There are 36 workspace-level and 9 account-level granular scopes, plus a small set of identity and catch-all scopes.
 
@@ -221,14 +221,65 @@ databricks account custom-app-integration update '<integration-id>' \
 
 ## Write-Risk Classification (Blast-Radius Tiers)
 
-Every scope except `query-history` allows mutations. There are no read-only scope variants (e.g., no `sql:read` vs `sql:write`) — the same scope string gates create, update, and delete. This makes scope selection a **blunt instrument** for least-privilege access (LPA) — but still valuable as a second fence beyond UC grants.
+Every scope except `query-history` allows mutations. There are no read-only scope variants (e.g., no `sql:read` vs `sql:write`) — the same scope string gates create, update, and delete. This makes scope selection a **blunt instrument** for least-privilege access (LPA), but still valuable as a second fence beyond UC grants.
 
-| Tier | Scopes | Why they matter |
+### Tier 1 — Critical (infrastructure destruction / data loss)
+
+| Scope | Write risk | Reason |
 |---|---|---|
-| **Tier 1 — Critical** | `unity-catalog`, `sql`, `clusters`, `workspace`, `secrets`, `settings`, `authentication`, `provisioning` | Destructive DDL, arbitrary SQL execution, compute and code control, credential storage, security-posture changes, workspace lifecycle (account-level) |
-| **Tier 2 — High** | `jobs`, `pipelines`, `apps`, `sharing`, `files`, `model-serving`, `scim`, `postgres`, `networking` | Arbitrary code execution via job tasks, data sharing to external recipients, app deployment, identity/group manipulation, Lakebase infrastructure lifecycle |
-| **Tier 3 — Medium** | `mlflow`, `dashboards`, `genie`, `vector-search`, `alerts`, `cleanrooms`, `instance-pools`, `global-init-scripts`, `libraries`, `marketplace`, `tags`, `knowledge-assistants` | Limited blast radius per scope; still capable of resource creation/deletion within its product area |
-| **Tier 4 — Low** | `query-history` (read-only), `access-management`, `identity`, `dataclassification`, `dataquality`, `qualitymonitor`, `notifications`, `billing`, `command-execution` | Read-heavy, or writes constrained to a narrow configuration surface |
+| `unity-catalog` | DROP catalog/schema/table, revoke grants, delete external locations | 121 operations including destructive DDL. A compromised token can drop production tables. |
+| `sql` | Create/delete warehouses, execute arbitrary SQL (INSERT/UPDATE/DELETE/DROP) | Statement Execution API provides full SQL access including data-plane writes. |
+| `clusters` | Create/terminate/delete clusters, edit cluster policies | Compute cost explosion and cluster execution context for data access. |
+| `workspace` | Delete notebooks, import malicious code, manage secrets | Code exfiltration and injection risks. Secrets enable credential theft. |
+| `secrets` | Create/delete secret scopes, put/delete secrets | Direct credential theft and injection vector. |
+| `settings` | Modify security settings, token policies, workspace config | Can weaken security posture such as disabling IP restrictions. |
+| `authentication` | Manage OAuth integrations, federation configs | Can create backdoor OAuth apps or modify token policies. |
+| `provisioning` | Create/delete workspaces, modify storage config | Account-level only. Can destroy entire workspaces. |
+
+### Tier 2 — High (operational disruption / data exposure)
+
+| Scope | Write risk | Reason |
+|---|---|---|
+| `jobs` | Create/run/delete jobs, cancel runs | Can run arbitrary code via job tasks. Enables cost explosion and data access. |
+| `pipelines` | Create/delete pipelines, start/stop runs | Delta Live Table pipeline manipulation and data transformation hijacking. |
+| `apps` | Create/deploy/delete Databricks Apps | Can deploy malicious apps with their own service principals. |
+| `sharing` | Create shares, add/remove recipients, grant external access | Data exfiltration risk through sharing tables to external recipients. |
+| `files` | Upload/delete files, create directories | Can inject malicious files or delete data files. |
+| `model-serving` | Create/delete serving endpoints, update traffic config | Can take down inference endpoints or route traffic to compromised models. |
+| `scim` | Create/delete users, service principals, modify group membership | Identity manipulation enabling privilege escalation. |
+| `postgres` | Create/delete Lakebase projects, branches, computes | Lakebase infrastructure destruction. Database access uses separate OAuth tokens. |
+| `networking` | Create/delete private endpoints, modify network policies | Can open network paths or interrupt connectivity. |
+
+### Tier 3 — Medium (limited blast radius)
+
+| Scope | Write risk |
+|---|---|
+| `mlflow` | Create/delete experiments, runs, registered models |
+| `dashboards` | Create/delete AI/BI dashboards |
+| `genie` | Create/manage Genie spaces |
+| `vector-search` | Create/delete Vector Search indexes and endpoints |
+| `alerts` | Create/delete SQL alerts |
+| `cleanrooms` | Create/delete clean rooms |
+| `instance-pools` | Create/delete instance pools |
+| `global-init-scripts` | Create/delete initialization scripts — code injection risk |
+| `libraries` | Install/uninstall libraries on clusters |
+| `marketplace` | Publish/manage marketplace listings |
+| `tags` | Create/modify/delete tags and tag policies |
+| `knowledge-assistants` | Create/delete Knowledge Assistants |
+
+### Tier 4 — Low (read-heavy, minimal write)
+
+| Scope | Write risk |
+|---|---|
+| `query-history` | Read-only (1 operation: list query history) |
+| `access-management` | Set/update permissions (controlled writes) |
+| `identity` | CRUD on users/service principals (4 operations) |
+| `dataclassification` | Manage classification rules |
+| `dataquality` | Manage quality monitors |
+| `qualitymonitor` | Manage quality monitors |
+| `notifications` | Manage notification destinations |
+| `billing` | Account-level billing configuration (read-heavy) |
+| `command-execution` | Execute commands on clusters (requires cluster access too) |
 
 ### LPA recommendation for AI app service principals
 
@@ -257,28 +308,30 @@ Full least-privilege access needs both layers: granular OAuth scopes (API-level)
 
 ## SQL Identity Functions
 
-These Databricks SQL functions determine identity in row filters, column masks, and RLS policies. Understanding which identity each function resolves is important for correct access control.
+These Databricks SQL functions determine identity in row filters, column masks, and RLS policies. Understanding which identity each function resolves is critical for correct access control.
 
 | Function | Returns | Evaluates | SP behavior | Since |
 |---|---|---|---|---|
 | `session_user()` | Connected user | The user who established the session | SP UUID | Runtime 14.1 (recommended) |
-| `current_user()` | Executing user | The user executing the statement | SP UUID for M2M; human email for OBO | Runtime 10.4 |
+| `current_user()` | Executing user | The user executing the statement | SP UUID | Runtime 10.4 |
 | `user()` | Executing user | Alias for `current_user()` | SP UUID | Runtime 13.3 |
-| `is_member(group)` | Boolean | Whether `session_user` is in a workspace-local or account group assigned to the workspace | SP's groups | All |
-| `is_account_group_member(group)` | Boolean | Whether `session_user` is in an account-level group | SP's groups | UC only |
+| `is_member(group)` | Boolean | Whether session_user is in a workspace-local or account group assigned to the workspace | SP's groups | All |
+| `is_account_group_member(group)` | Boolean | Whether session_user is in an account-level group | SP's groups | UC only |
 
-Since Runtime 14.1, Databricks recommends `session_user()` over `current_user()` or `user()`, since the SQL standard differentiates between the two.
+Since Runtime 14.1, Databricks recommends `session_user()` over `current_user()` or `user()`. The SQL standard differentiates between the two.
 
-**Genie OBO gotcha**: Under Genie OBO, `current_user()` returns the human's email correctly, but `is_member()` checks `session_user`'s groups — which resolves to the Genie service context rather than the human's workspace groups. `is_member('executives')` in a row filter will not reflect the human's actual group membership in this flow.
+### Genie OBO group membership issue
 
-**Recommended pattern**: use `current_user()` with an allowlist table lookup instead of `is_member()` when the policy needs to apply under Genie OBO:
+Under Genie on-behalf-of (OBO) flows, `current_user()` returns the human's email correctly, but `is_member()` checks `session_user`'s groups, which resolves to the Genie service context rather than the human's workspace groups. Using `is_member('executives')` in a row filter will not reflect the human's actual group membership.
+
+**Pattern**: Use `current_user()` with an allowlist table lookup instead of `is_member()` when policies must apply under Genie OBO:
 
 ```sql
 -- Does not reflect the human's group membership under Genie OBO:
 CREATE FUNCTION mask_quota(val DECIMAL) RETURNS DECIMAL
   RETURN IF(is_member('executives'), val, NULL);
 
--- Recommended — resolves the human identity directly:
+-- Correct approach:
 CREATE FUNCTION mask_quota(val DECIMAL) RETURNS DECIMAL
   RETURN IF(current_user() IN (SELECT email FROM quota_viewers), val, NULL);
 ```

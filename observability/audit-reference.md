@@ -1,7 +1,7 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: ai/endpoint-telemetry.md, ai/mlflow-tracing.md, ai/production-monitoring.md
-  Public docs grounding:
+  Public docs grounding: 
     - https://docs.databricks.com/aws/en/admin/account-settings/audit-logs
     - https://docs.databricks.com/aws/en/admin/system-tables/audit-logs
   This file is auto-prepared and human-reviewed before publish.

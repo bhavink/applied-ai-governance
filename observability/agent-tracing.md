@@ -1,10 +1,11 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
-  Sources: ai/mlflow-tracing.md, ai/production-monitoring.md, ai/mlflow-mcp.md, ai/third-party-scorers.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/mlflow3/genai/tracing/
-    - https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/eval-monitor/production-monitoring
+  Synced from databricks-fieldkit on 2026-09-14
+  Sources: ai/mlflow-mcp.md, ai/mlflow-tracing.md, ai/production-monitoring.md, ai/third-party-scorers.md
+  Public docs grounding: 
     - https://mlflow.org/docs/latest/llms/tracing/
+    - https://docs.databricks.com/aws/en/mlflow3/genai/
+    - https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/tracing/mlflow-mcp
+    - https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/eval-monitor/third-party-scorers/
   This file is auto-prepared and human-reviewed before publish.
 -->
 

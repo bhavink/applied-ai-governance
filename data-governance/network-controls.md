@@ -1,7 +1,7 @@
 <!--
-  Synced from databricks-fieldkit on 2026-08-17
-  Sources: governance/context-based-ingress.md, apps/_azure/context-based-policies.md
-  Public docs grounding:
+  Synced from databricks-fieldkit on 2026-09-14
+  Sources: apps/_azure/context-based-policies.md, governance/context-based-ingress.md
+  Public docs grounding: 
     - https://docs.databricks.com/aws/en/security/network/front-end/context-based-ingress
     - https://docs.databricks.com/aws/en/security/network/front-end/manage-ingress-policies
     - https://learn.microsoft.com/en-us/azure/databricks/security/network/

@@ -1,104 +1,73 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: ai/prompt-registry.md
-  Public docs grounding: https://docs.databricks.com/aws/en/mlflow3/genai/prompt-version-mgmt/prompt-registry/
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/mlflow3/genai/prompt-version-mgmt/prompt-registry/
   This file is auto-prepared and human-reviewed before publish.
 -->
 
-# Prompt Registry — Governed Prompt Versioning
+# MLflow Prompt Registry
 
-> **TL;DR**: The MLflow Prompt Registry stores versioned prompt templates as **Unity Catalog functions**. Prompts are immutable per version (edit creates a new version), referenced by `catalog.schema.prompt_name@version`, and inherit the UC governance model — privileges, lineage, audit. Treat prompts the way you treat models: name them deterministically, version every change, grant by group, and tag with author and intent.
+> **Cloud**: Agnostic
+> **Status**: Beta (workspace admin preview toggle)
+> **Last verified**: 2026-03-18
 
 ---
 
-## Why Prompts Are a Governance Surface
+## TL;DR
 
-A production prompt is part of the agent's behavior. A change to "you are a helpful assistant" can flip safety posture, change tool selection, or shift the answer distribution. Versioning and access control make prompt changes detected, attributed, and reversible.
+The MLflow Prompt Registry stores versioned prompt templates in **Unity Catalog** (as UC functions). Prompts use `{{variable}}` syntax, are immutable per version (edit = new version), and can be loaded at runtime by name + version. Stored in UC means they get governance (permissions, lineage, audit) for free. Part of MLflow 3.1+.
 
-The Prompt Registry treats a prompt as a UC object so that:
+---
 
-| Question | Answer source |
+## When to use
+
+| Scenario | Use Prompt Registry |
 |---|---|
-| Who can read this prompt? | UC `EXECUTE` privilege on the function |
-| Who can edit (create new versions)? | UC `MANAGE` and `CREATE FUNCTION` privileges |
-| Which prompt version produced this output? | MLflow trace lineage |
-| When was this prompt last changed and by whom? | UC audit logs |
-| What changed between v3 and v4? | Registry version comparison + commit message |
-
----
-
-## Prompt Formats — Text and Chat
-
-The registry supports two template formats. Choose based on how the prompt will be used:
-
-| Format | Structure | Use when |
-|---|---|---|
-| **Text** | Single string template with `{{variable}}` placeholders | System prompts, document summarization, single-turn completions |
-| **Chat** | List of role-based messages (`system`, `user`, `assistant`) with `{{variable}}` placeholders | Multi-turn conversation starters, few-shot examples, chat model fine-tuning |
-
-**Text format** (single template):
-
-```python
-template = "Summarize the following in {{num_sentences}} sentences.\n\nContent: {{content}}"
-
-mlflow.genai.register_prompt(name="main.prompts.summarize", template=template)
-```
-
-**Chat format** (role-based messages):
-
-```python
-template = [
-    {"role": "system", "content": "You are a concise summarizer. Respond in {{num_sentences}} sentences."},
-    {"role": "user", "content": "Summarize this: {{content}}"},
-]
-
-mlflow.genai.register_prompt(name="main.prompts.summarize-chat", template=template)
-```
-
-### Prompt name constraints
-
-Prompt names (the final segment of `catalog.schema.prompt_name`) must contain only:
-- Letters (a-z, A-Z)
-- Numbers (0-9)
-- Hyphens (`-`)
-- Underscores (`_`)
-- Dots (`.`)
-
-No spaces, slashes, or special characters. Dots within the name segment are allowed for sub-grouping (e.g., `appeals.triage-v2`), but do not add catalog/schema hierarchy — those are separate name segments.
-
-## Mental Model
-
-```
-Author                       Unity Catalog                 Agent / App
-   │                              │                            │
-   │ register_prompt(template) ──>│  function: catalog.schema  │
-   │                              │  version 1 (immutable)     │
-   │                              │                            │
-   │                              │<── load_prompt(name, v=1) ─│
-   │                              │  template returned         │
-   │                              │                            │
-   │ register_prompt(updated) ───>│  version 2 (v1 intact)     │
-   │                              │                            │
-```
-
-- **Storage**: each prompt is a UC function in `catalog.schema.prompt_name`
-- **Versioning**: immutable — every edit produces a new version, prior versions remain queryable
-- **Variables**: double-brace syntax (`{{variable_name}}`) — applies to both Text and Chat formats
-- **Experiment binding**: set the experiment tag `mlflow.promptRegistryLocation` to `catalog.schema` so the experiment knows where its prompts live
+| Multiple agents/apps share the same prompt | Yes -- single source of truth |
+| You need prompt versioning with rollback | Yes -- immutable versions, Git-like history |
+| Prompt changes should be auditable | Yes -- UC lineage tracks who changed what |
+| Different teams own different prompts | Yes -- UC permissions per schema |
+| One-off prompt in a single notebook | Optional -- can still be useful for tracing lineage |
+| Prompts managed in source control (IaC) | Consider -- registry complements git, doesn't replace it |
 
 ---
 
 ## Prerequisites
 
-- MLflow 3.1+ (`pip install --upgrade "mlflow[databricks]>=3.1.0"`)
-- UC schema with `CREATE FUNCTION`, `EXECUTE`, and `MANAGE` privileges on the registering identity
-- MLflow experiment linked to the Databricks tracking server
+- MLflow >= 3.1.0 (`pip install --upgrade "mlflow[databricks]>=3.1.0"`)
+- UC schema with `CREATE FUNCTION`, `EXECUTE`, and `MANAGE` privileges
+- MLflow experiment linked to tracking server (`mlflow.set_tracking_uri("databricks")`)
 
 ---
 
-## Core Operations
+## How it works
 
-### Bind the experiment to a UC schema
+```
+Developer                    Unity Catalog                   Agent/App
+    |                             |                              |
+    |-- register_prompt() ------->|  stored as UC function       |
+    |   (template + variables)    |  (catalog.schema.prompt)     |
+    |                             |                              |
+    |                             |<----- load_prompt() ---------|
+    |                             |  returns template v=N        |
+    |                             |                              |
+    |-- register_prompt() ------->|  creates version N+1         |
+    |   (updated template)        |  (previous versions intact)  |
+```
+
+- **Storage**: Each prompt is a UC function in `catalog.schema.prompt_name`
+- **Versioning**: Immutable -- editing creates a new version, old versions remain
+- **Variables**: Double-brace syntax `{{variable_name}}`
+- **Linking**: Tag experiment with `mlflow.promptRegistryLocation` = `catalog.schema`
+
+Two prompt formats supported: **Text** (single template string) and **Chat** (list of role-based messages for conversational models targeting chat-style LLMs).
+
+---
+
+## Quickstart
+
+### 1. Link experiment to UC schema
 
 ```python
 import mlflow
@@ -106,13 +75,16 @@ import mlflow
 mlflow.set_tracking_uri("databricks")
 mlflow.set_experiment("/Shared/my-experiment")
 mlflow.set_experiment_tags({
-    "mlflow.promptRegistryLocation": "main.prompts"
+    "mlflow.promptRegistryLocation": "main.default"
 })
 ```
 
-### Register a prompt
+### 2. Register a prompt
 
 ```python
+uc_schema = "main.default"
+prompt_name = "summarization_prompt"
+
 template = """\
 Summarize the following content in {{num_sentences}} sentences.
 
@@ -120,35 +92,35 @@ Content: {{content}}
 """
 
 prompt = mlflow.genai.register_prompt(
-    name="main.prompts.summarization",
+    name=f"{uc_schema}.{prompt_name}",
     template=template,
     commit_message="Initial version",
     tags={
-        "author":  "platform-team",
-        "task":    "summarization",
-        "intent":  "general-purpose document summarizer",
+        "author": "data-science-team@company.com",
+        "task": "summarization",
     },
 )
+print(f"Created '{prompt.name}' v{prompt.version}")
 ```
 
-### Load a specific version
+### 3. Load and use in an app
 
 ```python
+# Load specific version
 prompt = mlflow.genai.load_prompt(
-    name_or_uri="prompts:/main.prompts.summarization/1"
+    name_or_uri=f"prompts:/{uc_schema}.{prompt_name}/1"
 )
 
-# Or with explicit version
+# Or without URI syntax
 prompt = mlflow.genai.load_prompt(
-    name_or_uri="main.prompts.summarization", version="1"
+    name_or_uri=f"{uc_schema}.{prompt_name}", version="1"
 )
 
-formatted = prompt.format(content="...", num_sentences=3)
+# Format with variables
+formatted = prompt.format(content="Some text here", num_sentences=3)
 ```
 
-### Use a registered prompt when calling a model
-
-A registered prompt formats the same way regardless of which model serves the request. Point `mlflow.trace` at the call so the trace records which prompt version produced the output:
+### 4. Use with Databricks-hosted LLM
 
 ```python
 from databricks_openai import DatabricksOpenAI
@@ -173,7 +145,7 @@ def summarize(content: str, num_sentences: int):
     return response.choices[0].message.content
 ```
 
-The same registered prompt and tracing pattern works against any OpenAI-compatible client, which keeps prompt governance consistent even when a team calls out to a different model provider for a specific workload:
+#### Also works with OpenAI-hosted LLMs
 
 ```python
 import openai, mlflow
@@ -196,103 +168,91 @@ def summarize(content: str, num_sentences: int):
     return response.choices[0].message.content
 ```
 
-### Create a new version (edit)
+### 5. Create a new version (edit)
 
 ```python
-mlflow.genai.register_prompt(
-    name="main.prompts.summarization",
+new_template = """\
+You are an expert summarizer. Condense the following into exactly {{num_sentences}} sentences.
+
+Content: {{content}}
+
+Requirements:
+- Exactly {{num_sentences}} sentences
+- Only the most important information
+- Neutral, objective tone
+"""
+
+updated = mlflow.genai.register_prompt(
+    name=f"{uc_schema}.{prompt_name}",
     template=new_template,
-    commit_message="Added neutrality requirement",
+    commit_message="Added quality guidelines",
 )
+print(f"Created v{updated.version}")
 ```
 
-### Search prompts
+### 6. Search prompts
 
 ```python
+# REQUIRED: catalog AND schema must both be specified for UC
+results = mlflow.genai.search_prompts("catalog = 'main' AND schema = 'default'")
+
+# Using variables
+catalog_name = uc_schema.split('.')[0]
+schema_name = uc_schema.split('.')[1]
 results = mlflow.genai.search_prompts(
-    "catalog = 'main' AND schema = 'prompts'"
+    f"catalog = '{catalog_name}' AND schema = '{schema_name}'"
+)
+
+# Limit results
+results = mlflow.genai.search_prompts(
+    filter_string=f"catalog = '{catalog_name}' AND schema = '{schema_name}'",
+    max_results=50
 )
 ```
 
-Specify both `catalog` and `schema` in the filter string — the search API requires both to scope results in Unity Catalog.
+---
+
+## UI workflow
+
+1. Navigate to MLflow experiment > **Prompts** tab
+2. Click **New Prompt** > select UC schema > name the prompt
+3. Click **Create new version** > type template with `{{variables}}` > **Save**
+4. Compare versions: click prompt name > **Compare** > select versions
 
 ---
 
-## UI Workflow
+## Governance
 
-The registry is also usable directly from the MLflow experiment UI, without writing registration code:
-
-1. Navigate to the MLflow experiment's **Prompts** tab
-2. Click **New Prompt**, select the target UC schema, and name the prompt
-3. Click **Create new version**, enter the template with `{{variables}}`, and **Save**
-4. Compare versions by opening the prompt and selecting **Compare** across two version numbers
-
----
-
-## Governance Levers
-
-| Aspect | Control |
+| Aspect | How it works |
 |---|---|
-| **Access control** | UC privileges on the schema. `EXECUTE` to load, `CREATE FUNCTION` + `MANAGE` to register or update |
-| **Versioning** | Immutable per version — every change is a new version, history retained |
-| **Lineage** | MLflow Tracing records the prompt version used in each LLM call |
-| **Audit** | UC audit logs capture who registered or loaded which version |
-| **Tagging** | Custom tags per version (author, intent, compatible models, review status) |
-
-### Recommended schema layout
-
-```
-main.prompts        ← shared, broadly readable
-team_a.prompts      ← team-owned, restricted to team_a group
-team_b.prompts      ← team-owned, restricted to team_b group
-sandbox.prompts     ← author-only schemas for experimentation
-```
-
-Grant `EXECUTE` on shared schemas to the agent service principals that need to load prompts at runtime. Reserve `CREATE FUNCTION` and `MANAGE` to a small platform or review group.
+| **Access control** | UC privileges on the schema (`CREATE FUNCTION`, `EXECUTE`, `MANAGE`) |
+| **Versioning** | Immutable versions -- full history, safe rollback |
+| **Lineage** | MLflow traces link prompt version to model output |
+| **Audit** | UC audit logs track who registered/loaded which version |
+| **Tagging** | Custom tags per version (author, use_case, model_compatibility) |
 
 ---
 
-## Patterns to Apply
+## Gotchas
 
-| When building... | Configure... |
+| Issue | Detail |
 |---|---|
-| A production agent | Pin to a specific prompt version (`prompts:/.../<n>`); never load `latest` in production |
-| A multi-tenant agent platform | Per-tenant or per-team prompt schemas with group grants |
-| Prompt review process | Register new versions in a `staging.prompts` schema; promote by re-registering in `prod.prompts` after review |
-| Audit "what produced this output" | Enable MLflow Tracing — every LLM call records the prompt URI |
-| Rollback after a bad change | Pin the agent to the previous version URI; do not edit history |
-| Source control + registry coexistence | Keep prompt YAML in git as source of truth; CI registers each merge to UC |
-
----
-
-## Patterns to Avoid
-
-| Pattern | Better approach |
-|---|---|
-| Loading `latest` in production agents | Pin to an explicit version URI; promote deliberately |
-| Inline prompt strings scattered across services | Single registered prompt + load by name |
-| Editing a prompt template in place | Register a new version; immutability is the audit guarantee |
-| Single brace variable syntax `{var}` | Double brace `{{var}}` — required by the registry's templating (both Text and Chat formats) |
-| Spaces or special characters in prompt names | Only letters, numbers, hyphens, underscores, and dots are allowed |
-| Filtering search by `catalog` alone | Include both `catalog` and `schema` in the filter string |
-| Granting `MANAGE` broadly | Reserve `MANAGE` to a small review group; broad `EXECUTE` is usually fine |
-| Storing prompts in app config without versioning | Move to the registry — version, audit, and lineage come for free |
+| **UC schema permissions** | Need `CREATE FUNCTION` + `EXECUTE` + `MANAGE` on the schema -- not just `USE SCHEMA` |
+| **Experiment must be linked** | Set `mlflow.promptRegistryLocation` tag before registering prompts |
+| **Versions are immutable** | Cannot edit in place -- must create new version |
+| **Variable syntax** | Double braces `{{var}}` -- single braces `{var}` won't work |
+| **Name format** | Must be fully qualified: `catalog.schema.prompt_name` |
+| **Search filter format** | Must specify both `catalog` and `schema`: `"catalog = 'x' AND schema = 'y'"` — not just catalog |
+| **Prompt name constraints** | Names can only contain letters, numbers, hyphens, underscores, and dots — no spaces or special chars |
 
 ---
 
 ## Related
 
-- [`agent-governance.md`](agent-governance.md) — Agents that load prompts at runtime
-- [`../observability/agent-tracing.md`](../observability/agent-tracing.md) — Tracing captures prompt version per call
-- [`../data-governance/uc-governance.md`](../data-governance/uc-governance.md) — UC privilege model that backs the registry
-
----
-
-## Public References
-
-- [Prompt Registry overview](https://docs.databricks.com/aws/en/mlflow3/genai/prompt-version-mgmt/prompt-registry/)
-- [Create and edit prompts](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/create-and-edit-prompts)
-- [Evaluate prompt versions](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/evaluate-prompts)
-- [Track prompts with app versions](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/track-prompts-app-versions)
-- [Use prompts in deployed apps](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/use-prompts-in-deployed-apps)
-- [MLflow `genai` API reference](https://mlflow.org/docs/latest/python_api/mlflow.genai.html)
+- [`agent-framework.md`](agent-framework.md) -- Agent SDK and LangGraph (uses prompts in agents)
+- [`mlflow-tracing.md`](mlflow-tracing.md) -- Tracing captures prompt version lineage
+- [`production-monitoring.md`](production-monitoring.md) -- Monitor prompt quality in production
+- [`../governance/unity-catalog.md`](../governance/unity-catalog.md) -- UC privileges and governance
+- [Evaluate prompt versions](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/evaluate-prompts) -- Compare prompt versions to find the best performer
+- [Track prompts with app versions](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/track-prompts-app-versions) -- Link prompt versions to app versions for full lineage
+- [Use prompts in deployed apps](https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/prompt-version-mgmt/prompt-registry/use-prompts-in-deployed-apps) -- Deploy with aliases for stable references

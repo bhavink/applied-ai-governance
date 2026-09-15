@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: auth/_azure/entra-oauth.md, auth/_okta/token-federation.md, auth/gcp-wif-databricks.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation

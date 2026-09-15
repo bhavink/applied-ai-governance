@@ -1,7 +1,7 @@
 <!--
-  Synced from databricks-fieldkit on 2026-08-17
-  Sources: governance/unity-catalog.md, governance/abac.md, governance/row-filters.md, governance/column-masks.md, governance/governed-tags.md, governance/data-classification.md, governance/best-practices.md, governance/metastore-management.md, governance/business-semantics.md
-  Public docs grounding:
+  Synced from databricks-fieldkit on 2026-09-14
+  Sources: governance/abac.md, governance/best-practices.md, governance/business-semantics.md, governance/column-masks.md, governance/data-classification.md, governance/governed-tags.md, governance/metastore-management.md, governance/row-filters.md, governance/unity-catalog.md
+  Public docs grounding: 
     - https://docs.databricks.com/aws/en/data-governance/unity-catalog/
     - https://docs.databricks.com/aws/en/business-semantics/
   This file is auto-prepared and human-reviewed before publish.

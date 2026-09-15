@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: apps/teams-agentbricks-obo.md, apps/powerbi-agentbricks-obo.md, auth/peruser-byoidp-federation.md, auth/token-federation.md, auth/obo-passthrough.md
   Public docs grounding:
     - https://learn.microsoft.com/en-us/azure/databricks/generative-ai/agent-framework/teams-agent
@@ -76,16 +76,16 @@ sequenceDiagram
     participant Bot as Azure Bot Service
     participant Entra as Entra ID
     participant DBX as Databricks /oidc/v1/token
-    participant AB as Agent Bricks Supervisor as Genie sub-agent
+    participant Genie as Genie Conversation API
 
     User->>Bot: Message in Teams -> sign-in card
     Bot->>Entra: OAuth connection (access_as_user scope)
     Entra-->>Bot: Entra access token (JWT)
     Bot->>DBX: token-exchange (RFC 8693), subject_token = Entra JWT, scope=all-apis
     DBX-->>Bot: Databricks OAuth token (= the user)
-    Bot->>AB: WorkspaceClient(token=oauth_db_token)
-    Note over AB: OBO forwarded automatically to Genie, current_user() = the human
-    AB-->>Bot: Scoped answer
+    Bot->>Genie: Call Genie Conversation API with per-user token
+    Note over Genie: Queries run as the human, current_user() resolves per caller
+    Genie-->>Bot: Scoped answer
     Bot-->>User: Response in Teams
 ```
 
@@ -105,16 +105,17 @@ oauth_db_token = response.json()["access_token"]
 workspace_client = WorkspaceClient(host=databricks_host, token=oauth_db_token)
 ```
 
+After obtaining the per-user token, you can call the Genie Conversation API directly with the token, or use a Model Serving agent (such as Agent Bricks) that automatically forwards the OBO token. Both approaches carry the same per-user identity into Databricks.
+
 This is the same account-wide RFC 8693 exchange as [Per-User BYO-IdP Federation](byoidp-peruser-federation.md). Teams/Azure Bot Service is a new front-end for a pattern already documented here, using the same mechanism.
 
 **Setup, condensed** (full steps: [Connect an AI agent to Microsoft Teams](https://learn.microsoft.com/en-us/azure/databricks/generative-ai/agent-framework/teams-agent)):
 
-1. Deploy an Agent Bricks Supervisor (or any Model Serving agent) with a Genie sub-agent.
-2. Create Azure resources: resource group, App Service Plan, Web App, **Azure Bot** (Single Tenant).
-3. Configure the Bot's Entra app: redirect URI `https://token.botframework.com/.auth/web/redirect`, optional claim `preferred_username`, exposed scope `access_as_user`, Graph delegated permissions `email`/`openid`/`profile`, `requestedAccessTokenVersion: 2`.
-4. Add an OAuth Connection on the Azure Bot (Azure Active Directory v2, scope `api://<app_id>/access_as_user`).
-5. Create a Databricks OAuth federation policy (issuer, audience = the Entra app ID, subject claim `preferred_username`).
-6. Deploy the bot code with `DATABRICKS_HOST`, `SERVING_ENDPOINT_NAME`, and Microsoft App credentials as env vars.
+1. Create Azure resources: resource group, App Service Plan, Web App, **Azure Bot** (Single Tenant).
+2. Configure the Bot's Entra app: redirect URI `https://token.botframework.com/.auth/web/redirect`, optional claim `preferred_username`, exposed scope `access_as_user`, Graph delegated permissions `email`/`openid`/`profile`, `requestedAccessTokenVersion: 2`.
+3. Add an OAuth Connection on the Azure Bot (Azure Active Directory v2, scope `api://<app_id>/access_as_user`).
+4. Create a Databricks OAuth federation policy (issuer, audience = the Entra app ID, subject claim `preferred_username`).
+5. Deploy the bot code with `DATABRICKS_HOST`, Genie workspace URL or serving endpoint name, and Microsoft App credentials as env vars.
 
 ---
 

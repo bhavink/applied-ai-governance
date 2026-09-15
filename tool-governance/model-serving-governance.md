@@ -1,290 +1,679 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-28
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: ai/model-serving.md, ai/endpoint-telemetry.md
-  Public docs grounding: https://docs.databricks.com/aws/en/machine-learning/model-serving/
+  Public docs grounding:
+    - https://docs.databricks.com/aws/en/machine-learning/model-serving/
   This file is auto-prepared and human-reviewed before publish.
 -->
 
-# Model Serving Governance
+# Model Serving — Endpoints, FMAPI, and Deployment
 
-> **TL;DR**: Model Serving endpoints are first-class governance objects. Each endpoint has UC-style permissions (`CAN_QUERY`, `CAN_MANAGE`, `IS_OWNER`), runs under a service principal that determines its data plane authority, can identity-pass to the caller via OBO, and can persist every request and response to UC Delta inference tables — plus structured logs, traces, and metrics for custom and agent endpoints. Treat endpoints the way you treat catalogs and tables: name them deterministically, grant by group, audit every call.
-
----
-
-## Endpoint Surfaces and Their Governance Levers
-
-| Surface | What runs | Primary governance levers |
-|---|---|---|
-| **Foundation Model API (FMAPI)** | Databricks-managed LLMs (Llama, DBRX, Mixtral, embedding models) | Account-level enablement; AI Gateway on the endpoint for rate limits and guardrails; usage audited via `system.serving.endpoint_usage` |
-| **Provisioned Throughput** | Reserved capacity FMAPI endpoint | Same as FMAPI + per-endpoint capacity contract |
-| **Custom Model** | Your registered MLflow model | Endpoint permissions, attached SP, inference tables, endpoint telemetry |
-| **Agent endpoint** | An MLflow agent (deployed via `agents.deploy()`) | Endpoint permissions + identity propagation (`ModelServingUserCredentials`) + endpoint telemetry |
-| **External Model** | Proxy to OpenAI, Anthropic, Bedrock, Vertex, etc. | Centralized auth, unified audit, AI Gateway controls in front of provider keys |
-
-Endpoint telemetry (OTel logs/traces/metrics to UC) is available on custom model and agent serving endpoints. FMAPI endpoints rely on `system.serving.endpoint_usage` for usage auditing instead — see Audit Surfaces below.
-
-All five surfaces share the governance primitives below.
+> **TL;DR**: Model Serving hosts ML models, agents, and Foundation Models behind a REST endpoint. FMAPI gives zero-config access to Databricks-hosted LLMs. For custom models: register in UC, create endpoint, query via REST or SDK. Pay-per-token (serverless) vs provisioned throughput.
 
 ---
 
-## Permission Model
+## When to Use What
 
-Endpoints have three permission levels, granted to users, groups, or service principals:
-
-| Level | Capabilities |
+| Use Case | Approach |
 |---|---|
-| `CAN_VIEW` | See the endpoint exists and read its config |
-| `CAN_QUERY` | Invoke the endpoint |
-| `CAN_MANAGE` | Update config, change traffic splits, attach inference tables, delete |
-| `IS_OWNER` | Full control plus permission management |
-
-**Pattern**: grant `CAN_QUERY` to functional groups (e.g., `agents-readers`), `CAN_MANAGE` to a small platform team, and never assign `CAN_QUERY` to `all_users` for production endpoints.
+| Call a top LLM (Llama, DBRX, Mixtral) | Foundation Model API (FMAPI) — no setup |
+| Deploy your own fine-tuned model | Register in UC → Create serving endpoint |
+| Deploy an MLflow agent | `log_model()` → register → endpoint |
+| A/B test two model versions | Multi-entity endpoint with traffic splits |
+| Guaranteed throughput / latency SLA | Provisioned Throughput endpoint |
+| Embed text for vector search | FMAPI embedding models (e.g., gte-large-en) |
+| Serve custom non-Python model | External Model endpoint (Azure OpenAI, Bedrock, etc.) |
 
 ---
 
-## Identity Propagation
+## Foundation Model API (FMAPI)
 
-An endpoint runs under a service principal that determines what data the endpoint code can read. Two patterns:
+Zero-configuration access to Databricks-managed models. No endpoint to create — just use the model name.
 
-### Pattern A — endpoint SP only (M2M)
+### Available Models
 
-The endpoint's attached SP is the only identity in the data plane. Every caller's UC reads happen as the SP. Use when the endpoint serves shared, non-personalized data (e.g., a recommendation model with public catalogs).
+```python
+# Chat models
+"databricks-meta-llama-3-3-70b-instruct"
+"databricks-meta-llama-3-1-70b-instruct"
+"databricks-meta-llama-3-1-405b-instruct"
+"databricks-dbrx-instruct"
+"databricks-mixtral-8x7b-instruct"
 
-### Pattern B — caller identity passthrough (OBO via `ModelServingUserCredentials`)
+# Embedding models (for vector search, RAG)
+"databricks-gte-large-en"
+"databricks-bge-large-en"
 
-When the endpoint is an agent, the agent code can call back into Databricks using the *caller's* identity rather than the endpoint SP's:
+# Code models
+"databricks-meta-llama-3-1-70b-instruct"   # also handles code
+```
+
+### Query via Python SDK
 
 ```python
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.credentials_provider import ModelServingUserCredentials
 
-w = WorkspaceClient(credentials_strategy=ModelServingUserCredentials())
-# Genie, Vector Search, UC Function calls now run as the caller, not the endpoint SP.
+w = WorkspaceClient()
+
+# Chat completion
+response = w.serving_endpoints.query(
+    name="databricks-meta-llama-3-3-70b-instruct",
+    messages=[
+        {"role": "system", "content": "You are a helpful sales assistant."},
+        {"role": "user", "content": "Summarize this deal in 2 sentences."}
+    ],
+    max_tokens=256,
+    temperature=0.0,        # deterministic
+)
+print(response.choices[0].message.content)
+
+# With streaming
+for chunk in w.serving_endpoints.stream(
+    name="databricks-meta-llama-3-3-70b-instruct",
+    messages=[{"role": "user", "content": "Tell me about Databricks"}],
+):
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="", flush=True)
 ```
 
-Combined with UC row filters and column masks, this means each end user sees only the data they would see if they queried directly. The endpoint SP becomes the *capability ceiling*; UC grants on the caller become the *actual authorization*.
+### Query via OpenAI SDK (Compatible API)
 
-> **Use Pattern B for any agent** that surfaces personalized data. Pattern A is correct for shared/public knowledge agents.
+```python
+import os
+from openai import OpenAI
+from databricks.sdk import WorkspaceClient
+
+w = WorkspaceClient()
+token = w.config.token
+
+client = OpenAI(
+    api_key=token,
+    base_url=f"{w.config.host}/serving-endpoints",
+)
+
+response = client.chat.completions.create(
+    model="databricks-meta-llama-3-3-70b-instruct",
+    messages=[{"role": "user", "content": "What is Unity Catalog?"}],
+    max_tokens=300,
+)
+print(response.choices[0].message.content)
+```
+
+### Query via REST
+
+```bash
+curl -X POST "${DATABRICKS_HOST}/serving-endpoints/databricks-meta-llama-3-3-70b-instruct/invocations" \
+  -H "Authorization: Bearer ${DATABRICKS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "Hello"}],
+    "max_tokens": 100
+  }'
+```
+
+### Embeddings
+
+```python
+# Via SDK
+response = w.serving_endpoints.query(
+    name="databricks-gte-large-en",
+    input=["Databricks is a data platform", "Unity Catalog governs data"],
+)
+embeddings = [item.embedding for item in response.data]
+print(f"Dimension: {len(embeddings[0])}")   # 1024 for gte-large-en
+
+# Via OpenAI SDK
+emb = client.embeddings.create(
+    model="databricks-gte-large-en",
+    input="Text to embed",
+)
+vector = emb.data[0].embedding
+```
 
 ---
 
-## Traffic Splitting as a Governance Lever
+## Custom Model Endpoints
 
-Multi-entity endpoints with traffic configuration are not just for A/B experiments — they are how you do **canary releases** and **safe model upgrades** under governance.
+### Step 1: Log and Register Model
 
+```python
+import mlflow
+from databricks.sdk import WorkspaceClient
+
+# Log a custom PyFunc model
+with mlflow.start_run():
+    model_info = mlflow.pyfunc.log_model(
+        artifact_path="model",
+        python_model=MyModel(),        # must implement predict(context, model_input)
+        pip_requirements=["scikit-learn==1.5.0"],
+        registered_model_name="main.models.my_classifier",
+        input_example={"inputs": ["sample text"]},
+    )
+
+# Or log an MLflow flavor directly
+with mlflow.start_run():
+    mlflow.sklearn.log_model(
+        sk_model=trained_model,
+        artifact_path="model",
+        registered_model_name="main.models.churn_predictor",
+    )
 ```
-Endpoint: prod-claims-classifier
-  ├── version-7 (90% traffic)   ← stable, audited
-  └── version-8 (10% traffic)   ← new model under canary
+
+### Step 2: Create Serving Endpoint
+
+```python
+from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.serving import (
+    ServedEntityInput,
+    EndpointCoreConfigInput,
+    AutoCaptureConfigInput,
+)
+
+w = WorkspaceClient()
+
+# Create endpoint with single entity
+endpoint = w.serving_endpoints.create_and_wait(
+    name="my-model-endpoint",
+    config=EndpointCoreConfigInput(
+        served_entities=[
+            ServedEntityInput(
+                entity_name="main.models.my_classifier",
+                entity_version="1",
+                workload_size="Small",          # Small | Medium | Large
+                scale_to_zero_enabled=True,
+                environment_vars={
+                    "MY_CONFIG": "production",
+                },
+            )
+        ],
+        auto_capture_config=AutoCaptureConfigInput(
+            catalog_name="main",
+            schema_name="inference_logs",
+            table_name_prefix="my_classifier",
+            enabled=True,                       # log all requests/responses
+        ),
+    ),
+)
+print(endpoint.state.ready)
 ```
 
-Pair traffic splits with inference tables: every request is logged with the `served_entity_id` of which version handled it. After a week of canary, query the table to confirm parity in error rate, latency, and (with scorers) output quality before flipping to 100%.
+### Step 3: Query Custom Endpoint
 
-For multi-version endpoints behind AI Gateway, fallback routing handles 429 and 5XX transparently — a backup entity can serve fallback traffic when the primary errors.
+```python
+# Query custom endpoint (same API as FMAPI)
+result = w.serving_endpoints.query(
+    name="my-model-endpoint",
+    inputs=[{"feature_1": 0.5, "feature_2": "text", "feature_3": 42}],  # for tabular models
+)
+print(result.predictions)
+
+# Or for chat-format models
+result = w.serving_endpoints.query(
+    name="my-agent-endpoint",
+    messages=[{"role": "user", "content": "analyze this deal"}],
+)
+```
 
 ---
 
-## Inference Tables — Audit Logging
+## A/B Testing with Traffic Splits
 
-Every endpoint can auto-capture requests and responses to a UC Delta table.
+```python
+from databricks.sdk.service.serving import TrafficConfig, Route
+
+w.serving_endpoints.update_config_and_wait(
+    name="my-model-endpoint",
+    served_entities=[
+        ServedEntityInput(
+            entity_name="main.models.my_classifier",
+            entity_version="1",
+            name="version-1",         # logical name for routing
+            workload_size="Small",
+        ),
+        ServedEntityInput(
+            entity_name="main.models.my_classifier",
+            entity_version="2",
+            name="version-2",
+            workload_size="Small",
+        ),
+    ],
+    traffic_config=TrafficConfig(
+        routes=[
+            Route(served_model_name="version-1", traffic_percentage=80),
+            Route(served_model_name="version-2", traffic_percentage=20),
+        ]
+    ),
+)
+```
+
+---
+
+## Provisioned Throughput
+
+For guaranteed tokens/second (no cold starts, SLA-backed):
+
+```python
+from databricks.sdk.service.serving import (
+    ServedEntityInput,
+    ServedModelInput,
+    AiGatewayConfig,
+    AiGatewayRateLimits,
+    AiGatewayRateLimitKey,
+    AiGatewayRateLimitRenewalPeriod,
+)
+
+w.serving_endpoints.create_and_wait(
+    name="llama-provisioned",
+    config=EndpointCoreConfigInput(
+        served_entities=[
+            ServedEntityInput(
+                entity_name="system.ai.meta_llama_3_3_70b_instruct",
+                min_provisioned_throughput=100,   # min tokens/sec
+                max_provisioned_throughput=500,   # max tokens/sec
+            )
+        ]
+    ),
+)
+```
+
+**When to use**: High-volume production (>10 req/s), latency SLA, regulated environments.
+
+---
+
+## External Model Endpoints (Proxy to Other APIs)
+
+```python
+from databricks.sdk.service.serving import (
+    ExternalModel,
+    ExternalModelProvider,
+    OpenAiConfig,
+)
+
+# Proxy Azure OpenAI through Databricks (unified auth, audit logs)
+w.serving_endpoints.create_and_wait(
+    name="azure-gpt4o",
+    config=EndpointCoreConfigInput(
+        served_entities=[
+            ServedEntityInput(
+                external_model=ExternalModel(
+                    provider=ExternalModelProvider.OPENAI,
+                    name="gpt-4o",
+                    openai_config=OpenAiConfig(
+                        openai_api_type="azure",
+                        openai_api_base="https://your-resource.openai.azure.com",
+                        openai_api_version="2024-02-01",
+                        openai_deployment_name="gpt-4o-deployment",
+                        openai_api_key_plaintext="your-key",   # or use secret()
+                    ),
+                )
+            )
+        ]
+    ),
+)
+```
+
+---
+
+## AI Gateway (Rate Limiting, Guardrails, Routing)
+
+> **Moved to dedicated file**: See [`ai/ai-gateway.md`](ai-gateway.md) for full coverage including Beta vs GA paths, Python SDK, REST API, Terraform, guardrails, fallbacks, system tables, external model providers, and coding agent integration.
+
+---
+
+## Inference Tables (Request Logging)
+
+Automatically log all requests/responses to a Delta table:
 
 ```yaml
+# In endpoint config
 auto_capture_config:
   catalog_name: main
   schema_name: inference_logs
-  table_name_prefix: claims_classifier
+  table_name_prefix: my_endpoint
   enabled: true
 ```
 
-Schema highlights:
-
-| Column | Captures |
-|---|---|
-| `databricks_request_id` | Server-side request identifier |
-| `request_time`, `execution_duration_ms` | Latency |
-| `status_code` | HTTP status |
-| `request`, `response` | Full payloads (within size limits) |
-| `served_entity_id` | Which endpoint version handled the request |
-| `requester` | User or SP that called the endpoint |
-
-**Governance uses**:
-- Compliance: every model decision tied to an identity and a model version
-- Drift detection: compare input distributions over time
-- Quality monitoring: score logged responses with MLflow scorers
-- Incident response: replay traffic to a problem version
-
-> **Treat inference tables as immutable audit logs.** Do not alter the schema, rename, or delete them after creation. Capture limits: 1 MiB per request/response on the serving endpoint path, up to ~1 hour delivery latency.
+```sql
+-- Logged to: main.inference_logs.my_endpoint_payload
+SELECT
+  request_id,
+  request_time,
+  status_code,
+  request.messages[0].content  AS user_message,
+  response.choices[0].message.content AS assistant_response,
+  response.usage.total_tokens
+FROM main.inference_logs.my_endpoint_payload
+ORDER BY request_time DESC
+LIMIT 100;
+```
 
 ---
 
-## Endpoint Telemetry — OTel to UC Delta
+## Permissions
 
-Custom model and agent serving endpoints can persist OpenTelemetry **logs**, **traces**, and **metrics** to UC Delta tables. This is complementary to inference tables: inference tables capture the request/response payload, while telemetry captures structured spans, metrics, and severity-tagged logs from inside the model or agent code. Foundation Model API endpoints use `system.serving.endpoint_usage` for usage auditing rather than this pipeline.
+```python
+# Grant CAN_QUERY to a user
+w.serving_endpoints.set_permissions(
+    serving_endpoint_id=endpoint.id,
+    access_control_list=[
+        {"user_name": "user@company.com", "permission_level": "CAN_QUERY"},
+        {"group_name": "data_scientists", "permission_level": "CAN_QUERY"},
+        {"service_principal_name": "sp-uuid", "permission_level": "CAN_QUERY"},
+    ],
+)
 
-Three tables, one per signal:
+# Via CLI
+# databricks serving-endpoints set-permissions my-endpoint \
+#   --json '{"access_control_list": [{"group_name": "all_users", "permission_level": "CAN_QUERY"}]}' \
+#   -p <profile>
+```
+
+Permission levels:
+- `CAN_QUERY` — call the endpoint
+- `CAN_MANAGE` — update config, delete endpoint
+- `IS_OWNER` — full control
+
+---
+
+## Workload Sizes Reference
+
+| Size | vCPUs | RAM | Use When |
+|---|---|---|---|
+| `Small` | 4 | 16 GB | Small models, low traffic, default |
+| `Medium` | 8 | 32 GB | Medium models, moderate traffic |
+| `Large` | 16 | 64 GB | Large models, high concurrency |
+| GPU variants | GPU + VRAM | varies | LLM fine-tunes, custom embedding models |
+
+`scale_to_zero_enabled: true` — cold start ~60-120s; use for dev/demo; set `false` for production.
+
+---
+
+## Gotchas
+
+| Issue | Cause | Fix |
+|---|---|---|
+| Cold start timeout in production | `scale_to_zero_enabled: true` | Set `false` for prod; keep at least 1 replica warm |
+| `REQUEST_LIMIT_EXCEEDED` | Too many concurrent requests | Increase `workload_size` or use provisioned throughput |
+| Model version not found | Registered model name typo or wrong catalog | Verify with `w.registered_models.get()` |
+| `PERMISSION_DENIED` on query | Missing `CAN_QUERY` | Grant via `set_permissions()` |
+| Inference table not populated | `auto_capture_config.enabled = false` | Update endpoint config to enable |
+| External model 401 | Incorrect API key or base URL | Check `openai_api_base` trailing slash; verify key |
+| FMAPI rate limit hit | Pay-per-token has soft limits | Switch to provisioned throughput or reduce concurrency |
+| GPU endpoint OOM | Model too large for selected GPU | Use larger `workload_size` or quantized model variant |
+| Streaming not working | Some SDK versions don't support stream | Use `w.serving_endpoints.stream()` (not `.query()`) |
+
+---
+
+## Performance and Data Handling Notes
+
+Source: [docs.databricks.com/aws/en/machine-learning/model-serving/](https://docs.databricks.com/aws/en/machine-learning/model-serving/)
+
+- **Throughput**: Model Serving can support over 25,000 queries per second with an overhead latency of less than 50ms
+- **MLflow requirement**: MLflow 1.29+ required for model registration and serving
+- **Foundation Model API data residency**: Inputs and outputs are stored in the workspace region, retained 30 days for abuse detection
+- **Paid accounts**: Model Serving does not use user inputs or outputs to train any models or improve Databricks services
+- **External model providers** (OpenAI, Anthropic): Have separate data retention policies for safety scanning; check provider terms
+- **Inference logs retention**: Container build logs retained 30 days; endpoint metrics retained 14 days
+
+---
+
+## Related
+
+- [`ai/agent-framework.md`](agent-framework.md) — Deploying agents to endpoints
+- [`ai/vector-search.md`](vector-search.md) — Embedding models for VS
+- [`cli-api/rest-api.md`](../cli-api/rest-api.md) — REST API patterns for serving
+- [`mcp/managed-mcp.md`](../mcp/managed-mcp.md) — Serving endpoints as MCP servers
+
+# Model Serving Endpoint Telemetry
+
+> **Cloud**: Agnostic (region-limited)
+> **Status**: GA (region-limited; see Prerequisites for supported Azure regions)
+> **Last verified**: 2026-07-27
+
+---
+
+## TL;DR
+
+Custom model serving endpoints and **agent serving endpoints** can persist **OpenTelemetry logs, traces, and metrics** to Unity Catalog Delta tables. Standard Python `logging` is captured automatically. Custom OTel spans and metrics require SDK instrumentation in the model code. Data lands in three tables (`otel_logs`, `otel_spans`, `otel_metrics`). Useful for root cause analysis, endpoint health monitoring, and compliance.
+
+---
+
+## When to use
+
+| Scenario | Use Endpoint Telemetry |
+|---|---|
+| Debug inference failures in production | Yes -- query logs by severity |
+| Monitor custom model health/latency | Yes -- custom OTel spans + metrics |
+| Compliance: persist all inference activity | Yes -- UC-governed Delta tables |
+| Agent serving endpoints | Yes -- same telemetry pipeline as custom model endpoints |
+| Foundation Model API (pay-per-token) endpoints | No -- this is for custom model and agent serving endpoints |
+| App-level telemetry (Streamlit/FastAPI) | No -- use [Apps Observability](../apps/observability.md) |
+
+---
+
+## Prerequisites
+
+- UC-enabled workspace (no Arclight default storage)
+- `USE CATALOG`, `USE SCHEMA`, `CREATE TABLE`, `MODIFY` on destination schema
+- An existing custom model serving endpoint **or** agent serving endpoint (or a new one)
+- Supported regions (Azure, as of 2026-04):
+  - `canadacentral`, `westus`, `westus2`, `southcentralus`, `eastus`, `eastus2`, `centralus`, `northcentralus`
+  - `swedencentral`, `westeurope`, `northeurope`, `uksouth`
+  - `australiaeast`, `southeastasia`
+
+---
+
+## How it works
 
 ```
-<prefix>_otel_logs      ← Python logging output (automatic)
-<prefix>_otel_spans     ← OTel TracerProvider spans (custom instrumentation)
-<prefix>_otel_metrics   ← OTel MeterProvider metrics (custom instrumentation)
+Custom Model Serving Endpoint
+    |
+    | Python logging (auto) + OTel SDK (custom)
+    v
+Zerobus Ingest
+    |
+    v
+Unity Catalog Delta Tables
+  ├── <prefix>_otel_logs     (auto: Python logging output)
+  ├── <prefix>_otel_spans    (custom: OTel TracerProvider)
+  └── <prefix>_otel_metrics  (custom: OTel MeterProvider)
 ```
 
-**Governance prerequisites**: a Unity Catalog-enabled workspace, plus `USE CATALOG` / `USE SCHEMA` / `CREATE TABLE` / `MODIFY` grants on the destination schema. Databricks creates the target tables automatically once the config is applied — no manual `CREATE TABLE` needed. Destination table names are fixed for the life of the config, so choose them deliberately as part of endpoint design. Endpoint telemetry is generally available and offered in a defined set of regions, so confirm regional coverage in the linked docs before planning a rollout.
+---
 
-Configure on the endpoint. **`telemetry_config` is a top-level field in the create/update request body — it sits alongside `config`, not inside it.** Nesting it under `config` (a common mistake when copying older serving examples) means telemetry is silently not enabled:
+## Step 1: Instrument model code
 
-```json
-{
-  "name": "my-endpoint",
-  "config": {
-    "served_entities": [ ... ]
-  },
-  "telemetry_config": {
-    "table_names": {
-      "logs_table":    "main.observability.endpoint_logs",
-      "traces_table":  "main.observability.endpoint_spans",
-      "metrics_table": "main.observability.endpoint_metrics"
+### Basic (automatic logging)
+
+Standard Python `logging` is captured without OTel SDK:
+
+```python
+import logging
+
+class MyModel(mlflow.pyfunc.PythonModel):
+    def predict(self, context, model_input):
+        logging.warning("Received inference request")
+        try:
+            result = model_input * 2
+            return result
+        except Exception as e:
+            logging.error(f"Inference failed: {e}")
+            raise
+```
+
+Default root level is `WARNING`. To capture DEBUG/INFO:
+
+```python
+def load_context(self, context):
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+    for handler in root.handlers:
+        handler.setLevel(logging.DEBUG)
+```
+
+### Custom (OTel spans + metrics)
+
+Write model to a separate file (avoids serialization issues), then initialize OTel per-worker:
+
+```python
+# return_input_model.py
+import os
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.trace import get_tracer, set_tracer_provider
+from opentelemetry.metrics import get_meter, set_meter_provider
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.sdk.resources import Resource
+
+# Per-worker OTel init — include worker.pid for per-worker attribution
+resource = Resource.create({"worker.pid": str(os.getpid())})
+tracer_provider = TracerProvider(resource=resource)
+tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+set_tracer_provider(tracer_provider)
+
+metric_reader = PeriodicExportingMetricReader(OTLPMetricExporter())
+set_meter_provider(MeterProvider(metric_readers=[metric_reader]))
+
+_tracer = get_tracer(__name__)
+_counter = get_meter(__name__).create_counter("prediction_count", unit="1")
+
+class MyModel(mlflow.pyfunc.PythonModel):
+    def load_context(self, context):
+        self.tracer = _tracer
+        self.counter = _counter
+
+    def predict(self, context, model_input):
+        with self.tracer.start_as_current_span("predict") as span:
+            span.set_attribute("input_shape", str(model_input.shape))
+            self.counter.add(1)
+            return model_input
+```
+
+Add OTel deps when logging. Use `env_pack="databricks_model_serving"` for optimized serverless deployment:
+
+```python
+import mlflow
+
+with mlflow.start_run():
+    model_info = mlflow.pyfunc.log_model(
+        name="model",
+        python_model="return_input_model.py",
+        pip_requirements=[
+            "mlflow==3.1",
+            "opentelemetry-sdk",
+            "opentelemetry-exporter-otlp-proto-http",
+        ],
+    )
+
+# Register with optimized packing for model serving
+registered = mlflow.register_model(
+    model_info.model_uri,
+    "catalog.schema.model_name",
+    env_pack="databricks_model_serving"   # NEW: serverless-optimized deployment
+)
+```
+
+---
+
+## Step 2: Prepare Unity Catalog destination
+
+> Azure Databricks automatically creates the necessary tables in the destination schema if they do not already exist. You only need to provide the catalog and schema; no manual `CREATE TABLE` required.
+
+## Step 2: Enable telemetry
+
+### New endpoint (API)
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  "https://<workspace>/api/2.0/serving-endpoints" \
+  -d '{
+    "name": "my-endpoint",
+    "config": {
+      "served_entities": [{
+        "name": "my-model",
+        "entity_name": "my-model",
+        "entity_version": "1",
+        "workload_size": "Small",
+        "scale_to_zero_enabled": true
+      }]
+    },
+    "telemetry_config": {
+      "table_names": {
+        "logs_table": "my_catalog.observability.custom_endpoint_logs",
+        "metrics_table": "my_catalog.observability.custom_endpoint_metrics",
+        "traces_table": "my_catalog.observability.custom_endpoint_spans"
+      }
     }
-  }
-}
+  }'
 ```
 
-Standard Python `logging` is captured automatically (default level `WARNING`; override in `load_context()` to capture `INFO`/`DEBUG`). Custom OTel spans and metrics require SDK instrumentation in the model code. Updating the telemetry config triggers an endpoint redeployment — schedule it during a maintenance window.
+> **BREAKING**: `telemetry_config` is a top-level field in the endpoint create/update request, not nested inside `config`. Source: [custom-model-serving-uc-logs](https://learn.microsoft.com/en-us/azure/databricks/machine-learning/model-serving/custom-model-serving-uc-logs)
 
-**Query pattern**:
+### New endpoint (UI)
+
+Expand **Advanced options** → **AI Gateway** section → **Enable inference tables and telemetry**.
+
+### Existing endpoint (UI)
+
+1. Endpoint view page → **AI Gateway** section → **Edit AI Gateway** → **Enable inference tables and telemetry**
+2. Select catalog/schema, optional prefix
+3. Click **Update** (triggers redeployment)
+
+---
+
+## Step 3: Query
+
+Key columns: `timestamp`, `severity_text`, `body`, `trace_id`, `span_id`, `attributes` (map).
 
 ```sql
--- Errors in the last hour
+-- Errors in last hour
 SELECT timestamp, severity_text, body, attributes
-FROM main.observability.endpoint_logs
+FROM catalog.schema.endpoint_logs
 WHERE severity_text = 'ERROR'
   AND timestamp > current_timestamp() - INTERVAL 1 HOUR
 ORDER BY timestamp DESC;
 ```
 
-**Operating limits** — design retention and alerting around these:
+---
+
+## Limits
 
 | Limit | Value |
 |---|---|
 | Max log line | 1 MB |
 | Max record | 10 MB |
 | Max request | 30 MB |
-| Sustained throughput | 2500 QPS before degradation |
-| Delivery guarantee | At-least-once |
-| Table type | Managed Delta only |
-| Schema evolution | Design the schema up front — table schema is fixed once created |
-| Typical latency | Logs land in the UC table within seconds of emission |
-
-This latency profile is much tighter than inference tables (~1 hour), which makes telemetry the better fit for near-real-time debugging while inference tables remain the durable request/response audit trail.
-
----
-
-## External Model Endpoints
-
-Proxying external providers (OpenAI, Anthropic, Bedrock, Vertex) through a Databricks endpoint gives one governance surface for traffic that would otherwise bypass platform controls:
-
-- **Single audit boundary** — every call lands in `system.serving.endpoint_usage` regardless of which provider served it
-- **Provider keys stay in Databricks Secrets** — application code never holds raw provider keys
-- **Unified rate limits and guardrails** — AI Gateway controls apply equally to internal FMAPI and external providers
-- **Provider switching without app changes** — swap the served entity; clients keep calling the same endpoint name
-
-Pair external model endpoints with **UC Service Credentials** when the provider supports IAM-based auth (e.g., AWS Bedrock with an IAM role) — credentials never leave UC.
+| Throughput before degradation | 2500 QPS |
+| Delivery | At-least-once (durable once server acknowledges) |
+| Table type | Managed Delta only, single-az durability |
+| Schema evolution |  |
+| Table names | ASCII letters, digits, underscores only |
+| Recreating target tables |  |
+| Telemetry latency | Logs appear in UC table a few seconds after emission |
 
 ---
 
-## Audit Surfaces
+## Gotchas
 
-| What you want | Query |
+| Issue | Detail |
 |---|---|
-| Who called which endpoint, when | `system.serving.endpoint_usage` |
-| What model handled the request | Join `endpoint_usage.served_entity_id` to `system.serving.served_entities` |
-| What the request and response were | Inference table (auto_capture_config) |
-| What the model or agent logged internally | `<prefix>_otel_logs` (endpoint telemetry, custom/agent endpoints) |
-| Latency percentiles by version | `endpoint_usage` GROUP BY `served_entity_id` |
-| Cost attribution by team or app | `endpoint_usage.usage_context` (caller-supplied tag) |
-
-```sql
--- 7-day per-endpoint, per-team usage with model version
-SELECT
-  se.endpoint_name,
-  eu.usage_context['team']  AS team,
-  se.entity_type,
-  se.foundation_model_config.model_id AS model,
-  COUNT(*)                            AS calls,
-  SUM(eu.input_token_count)           AS input_tokens,
-  SUM(eu.output_token_count)          AS output_tokens,
-  AVG(eu.execution_duration_ms)       AS avg_latency_ms
-FROM system.serving.endpoint_usage eu
-JOIN system.serving.served_entities se
-  ON eu.served_entity_id = se.served_entity_id
-WHERE eu.request_time > current_timestamp() - INTERVAL 7 DAYS
-GROUP BY 1, 2, 3, 4
-ORDER BY calls DESC;
-```
-
----
-
-## Patterns to Apply
-
-| When building... | Configure... |
-|---|---|
-| An agent that surfaces personalized data | Pattern B — `ModelServingUserCredentials` for OBO; pair with UC row filters |
-| A shared/public knowledge agent | Pattern A — endpoint SP with explicit UC grants |
-| A production model with rollouts | Multi-entity endpoint + traffic splits + inference tables; canary at 10% |
-| Compliance-grade audit | Inference tables enabled at endpoint creation; never altered after |
-| Near-real-time debugging of custom or agent endpoints | Endpoint telemetry (OTel to UC); pair with inference tables for the durable audit trail |
-| Production endpoints with SLA | Provisioned Throughput; `scale_to_zero_enabled: false` |
-| External provider behind a unified governance surface | External Model endpoint + UC Service Credentials when supported |
-| Per-team cost attribution | Callers send `usage_context: {team: "...", app: "..."}` in the request |
-
----
-
-## Patterns to Avoid
-
-| Pattern | Better approach |
-|---|---|
-| `CAN_QUERY` granted to `all_users` on production endpoints | Grant by functional group; reserve broad grants for FMAPI evaluation |
-| Provider keys hardcoded in app code | UC-stored secrets referenced as `{{secrets/scope/key}}` or UC Service Credentials |
-| Single-entity endpoint with in-place model swaps | Multi-entity endpoint; traffic split for canary then flip |
-| Inference table altered or renamed after creation | Treat as immutable; create a new endpoint with a new prefix when redesigning |
-| Production endpoint with `scale_to_zero_enabled: true` | Keep at least one replica warm for predictable latency |
-| Agent calling Genie or VS as the endpoint SP | OBO via `ModelServingUserCredentials` so caller-level grants apply |
-| Enabling endpoint telemetry without planning table names | Table names are fixed once telemetry is configured — name them deliberately up front |
-
----
-
-## Performance, Data Residency, and Retention
-
-Governance decisions about model serving depend on where data lives and how long it is kept. The platform characteristics below are the baseline to plan around:
-
-| Property | Behavior |
-|---|---|
-| Scale and latency | Model Serving supports high-throughput workloads (documented at over 25,000 queries per second) with low serving overhead (under 50 ms). |
-| Foundation Model API data residency | Inputs and outputs are stored in the workspace region and retained for 30 days for abuse detection. |
-| Training use | On paid accounts, user inputs and outputs are not used to train Databricks models or improve Databricks services. |
-| External model providers | Providers such as OpenAI and Anthropic apply their own data retention and safety-scanning policies; review the provider terms when proxying through an External Model endpoint. |
-| Operational log retention | Container build logs are retained for 30 days and endpoint metrics for 14 days. Persist anything you need for longer-term audit to UC Delta via inference tables or endpoint telemetry. |
-
-For workloads that need predictable capacity, guaranteed tokens per second, or regulated data handling, use a Provisioned Throughput endpoint (no cold starts, capacity-backed) rather than pay-per-token serverless.
-
-> See [Model Serving overview](https://docs.databricks.com/aws/en/machine-learning/model-serving/) for current performance and data-handling details.
+| **Region-limited** | Only supported in the Azure regions listed under Prerequisites; not available globally |
+| **`telemetry_config` is top-level in API** | Not nested inside `config` — a common mistake when copying older examples. Place `telemetry_config` at the same level as `config` in the create/update request body. |
+| **Updating telemetry triggers redeployment** | Existing endpoint traffic briefly affected |
+| **`otel_spans`/`otel_metrics` need custom instrumentation** | Only `otel_logs` is automatic |
+| **Root log level defaults to WARNING** | Must override in `load_context()` to capture INFO/DEBUG |
+| **Write model to separate file** | Avoids serialization errors with OTel globals |
+| **Arclight storage ** | Must use UC-managed Delta |
+| **Cannot recreate target tables** | Plan table naming carefully |
 
 ---
 
 ## Related
 
-- [`ai-gateway-patterns.md`](ai-gateway-patterns.md) — Rate limits, guardrails, fallbacks layered on endpoints
-- [`agent-governance.md`](agent-governance.md) — Agent endpoints and tool wiring
-- [`../identity/authentication.md`](../identity/authentication.md) — OBO and M2M token flows
-- [`../observability/audit-reference.md`](../observability/audit-reference.md) — Audit surfaces across the AI stack
-
----
-
-## Public References
-
-- [Model Serving overview](https://docs.databricks.com/aws/en/machine-learning/model-serving/)
-- [Custom model serving with UC logs (telemetry)](https://learn.microsoft.com/en-us/azure/databricks/machine-learning/model-serving/custom-model-serving-uc-logs)
-- [Provisioned throughput](https://docs.databricks.com/aws/en/machine-learning/foundation-model-apis/deploy-prov-throughput-foundation-model-apis)
-- [External models](https://docs.databricks.com/aws/en/generative-ai/external-models/)
-- [Inference tables](https://docs.databricks.com/aws/en/machine-learning/model-serving/inference-tables)
-- [System tables: `serving.endpoint_usage` and `serving.served_entities`](https://docs.databricks.com/aws/en/admin/system-tables/serving)
+- [`model-serving.md`](model-serving.md) -- Model serving overview, FMAPI, scaling
+- [`production-monitoring.md`](production-monitoring.md) -- Scorer-based quality assessment on traces
+- [`mlflow-tracing.md`](mlflow-tracing.md) -- MLflow Tracing (complementary to OTel)
+- [`../apps/observability.md`](../apps/observability.md) -- App-level OTel telemetry

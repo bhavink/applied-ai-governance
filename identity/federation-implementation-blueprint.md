@@ -1,5 +1,5 @@
 <!--
-  Synced from databricks-fieldkit on 2026-07-14
+  Synced from databricks-fieldkit on 2026-09-14
   Sources: auth/token-federation.md
   Public docs grounding:
     - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
@@ -15,7 +15,7 @@
 >
 > **How it works under the hood**: any application that can obtain a JWT from a trusted IdP can exchange it for a Databricks OAuth token via a single RFC 8693 token-exchange endpoint — no Databricks secrets stored in the application. The same endpoint serves both individually-provisioned users (U2M) and service-to-service calls (M2M).
 >
-> **Last updated**: 2026-07-14
+> **Last updated**: 2026-09-14
 
 ---
 
