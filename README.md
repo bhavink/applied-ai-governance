@@ -28,7 +28,7 @@ Your business needs an AI platform where users get governed answers from live da
 
 ## Presentation Library
 
-Browse the full collection of 14 governance talks and reference decks: [Presentations](presentations/)
+Browse the full collection of 14 governance talks and reference decks: [Presentations](https://bhavink.github.io/applied-ai-governance/presentations/)
 
 ---
 

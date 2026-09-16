@@ -213,7 +213,7 @@ This repository's reference documentation is organized around the pillars:
 | Observability & Audit | [Observability/](observability/): [Audit Reference](observability/audit-reference.md), [Agent Tracing](observability/agent-tracing.md), [App Observability](observability/app-observability.md), [Endpoint Telemetry](observability/endpoint-telemetry.md) |
 | Agent Runtime Harness | [Harness/](harness/): [Omnigent Guardrails Demo](harness/omnigent-guardrails-demo/) (identity and observability at the agent runtime boundary) |
 
-The presentation library ([presentations/](presentations/)) spans 14 talks covering identity, authorization, federation, cost control, UC governance, orchestration, and the applied AI governance model end-to-end.
+The presentation library ([presentations/](https://bhavink.github.io/applied-ai-governance/presentations/)) spans 14 talks covering identity, authorization, federation, cost control, UC governance, orchestration, and the applied AI governance model end-to-end.
 
 The network perimeter, data-layer filtering (UC row filters and column masks), connection governance (UC Connections), and compliance-as-SQL are enforced through Databricks platform features and are cited to the public documentation where they come up, rather than restated as reference docs here. Prompt security is a cross-cutting concern addressed within the identity, observability, and harness pillars.
 
