@@ -2,6 +2,8 @@
 
 > *The tools will change. The principles won't. Govern the invariants.*
 
+**[View the rendered site and presentation decks](https://bhavink.github.io/applied-ai-governance/)**. The 14 decks render on the Pages site, so open links there to see the published slides rather than raw HTML.
+
 Your business needs an AI platform where users get governed answers from live data, knowledge workers search across institutional memory, and agents orchestrate complex workflows, all while partners and customers access the same capabilities through their own identity providers without platform accounts. This repository is a gold standard for building and governing that platform on Databricks, with a focus on identity, observability, and the agent runtime harness.
 
 **Start here:** [Governance Framework](GOVERNANCE-FRAMEWORK.md) defines the design principles and adaptability model.
