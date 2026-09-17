@@ -1,17 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: auth/cross-tenant-entra-embedding.md, auth/peruser-byoidp-federation.md, auth/token-federation.md, apps/aibi-dashboard-external-embedding.md
-  Public docs grounding:
-    - https://docs.databricks.com/gcp/en/security/auth/single-sign-on/azure-ad
-    - https://docs.databricks.com/aws/en/admin/users-groups/single-sign-on/
-    - https://docs.databricks.com/aws/en/dashboards/share/embedding
-    - https://docs.databricks.com/aws/en/ai-bi/admin/embed
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
-    - https://learn.microsoft.com/en-us/entra/identity-platform/single-and-multi-tenant-apps
-  This file is auto-prepared and human-reviewed before publish.
-  Names (Tenant 1 "BuildCo", Tenant 2 "ClientCorp", users) are illustrative.
--->
-
 # Single Microsoft Identity + Embedded AI/BI, No Second Login, Across Tenants
 
 > **What this is**: A reference design for a common enterprise pattern. A React app embeds an AI/BI dashboard, and the customer wants **one** sign-in, **one** identity technology (Microsoft Entra ID), correct behavior **across two Entra tenants**, and a **B2B posture** that grants external client users access without adding them to the company domain. It applies to Databricks on **AWS and GCP**, both of which support bringing your own IdP for account-level SSO.

@@ -1,12 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: auth/oauth-scopes.md
-  Public docs grounding:
-    - https://docs.databricks.com/api/workspace/api/scopes
-    - https://docs.databricks.com/api/account/api/scopes
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # OAuth Scopes — Definitive Reference
 
 > **TL;DR**: Scopes are the **capability ceiling** — they gate which API endpoints a token can call. UC grants are the **actual authorization** — they determine what data within those endpoints the token can access. Both layers are required for true least-privilege access. There are 36 workspace-level and 9 account-level granular scopes, plus a small set of identity and catch-all scopes.
@@ -367,7 +358,36 @@ Lakebase uses Postgres-native functions rather than Databricks SQL functions:
 
 ---
 
+## Known limitation: the Databricks Apps proxy requires `all-apis` on exchanged tokens
+
+When a token obtained through RFC 8693 token exchange is used to call a Databricks App, the
+Apps proxy accepts only `all-apis`. A least-privilege exchange such as `scope=sql genie
+serving` produces a valid token, but the proxy rejects it with `HTTP 401` before the request
+reaches app code. This holds even when the app sets `authorization: disabled`.
+
+| Token | Scope | Proxy result |
+|---|---|---|
+| Exchanged SP token | `all-apis` | 200 (pass) |
+| Exchanged SP token | `sql genie serving` | 401 (rejected) |
+| Exchanged SP token | `sql` | 401 (rejected) |
+| User workspace token | default workspace scopes | 200 (pass) |
+
+`authorization: disabled` only turns off the user-facing OAuth login flow. It does not turn
+off the proxy's token validation: a valid Databricks token with `all-apis` is still required,
+and the caller SP still needs `CAN_USE` on the app.
+
+This is not a reason to abandon least privilege. The wide scope sits only at the proxy layer,
+and every layer below still enforces narrowly: tool-level RBAC in the MCP server, UC row
+filters and column masks, `USE CONNECTION` for external calls, `CAN QUERY` / `EXECUTE` for
+serving endpoints and functions, and the audit record on every call. A role-scoped SP with an
+`all-apis` token still sees only its region's rows, masked sensitive columns, and the tools
+its role allows. Treat `all-apis` at the proxy as a platform constraint, keep the exchanged
+token server-side, and enforce least privilege at the MCP and Unity Catalog layers. If a
+future release accepts narrower scopes at the proxy, tighten the exchange then.
+
 ## Related
 
 - [Authorization](authorization.md) — Token patterns and scope vs. UC grant interplay
 - [Proxy Architecture](proxy-architecture.md) — How scopes flow through the Apps proxy
+- [Production Federation Guide](federation-production.md) — where the exchanged token comes from
+- [Custom MCP Principles](../tool-governance/custom-mcp-principles.md) — the least-privilege layers below the proxy

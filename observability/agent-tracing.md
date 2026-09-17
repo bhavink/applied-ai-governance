@@ -1,14 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: ai/mlflow-mcp.md, ai/mlflow-tracing.md, ai/production-monitoring.md, ai/third-party-scorers.md
-  Public docs grounding: 
-    - https://mlflow.org/docs/latest/llms/tracing/
-    - https://docs.databricks.com/aws/en/mlflow3/genai/
-    - https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/tracing/mlflow-mcp
-    - https://learn.microsoft.com/en-us/azure/databricks/mlflow3/genai/eval-monitor/third-party-scorers/
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Agent Tracing and Production Monitoring
 
 > **TL;DR**: MLflow Tracing captures structured spans for every LLM call, tool call, retrieval, and chain step inside an agent. Spans land in MLflow experiments, can be archived to UC Delta, and feed continuous quality assessment via MLflow Production Monitoring scorers (LLM judges, custom code scorers, multi-turn conversation judges). Tracing is the **application plane** of agent observability; UC system tables are the **data plane**. A complete governance posture instruments both and correlates them via shared identifiers (trace ID, session ID, user email).

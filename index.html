@@ -70,7 +70,7 @@ h1 span { color: var(--red); }
     <div class="red-line"></div>
 
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(1rem,2vw,1.5rem);border-left:4px solid var(--ink);margin-bottom:2rem">
-        <p style="font-size:0.88rem;line-height:1.7">This repository is a gold standard for identity, observability, and agent runtime governance on Databricks. Reference documentation covers authentication, authorization, federation, audit, and the policy-guardrail harness. The presentation library spans 14 talks on IAM, AI Gateway, cost control, UC governance, and cross-IdP federation.</p>
+        <p style="font-size:0.88rem;line-height:1.7">This repository is a gold standard for identity, data governance, tool and API governance, observability, and agent runtime governance on Databricks. Reference documentation covers authentication, authorization, federation, fine-grained access control, custom MCP and tool policy, audit, and the policy-guardrail harness. The presentation library covers IAM, AI Gateway, cost control, UC governance, and cross-IdP federation.</p>
     </div>
 
     <div class="section-label">Presentations</div>
@@ -104,7 +104,7 @@ h1 span { color: var(--red); }
             <p>Identity, runtime, and observability for LLM/MCP/API traffic. Includes Databricks vs. external gateway vs. UC-native controls.</p>
         </a>
     </div>
-    <p style="margin-top:12px"><a href="presentations/" style="color:var(--red);font-size:0.85rem;text-decoration:none">View all 14 decks &rarr;</a></p>
+    <p style="margin-top:12px"><a href="presentations/" style="color:var(--red);font-size:0.85rem;text-decoration:none">View all decks &rarr;</a></p>
 
     <div class="section-label">Documentation</div>
     <div class="doc-grid">
@@ -127,6 +127,26 @@ h1 span { color: var(--red); }
         <a href="https://github.com/bhavink/applied-ai-governance/blob/main/identity/federation-implementation-blueprint.md" class="doc-link">
             Federation Blueprint
             <small>Prerequisites, 7-step flow, IdP reference, error catalog</small>
+        </a>
+        <a href="https://github.com/bhavink/applied-ai-governance/blob/main/identity/federation-production.md" class="doc-link">
+            Production Federation Guide
+            <small>Three identity paths, decision matrix, token lifecycle at scale, hardening</small>
+        </a>
+        <a href="https://github.com/bhavink/applied-ai-governance/blob/main/identity/service-identity-and-audit.md" class="doc-link">
+            Service Identity & Audit
+            <small>Which identity each AI service honors, proxy types, confused-deputy prevention</small>
+        </a>
+        <a href="https://github.com/bhavink/applied-ai-governance/blob/main/data-governance/access-control-patterns.md" class="doc-link">
+            Access Control Patterns
+            <small>Row filters, column masks, ABAC, the service-principal identity gap</small>
+        </a>
+        <a href="https://github.com/bhavink/applied-ai-governance/blob/main/tool-governance/custom-mcp-principles.md" class="doc-link">
+            Custom MCP Principles
+            <small>MCP as gateway, scopes over grants, UC connections, trace/audit</small>
+        </a>
+        <a href="https://github.com/bhavink/applied-ai-governance/blob/main/tool-governance/runtime-config-patterns.md" class="doc-link">
+            Runtime Config Patterns
+            <small>Hot-deployable, versioned tool-access policy decoupled from code</small>
         </a>
         <a href="https://github.com/bhavink/applied-ai-governance/blob/main/observability/agent-tracing.md" class="doc-link">
             Agent Tracing & MLflow

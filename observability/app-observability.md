@@ -1,11 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: apps/observability.md
-  Public docs grounding: 
-    - https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/observability
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # App Observability — OpenTelemetry to UC Delta
 
 > **TL;DR**: Databricks Apps emit OpenTelemetry **logs, traces, and metrics** to Unity Catalog Delta tables. System logs (auth events, request envelope) are captured automatically. Custom traces and metrics require wrapping the app command with `opentelemetry-instrument` and adding the relevant instrumentation packages. Three tables (`<prefix>_otel_logs`, `<prefix>_otel_spans`, `<prefix>_otel_metrics`) land in UC and join cleanly with MLflow Tracing on `trace_id`. This is the right surface for **app-level** signals (HTTP latency, request volume, login events); pair it with MLflow Tracing for agent-level signals.

@@ -1,13 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: auth/oauth-scopes.md, governance/unity-catalog.md
-  Public docs grounding:
-    - https://docs.databricks.com/api/workspace/api/scopes
-    - https://docs.databricks.com/api/account/api/scopes
-    - https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Authorization (AuthZ)
 
 > AuthZ is where Databricks plays. Unity Catalog is the authorization engine for all AI services.

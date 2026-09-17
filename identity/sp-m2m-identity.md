@@ -1,11 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: auth/m2m-service-principal.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Service Principal (M2M) Identity
 
 > **TL;DR**: Machine-to-machine (M2M) access uses a **service principal (SP)** as the calling identity instead of a human user. External services — pipelines, API gateways, backend jobs — obtain a token via the OAuth 2.0 client credentials flow and call Databricks APIs as that SP. Governance is applied by putting the SP in a workspace group and granting Unity Catalog privileges to the group, never to the SP directly.

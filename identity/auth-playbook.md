@@ -1,12 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: auth/overview.md, auth/obo-passthrough.md, auth/m2m-service-principal.md, auth/eli5-auth-models.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/dev-tools/auth/
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Auth Playbook: Common Patterns and Solutions
 
 > Practical reference for configuring Databricks App authentication. Covers scope setup, token lifecycle, deployment patterns, and UC connection governance. Frame this as configuration — all items here describe steps that must be completed, not defects.

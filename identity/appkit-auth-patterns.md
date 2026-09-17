@@ -1,11 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-07-14
-  Sources: apps/appkit.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/dev-tools/databricks-apps/
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # AppKit Auth Patterns: OBO, U2M, and UC Connections
 
 > Reference architecture for building Databricks Apps that combine multiple auth patterns in a single application. Covers OBO SQL + Genie, OAuth U2M per-user external services, Bearer Token shared credentials, and UC connection governance.

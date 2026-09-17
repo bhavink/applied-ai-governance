@@ -1,12 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: auth/_azure/entra-oauth.md, auth/_okta/token-federation.md, auth/gcp-wif-databricks.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
-    - https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Cloud-Specific Authentication Patterns
 
 > **TL;DR**: Databricks federates external identities from Entra ID (Azure), Okta (any cloud), and Google Cloud (Workload Identity Federation) by exchanging an IdP-issued token for a Databricks token via RFC 8693 token exchange. The identity provider setup differs by IdP and cloud, but the exchange call into Databricks — `POST /oidc/v1/token` — is the same shape everywhere.

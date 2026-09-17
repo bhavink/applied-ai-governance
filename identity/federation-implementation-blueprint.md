@@ -1,12 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: auth/token-federation.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
-    - https://docs.databricks.com/en/dev-tools/auth/oauth-federation.html
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Federation Token Exchange: Implementation Blueprint
 
 > **What this is**: A step-by-step recipe to let external users (partners, vendors, auditors) use Databricks data and AI tools without ever being provisioned as Databricks users. Their Identity Provider (IdP) handles who they are. Databricks handles what they can see.
