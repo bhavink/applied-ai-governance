@@ -342,7 +342,7 @@ tr:hover td{background:var(--surface)}
 
 <div class="topbar">
   <div class="title">Acme Engineering &mdash; <span>Agent Cost Governance</span></div>
-  <div class="counter" id="counter">01 / 17</div>
+  <div class="counter" id="counter">01 / 19</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 
@@ -1049,9 +1049,76 @@ HTTP/1.1 <span class="kw">429</span> Too Many Requests
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 16 · HOW — RECOMMENDED SEQUENCE
+     SLIDE 16 · WHICH RUNTIME - OMNIGENT
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="16">
+  <div class="label r">Which runtime · Omnigent</div>
+  <h2 class="r">Omnigent governs what the agent does.</h2>
+  <div class="two-col mt1">
+    <div class="card card-ink r">
+      <h4>What</h4>
+      <p>An open-source meta-harness that wraps a coding-agent CLI (Claude Code, Codex) behind one contract, then runs the agent loop with sessions, a sandbox, and a policy engine. Available self-hosted or Databricks-managed.</p>
+    </div>
+    <div class="card card-red r">
+      <h4>How</h4>
+      <p>It inserts a governed hop in the loop. Every tool call routes back to the server, a stateful policy returns ALLOW, ASK, DENY, or TRANSFORM, then the Omnibox sandbox runs the approved action. The gate runs even under CLI bypass mode, so it is not opt-out.</p>
+    </div>
+    <div class="card card-green r">
+      <h4>Why</h4>
+      <p>You get control over what the agent does, not just what the model reads and writes: approval gates, per-session spend ceilings, kernel-level filesystem and network isolation, shared and replayable sessions, and a durable transcript.</p>
+    </div>
+    <div class="card card-blue r">
+      <h4>When</h4>
+      <p>Choose Omnigent when the agent needs guardrails on its actions. Managed for zero-setup workspace auth and the strongest sandbox, OSS when you need custom policies, your own host, or your own model keys. If you only need auth and usage, this is more than you need, so use ug.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 17 · WHICH RUNTIME - UG
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="17">
+  <div class="label r">Which runtime · ug (formerly ucode)</div>
+  <h2 class="r">ug routes an installed agent through the gateway.</h2>
+  <div class="two-col mt1">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r">Setup and config</div>
+      <pre class="r"><span class="cm"># install once</span>
+uv tool install git+https://github.com/databricks/unity-gateway
+<span class="cm"># sign in, discover models, write each agent's config</span>
+ug configure <span class="kw">--workspace</span> https://YOUR-WORKSPACE-HOST <span class="kw">--agents</span> claude,codex
+<span class="cm"># launch, pick a governed model service</span>
+ug claude <span class="kw">--model</span> system.ai.claude-sonnet-4-5
+ug mcp add          <span class="cm"># register governed MCP tools</span>
+ug usage            <span class="cm"># per-user spend and token totals</span></pre>
+      <div class="card card-red r">
+        <h4>How it connects</h4>
+        <p>ug handles OAuth and writes each agent's config, so there are no provider API keys and no manual endpoint wiring. Requests land on the gateway under workspace identity and record to <code>system.ai_gateway.usage</code>.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="card card-ink r">
+        <h4>What</h4>
+        <p>A thin launcher (formerly ucode; the old name stays as a backward-compatible alias) that configures a supported agent (Claude Code, Codex, and others) and launches it against the gateway. No harness, no sessions, no sandbox.</p>
+      </div>
+      <div class="card card-green r">
+        <h4>Why</h4>
+        <p>The fastest path to per-user auth, model routing, and usage visibility on an agent your engineers already run locally. One CLI configures many agents the same way.</p>
+      </div>
+      <div class="card card-blue r">
+        <h4>When</h4>
+        <p>Choose ug when the agent is already installed and you just need per-user auth, model routing, and spend visibility. The moment you need sessions, sandboxing, or policy on actions, graduate to Omnigent. ug governs model traffic, not what the agent does on disk.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 18 · HOW — RECOMMENDED SEQUENCE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="18">
   <div class="label r">How &mdash; Rollout sequence</div>
   <h2 class="r">Don't boil the ocean. Start here.</h2>
   <p class="r muted" style="max-width:72ch">Each step is independently valuable. Stop after any step if the org isn't ready. Later steps get easier once earlier ones are in place.</p>
@@ -1103,9 +1170,9 @@ HTTP/1.1 <span class="kw">429</span> Too Many Requests
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 17 · CLOSING CALLIGRAM
+     SLIDE 19 · CLOSING CALLIGRAM
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide slide-calli" data-slide="17">
+<div class="slide slide-calli" data-slide="19">
   <div class="calli-hero r">
     SIX LAYERS.
     <span class="line2">ONE GATEWAY.</span>
