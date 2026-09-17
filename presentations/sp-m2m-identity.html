@@ -379,7 +379,7 @@ tr:hover td{background:var(--surface)}
     Nightly ETL &middot; Customer API Gateway &middot; Compliance Reporting &mdash; each with its own SP, its own group, its own privilege scope
   </p>
   <p class="r" style="margin-top:12px;color:var(--muted);font-size:var(--xs);max-width:640px">
-    Deck 07 &mdash; companion to Deck 05 (Human OBO Identity). Deck 05 = human calls Databricks as themselves. This deck = service calls Databricks as a controlled identity.
+    Companion to the Human OBO Identity deck. That deck = human calls Databricks as themselves. This deck = service calls Databricks as a controlled identity.
   </p>
 </div>
 
@@ -545,9 +545,9 @@ Content-Type: application/x-www-form-urlencoded
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="label r" style="margin-bottom:0">Contrast: Deck 05 human OBO flow</div>
+      <div class="label r" style="margin-bottom:0">Contrast: human OBO flow</div>
       <div class="card r">
-        <h4>Human OBO (Deck 05)</h4>
+        <h4>Human OBO</h4>
         <ul>
           <li>User authenticates via IdP (browser redirect or device code)</li>
           <li>Token exchange propagates the human&rsquo;s identity downstream</li>
@@ -943,7 +943,7 @@ databricks secrets put-secret \
       <p>Runs on schedule, no human intervention, no per-human data scope required. The SP identity is semantically correct: the system speaks for itself, not for any individual person.</p>
     </div>
     <div class="gate-cell r" style="background:var(--blue-bg);border-color:var(--blue)">
-      <div class="gate-label" style="color:var(--blue)">Use OBO (Deck 05)</div>
+      <div class="gate-label" style="color:var(--blue)">Use OBO</div>
       <h4>Human queries data &mdash; row filters apply per-user</h4>
       <p>The human triggers the query. UC row filters must evaluate <strong>that human&rsquo;s</strong> group membership. Using an SP here would bypass per-user RLS: all humans would see the same data as the SP&rsquo;s group allows.</p>
     </div>
@@ -953,7 +953,7 @@ databricks secrets put-secret \
       <p>Generates compliance reports on schedule. No human is requesting this specific execution. Audit trail should show the SP&rsquo;s identity, making it clear which service performed each operation.</p>
     </div>
     <div class="gate-cell r" style="background:var(--blue-bg);border-color:var(--blue)">
-      <div class="gate-label" style="color:var(--blue)">Use OBO (Deck 05)</div>
+      <div class="gate-label" style="color:var(--blue)">Use OBO</div>
       <h4>Human-initiated export &mdash; self-service download</h4>
       <p>A user clicks &ldquo;Export my team&rsquo;s data.&rdquo; The UC row filter must respect that user&rsquo;s group membership. The call must propagate the user&rsquo;s identity via OBO token exchange to enforce per-user access control.</p>
     </div>

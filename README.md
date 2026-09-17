@@ -59,7 +59,7 @@ A: When an external user reaches Databricks through a service principal, `curren
 A: Keep the tool-access matrix in a governed, versioned config store the server reads at runtime, not in code. See [Runtime Config Patterns](tool-governance/runtime-config-patterns.md).
 
 **Q: My host app's IdP is different from the Databricks account's IdP. How do I embed a dashboard without a second login?**
-A: Use Embedding for External Users (SP-based token mint), not Basic Embedding. Migrating the account's IdP (Automatic Identity Management) does not solve this for external viewers. See [Deck 11](https://bhavink.github.io/applied-ai-governance/presentations/11-aibi-dashboard-embedding.html).
+A: Use Embedding for External Users (SP-based token mint), not Basic Embedding. Migrating the account's IdP (Automatic Identity Management) does not solve this for external viewers. See [AI/BI Dashboard Embedding](https://bhavink.github.io/applied-ai-governance/presentations/aibi-dashboard-embedding.html).
 
 **Q: How do I govern which identities can call external services?**
 A: Use UC HTTP Connections with GRANT/REVOKE USE CONNECTION. This enforces the governance decision at the SQL engine, preventing confused deputy attacks. See [UC HTTP Connections](https://docs.databricks.com/aws/en/query-federation/http).

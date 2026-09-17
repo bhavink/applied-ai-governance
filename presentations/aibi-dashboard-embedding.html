@@ -1,16 +1,9 @@
-<!--
-  Top-level entry point for the Applied AI Governance deck series.
-  Condensed from the prior 22-slide deep dive into a leaner orientation
-  deck: states the governance model at a high level and links out to
-  the 11 topic decks (02-12) for implementation depth. Rebuilt on the
-  current skeleton design system (see 10-teams-copilot-genie-obo.html).
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>AI Governance on Databricks: Overview</title>
+<title>Dashboard Embedding for External Users</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ── tokens ────────────────────────────────────────────────────────────── */
@@ -191,7 +184,7 @@ tr:hover td{background:var(--surface)}
 /* ── architecture flow ───────────────────────────────────────────────────── */
 .arch-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;gap:0;min-height:0}
 .arch-row{display:flex;align-items:center;justify-content:center;gap:0}
-.arch-agents{display:flex;align-items:stretch;gap:clamp(.5rem,1vw,.9rem);justify-content:center;flex-wrap:wrap}
+.arch-agents{display:flex;align-items:stretch;gap:clamp(.5rem,1vw,.9rem);justify-content:center}
 .abox{
   background:var(--surface);border:1px solid var(--border);border-radius:6px;
   padding:clamp(.5rem,1vw,.85rem) clamp(.7rem,1.4vw,1.1rem);
@@ -250,7 +243,7 @@ tr:hover td{background:var(--surface)}
 .callout{
   border-left:4px solid var(--red);padding:14px 20px;
   background:var(--surface);border-radius:0 5px 5px 0;
-  font-size:clamp(.95rem,1.9vw,1.32rem);line-height:1.55;font-style:italic;
+  font-size:clamp(.95rem,1.9vw,1.32rem);line-height:1.55;
 }
 
 /* ── stat highlight ──────────────────────────────────────────────────────── */
@@ -315,10 +308,22 @@ tr:hover td{background:var(--surface)}
 .gate-cell p{font-size:var(--sm);line-height:1.55;color:var(--muted)}
 .gate-label{font-size:var(--xs);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:4px}
 
-/* ── deck-link table cell ────────────────────────────────────────────────── */
-.deck-link{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px solid var(--red)}
-.deck-link:hover{color:var(--red)}
-.deck-file{display:block;font-size:var(--xs);color:var(--muted);font-family:var(--mono);margin-top:2px}
+/* ── flow steps (who talks to whom) ──────────────────────────────────────── */
+.flow-legend{display:flex;gap:clamp(.7rem,1.6vw,1.4rem);flex-wrap:wrap}
+.flow-legend-item{display:flex;align-items:center;gap:7px;font-size:var(--sm)}
+.flow-swatch{width:13px;height:13px;border-radius:3px;flex-shrink:0}
+.flow-swatch.viewer{background:var(--ink)}
+.flow-swatch.server{background:var(--blue)}
+.flow-swatch.dbx{background:var(--red)}
+.flow-list{display:flex;flex-direction:column}
+.flow-step{display:flex;align-items:baseline;gap:clamp(.5rem,1.1vw,.9rem);padding:clamp(.4rem,.85vw,.62rem) 0;border-bottom:1px solid var(--border)}
+.flow-step:last-child{border-bottom:none}
+.flow-chip{flex-shrink:0;font-size:var(--xs);font-weight:700;padding:4px 9px;border-radius:4px;white-space:nowrap;color:#fff}
+.flow-chip.viewer{background:var(--ink)}
+.flow-chip.server{background:var(--blue)}
+.flow-chip.dbx{background:var(--red)}
+.flow-dir{flex-shrink:0;font-weight:700;color:var(--muted)}
+.flow-what{font-size:var(--sm);line-height:1.55}
 
 /* ── height breakpoints ──────────────────────────────────────────────────── */
 @media(max-height:700px){
@@ -353,8 +358,8 @@ tr:hover td{background:var(--surface)}
 <body>
 
 <div class="topbar">
-  <div class="title">Databricks &mdash; <span>AI Governance: Overview</span></div>
-  <div class="counter" id="counter">01 / 10</div>
+  <div class="title">Applied AI Governance &mdash; <span>Dashboard Embedding for External Users</span></div>
+  <div class="counter" id="counter">01 / 12</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 
@@ -384,14 +389,14 @@ tr:hover td{background:var(--surface)}
      SLIDE 1 · TITLE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide slide-title active" data-slide="1">
-  <h1 class="r">AI Governance on <em>Databricks</em></h1>
-  <div class="sub r">Overview: identity, authorization, and tool governance for enterprise AI</div>
+  <h1 class="r">Embedding Dashboards<br>for <em>External</em> Users</h1>
+  <div class="sub r">Embed an AI/BI Dashboard in your host application for viewers who have no Databricks account &mdash; with per-viewer data scoping and zero second login prompts.</div>
   <div class="red-rule r"></div>
   <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:640px">
-    One governance model for business users and AI agents alike, whether access originates internally or through a partner or customer's own identity provider.
+    Your host application authenticates users via your own identity provider. The backend mints scoped Databricks tokens on their behalf. Viewers never see Databricks, never need a Databricks account.
   </p>
   <p class="r" style="margin-top:12px;color:var(--muted);font-size:var(--xs);max-width:640px">
-    Deck 01, the entry point. Decks 02 through 12 go deep on each governance domain referenced here.
+    Companion to the Cross-IdP Federation deck. That deck gives viewers a real Databricks identity with automatic row-level security. This deck gives viewers no Databricks identity at all.
   </p>
 </div>
 
@@ -401,23 +406,42 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="2">
   <div class="label r">Agenda</div>
-  <h2 class="r">What this overview covers</h2>
-  <div class="r flex1" style="display:flex;flex-direction:column;gap:clamp(.5rem,1.2vw,.9rem);margin-top:clamp(.6rem,1.4vw,1rem)">
-    <div class="seq-step r delay-1">
+  <h2 class="r">What this deck covers.</h2>
+  <div class="flex1 mt2" style="display:flex;flex-direction:column;gap:clamp(.4rem,.8vw,.6rem);overflow:hidden">
+    <div class="seq-step r">
       <div class="seq-num">1</div>
-      <div class="seq-body"><strong>The issue</strong><p>Business users and AI agents both need governed access to the same data, internally and through external partner/customer identity providers, without a separate trust model per surface.</p></div>
+      <div class="seq-body">
+        <strong>The dual-login problem</strong>
+        <p>Why a foreign IdP surfaces a second, unfamiliar sign-in screen inside the embedded iframe.</p>
+      </div>
     </div>
-    <div class="seq-step r delay-2">
+    <div class="seq-step r">
       <div class="seq-num">2</div>
-      <div class="seq-body"><strong>The governance model, at a glance</strong><p>One trust boundary, three token paths, seven enforcement layers, and a resource lens for what's being accessed.</p></div>
+      <div class="seq-body">
+        <strong>Two embedding models</strong>
+        <p>Basic Embedding versus Embedding for External Users &mdash; who authenticates to Databricks, and how.</p>
+      </div>
     </div>
-    <div class="seq-step r delay-3">
+    <div class="seq-step r">
       <div class="seq-num">3</div>
-      <div class="seq-body"><strong>Why it matters</strong><p>Consistent governance regardless of surface, a single control plane for audit and compliance, and faster delivery of new AI surfaces.</p></div>
+      <div class="seq-body">
+        <strong>The token-exchange architecture</strong>
+        <p>Three actors, three server-side API calls &mdash; the viewer&rsquo;s browser never touches Databricks directly.</p>
+      </div>
     </div>
-    <div class="seq-step r delay-4">
+    <div class="seq-step r">
       <div class="seq-num">4</div>
-      <div class="seq-body"><strong>Where to go deeper</strong><p>A map to the 11 topic decks (02 through 12) that cover implementation detail for each domain.</p></div>
+      <div class="seq-body">
+        <strong>The scoping model</strong>
+        <p>How per-viewer data narrowing is enforced &mdash; and where the platform does <em>not</em> enforce it for you.</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">5</div>
+      <div class="seq-body">
+        <strong>Prerequisites and gotchas</strong>
+        <p>What to confirm before you build, and the operational details that are easy to miss.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -427,43 +451,185 @@ tr:hover td{background:var(--surface)}
      SLIDE 3 · THE ISSUE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="3">
-  <div class="label r">The issue</div>
-  <h2 class="r">Business users and AI agents both need governed access to the same data, without a separate trust model per surface.</h2>
+  <div class="label r">The problem</div>
+  <h2 class="r">When host and account IdPs differ, a second login emerges.</h2>
   <div class="two-col mt2">
-    <div class="card card-red r">
-      <h4>Business users</h4>
-      <p>Ask plain-English questions, build dashboards, and work through Genie Agents, copilots, and agents. Each expects to see only the data their own permissions allow.</p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="callout r">
+        When your host application&rsquo;s IdP differs from the Databricks account&rsquo;s SSO IdP, basic dashboard embedding sends the viewer&rsquo;s browser to authenticate directly against the account&rsquo;s IdP. If the viewer is already signed into your app via a different IdP, they hit an unbranded, unfamiliar login prompt inside the iframe.
+      </div>
+      <div class="r" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+        <div class="card card-red" style="text-align:center;padding:14px 10px">
+          <div class="stat">2</div>
+          <div class="stat-label">identity providers per session</div>
+        </div>
+        <div class="card card-red" style="text-align:center;padding:14px 10px">
+          <div class="stat">1</div>
+          <div class="stat-label">viewer already authenticated to</div>
+        </div>
+      </div>
+      <div class="card card-amber r">
+        <h4>Why this matters beyond user friction</h4>
+        <p>The second login is unbranded and unfamiliar. Viewers on your platform &mdash; internal staff, partners, downstream clients &mdash; now face an unexpected authentication detour inside your app.</p>
+      </div>
     </div>
-    <div class="card card-red r">
-      <h4>AI agents</h4>
-      <p>Orchestrate tools and call data on a user's behalf. Partners and customers need the same capabilities, reached through their own portals and their own identity providers.</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0">The setup</div>
+      <div class="card card-ink r">
+        <h4>Your host application</h4>
+        <p>Custom React app (or other platform). All users authenticate once via <strong>your own identity provider</strong> (Okta, Azure AD, Auth0, or in-house).</p>
+      </div>
+      <div class="card card-blue r">
+        <h4>The Databricks account</h4>
+        <p>Its account-level SSO is configured against <strong>a different IdP</strong> &mdash; not the one your host app uses.</p>
+      </div>
+      <div class="card card-red r">
+        <h4>The embed</h4>
+        <p>Dashboard is embedded via iframe. The viewer&rsquo;s browser is asked to authenticate directly to Databricks&rsquo; IdP &mdash; not the host app&rsquo;s IdP.</p>
+      </div>
     </div>
   </div>
-  <div class="callout r mt2">
-    Same data, same AI, same governance expected, whether the requester is an employee or an external partner or customer authenticating through their own IdP.
+  <div class="r" style="margin-top:clamp(.6rem,1.2vw,1rem)">
+    <div class="card card-ink" style="padding:clamp(.6rem,1.2vw,1rem)">
+      <p>This is expected behavior of basic embedding, not a platform defect. Basic embedding authenticates viewers directly against the account&rsquo;s IdP. The fix is switching to a different embedding model, not reconciling the two IdPs.</p>
+    </div>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 4 · WHAT (1/4): ONE TRUST BOUNDARY
+     SLIDE 4 · WHAT — THE TWO EMBEDDING MODELS
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="4">
-  <div class="label r">What: the model, at a glance</div>
-  <h2 class="r">One authorization engine, however authentication arrives</h2>
-  <p class="r muted" style="max-width:760px">Databricks enforces authorization in exactly one place: Unity Catalog. Authentication can originate from the workspace identity provider for internal users, or from an external IdP via token federation for partners and customers. Every path converges on UC before any data or tool is touched.</p>
-  <div class="arch-wrap r">
-    <div class="arch-row" style="margin-bottom:clamp(.5rem,1vw,.8rem)">
-      <div class="abox sys r delay-1">Internal IdP<small>Entra ID &middot; Okta &middot; SAML/OIDC</small></div>
-      <div class="arch-arrow delay-2">&rarr;</div>
-      <div class="abox uc r delay-3">Unity Catalog<small style="color:var(--red);opacity:.7">single trust boundary</small></div>
-      <div class="arch-arrow delay-4">&larr;</div>
-      <div class="abox sys r delay-5">External IdP<small>partner / customer, via federation</small></div>
+  <div class="label r">What &mdash; the two embedding models</div>
+  <h2 class="r">Databricks offers two embedding models. They handle a foreign IdP differently.</h2>
+  <div class="r flex1" style="overflow-x:auto">
+    <table style="min-width:680px">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Basic Embedding</th>
+          <th>Embedding for External Users</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Who authenticates to Databricks</strong></td>
+          <td>The viewer, directly, against the account&rsquo;s SSO IdP</td>
+          <td>The app&rsquo;s own server, using its own Databricks identity</td>
+        </tr>
+        <tr>
+          <td><strong>Viewer needs a Databricks identity?</strong></td>
+          <td><span class="badge badge-red">Yes</span> &mdash; this is the second login prompt</td>
+          <td><span class="badge badge-green">No</span></td>
+        </tr>
+        <tr>
+          <td><strong>Where the prompt appears</strong></td>
+          <td>Inside the iframe, whenever the IdP session is stale</td>
+          <td>Never &mdash; token is injected server-side</td>
+        </tr>
+        <tr>
+          <td><strong>Data access model</strong></td>
+          <td>Viewer&rsquo;s own UC permissions</td>
+          <td>SP&rsquo;s UC permissions, narrowed per-query by an app-supplied parameter</td>
+        </tr>
+        <tr>
+          <td><strong>Setup</strong></td>
+          <td>Share dialog &rarr; generate embed code</td>
+          <td>Publish the dashboard, create an app identity in Databricks, add server code that requests tokens</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="r" style="margin-top:clamp(.6rem,1.2vw,1rem)">
+    <div class="card card-amber" style="padding:clamp(.6rem,1.2vw,1rem)">
+      <p>If the host app&rsquo;s IdP differs from the Databricks account&rsquo;s SSO IdP, Basic Embedding cannot avoid a second login &mdash; that is how the model is designed to work. The fix is switching to a model where the viewer&rsquo;s Databricks identity is never in play.</p>
     </div>
-    <div class="arch-vstack r delay-6">
-      <div class="arch-varrow">&darr;</div>
-      <div class="card card-green r delay-7" style="text-align:center;max-width:600px">
-        <p><strong>Same governance, regardless of which door the identity walked in.</strong> Data, tools, and agents all check the same UC privileges.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 5 · WHAT — THE 3-ACTOR FLOW
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label r">What &mdash; the fix, in plain terms</div>
+  <h2 class="r">Three actors. The viewer never talks to Databricks.</h2>
+  <p class="r" style="max-width:78ch;margin-bottom:clamp(.5rem,1vw,.8rem)">Your host application has two parts: the page viewed in a browser (frontend), and a server running your code (backend). The backend is invisible to viewers &mdash; it&rsquo;s the only part that ever authenticates to Databricks. Below is the full flow.</p>
+  <div class="flow-legend r mb2">
+    <div class="flow-legend-item"><span class="flow-swatch viewer"></span>Viewer&rsquo;s browser &mdash; what the viewer sees</div>
+    <div class="flow-legend-item"><span class="flow-swatch server"></span>Your backend &mdash; your app&rsquo;s server code, invisible to the viewer</div>
+    <div class="flow-legend-item"><span class="flow-swatch dbx"></span>Databricks &mdash; where the dashboard and data live</div>
+  </div>
+  <div class="flow-list flex1 r">
+    <div class="flow-step r delay-1">
+      <span class="flow-chip viewer">Viewer&rsquo;s browser</span>
+      <span class="flow-dir">&rarr;</span>
+      <span class="flow-chip server">Your backend</span>
+      <span class="flow-what">Already signed in via your own IdP. Requests a dashboard to be embedded.</span>
+    </div>
+    <div class="flow-step r delay-2">
+      <span class="flow-chip server">Your backend</span>
+      <span class="flow-dir">&rarr;</span>
+      <span class="flow-chip dbx">Databricks</span>
+      <span class="flow-what">Authenticates as itself using a secret (a <strong>service principal</strong>, or SP). Gets back a generic access token.</span>
+    </div>
+    <div class="flow-step r delay-3">
+      <span class="flow-chip server">Your backend</span>
+      <span class="flow-dir">&rarr;</span>
+      <span class="flow-chip dbx">Databricks</span>
+      <span class="flow-what">Passes the viewer&rsquo;s email and a scoping attribute (e.g., their client ID, department, or tenant). Gets back a ticket scoped to that viewer.</span>
+    </div>
+    <div class="flow-step r delay-4">
+      <span class="flow-chip server">Your backend</span>
+      <span class="flow-dir">&rarr;</span>
+      <span class="flow-chip dbx">Databricks</span>
+      <span class="flow-what">Trades that ticket for a short-lived dashboard token (valid ~1 hour). Gets back the embed token.</span>
+    </div>
+    <div class="flow-step r delay-5">
+      <span class="flow-chip server">Your backend</span>
+      <span class="flow-dir">&rarr;</span>
+      <span class="flow-chip viewer">Viewer&rsquo;s browser</span>
+      <span class="flow-what">Sends the embed token to the viewer&rsquo;s browser.</span>
+    </div>
+    <div class="flow-step r delay-6">
+      <span class="flow-chip viewer">Viewer&rsquo;s browser</span>
+      <span class="flow-dir">&rarr;</span>
+      <span class="flow-chip dbx">Databricks</span>
+      <span class="flow-what">Uses the token to load the dashboard. No login screen. Ever.</span>
+    </div>
+  </div>
+  <div class="card card-green r delay-7 mt2" style="text-align:center">
+    <p>The viewer&rsquo;s browser talks to your app and to Databricks&rsquo; dashboard viewer. It never sends credentials anywhere, never sees a login prompt, never even knows Databricks exists.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 6 · WHY THIS MATTERS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label r">Why this matters</div>
+  <h2 class="r">Four concrete reasons, not just a preference.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card card-green r">
+        <h4>No second login for viewers</h4>
+        <p>Viewers never authenticate to Databricks. The browser uses a scoped token you hand it, talks to your app, and loads the dashboard. No login screen.</p>
+      </div>
+      <div class="card card-blue r">
+        <h4>No viewer provisioning in Databricks</h4>
+        <p>The Service Principal is Databricks&rsquo; only identity. Add downstream clients, partners, or new user cohorts to your app without SCIM-syncing a single user into Databricks.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card card-ink r">
+        <h4>Works with any host IdP</h4>
+        <p>The token exchange doesn&rsquo;t care which IdP signed in your viewers. Okta, Azure AD, Auth0, custom &mdash; from Databricks&rsquo; side, the flow is identical.</p>
+      </div>
+      <div class="card card-red r">
+        <h4>Works across organizational boundaries</h4>
+        <p>Your viewers may sit in different identity tenants, different organizations, or have no centralized identity at all. Account-level federation and JIT provisioning tools have limits when viewers span multiple tenants. This pattern has no tenant or federation constraint.</p>
       </div>
     </div>
   </div>
@@ -471,117 +637,188 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 5 · WHAT (2/4): THREE TOKEN PATHS
-     ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="5">
-  <div class="label r">What: token paths</div>
-  <h2 class="r">Three token paths, one identity model</h2>
-  <p class="r muted" style="max-width:760px">U2M, OBO, and M2M are token acquisition paths, not separate authentication systems. What changes is whose identity Unity Catalog sees.</p>
-  <div class="r flex1 mt1" style="overflow-x:auto">
-    <table style="min-width:600px">
-      <thead><tr><th>Path</th><th>Who authenticates</th><th>Identity in UC</th></tr></thead>
-      <tbody>
-        <tr><td><strong>U2M</strong></td><td>The human, directly</td><td>The human</td></tr>
-        <tr><td><strong>OBO</strong></td><td>The human, via an app that forwards the token</td><td>The human</td></tr>
-        <tr><td><strong>M2M</strong></td><td>The application itself (service principal)</td><td>The service principal</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="callout r mt2">
-    Human calling directly: U2M. Human going through an app: OBO. App itself with no human present: M2M.
-  </div>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 6 · WHAT (3/4): SEVEN ENFORCEMENT LAYERS
-     ═══════════════════════════════════════════════════════════ -->
-<div class="slide" data-slide="6">
-  <div class="label r">What: enforcement layers</div>
-  <h2 class="r">Seven layers, checked on every call</h2>
-  <div class="r flex1" style="overflow-x:auto">
-    <table style="min-width:680px">
-      <thead><tr><th>Layer</th><th>Governs</th></tr></thead>
-      <tbody>
-        <tr><td><strong>1 &middot; Identity</strong></td><td>Agent service principal, user OBO, token federation</td></tr>
-        <tr><td><strong>2 &middot; Permission</strong></td><td>UC privileges on tables, functions, and services (MCP, model)</td></tr>
-        <tr><td><strong>3 &middot; Data</strong></td><td>Row filters, column masks, ABAC, BROWSE privilege</td></tr>
-        <tr><td><strong>4 &middot; Execution</strong></td><td>Model Serving, Apps, serverless sandboxing</td></tr>
-        <tr><td><strong>5 &middot; Service Policy</strong></td><td>ABAC governance: who calls what tools, on which data (guardrails built-in, enforced ON CALL/ON RESULT, fail-closed)</td></tr>
-        <tr><td><strong>6 &middot; Content</strong></td><td>AI Gateway guardrails: hallucination detection, safety, PII handling</td></tr>
-        <tr><td><strong>7 &middot; Audit</strong></td><td>system.access.audit, MLflow traces, inference tables</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="callout r mt2">
-    No design should rely on a single layer. Service Policies are the superset governing content and tool execution.
-  </div>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 7 · WHAT (4/4): THE RESOURCE LENS
+     SLIDE 7 · WHY — WHEN TO USE WHICH
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="7">
-  <div class="label r">What: the resource lens</div>
-  <h2 class="r">Authorization differs by what's being accessed</h2>
-  <div class="r arch-agents mt2">
-    <div class="abox r delay-1">Model Serving<small>endpoints, foundation models, custom</small></div>
-    <div class="abox r delay-2">Genie Agents</div>
-    <div class="abox r delay-3">UC Functions</div>
-    <div class="abox r delay-4">Vector Search</div>
-    <div class="abox uc r delay-5" style="font-size:var(--sm);padding:clamp(.5rem,1vw,.85rem) clamp(.7rem,1.4vw,1.1rem)">Services<small style="color:var(--red);opacity:.7">MCP, model (UC securables)</small></div>
-    <div class="abox r delay-6">Tables &amp; Volumes</div>
-    <div class="abox danger r delay-7">PostgreSQL<small>PG-native auth, the exception</small></div>
+  <div class="label r">Why &mdash; when to use which</div>
+  <h2 class="r">Three patterns. Pick the one that matches your use case.</h2>
+  <div class="gate-grid flex1 mt1">
+    <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
+      <div class="gate-label" style="color:var(--green)">Use this deck &mdash; External-User Embedding</div>
+      <h4>Viewers have no Databricks account</h4>
+      <p>Your app owns the viewer&rsquo;s entire identity. Scoping is a single attribute (client ID, region, department). Dashboards only, no Genie Agents.</p>
+    </div>
+    <div class="gate-cell r" style="background:var(--blue-bg);border-color:var(--blue)">
+      <div class="gate-label" style="color:var(--blue)">Use the Cross-IdP Federation deck</div>
+      <h4>Viewers need platform-enforced row-level security</h4>
+      <p>Viewers are SCIM-synced to Databricks with real <code>current_user()</code> identities. Unity Catalog row filters fire automatically. Genie Agents, SQL, Dashboards all work.</p>
+    </div>
+    <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
+      <div class="gate-label" style="color:var(--green)">Use this deck even if IdPs differ</div>
+      <h4>Your branding forbids any Databricks domain in the flow</h4>
+      <p>Viewers stay entirely within your app&rsquo;s domain. No redirects, no Databricks-branded URLs, no third-party prompts visible to your users.</p>
+    </div>
+    <div class="gate-cell r" style="background:var(--blue-bg);border-color:var(--blue)">
+      <div class="gate-label" style="color:var(--blue)">Use Basic Embedding</div>
+      <h4>Viewers share your Databricks account&rsquo;s IdP</h4>
+      <p>When your host app and Databricks already use the same IdP, there is no second identity. Basic Embedding is simpler and gives viewers their own real permissions.</p>
+    </div>
   </div>
-  <p class="r muted mt2" style="max-width:760px">MCP Services and model services are UC securables with governed tags, role-based access, and service policies. PostgreSQL (Lakebase) uses native PG authorization (roles, GRANT, RLS) — the exception to the UC model.</p>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 8 · WHY
+     SLIDE 8 · HOW — THE 3-STEP FLOW, CODE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="8">
-  <div class="label r">Why this matters</div>
-  <h2 class="r">One model, not one per surface</h2>
-  <div class="three-col mt2">
-    <div class="card card-green r">
-      <h4>Consistent governance</h4>
-      <p>The same rules apply whether the surface is Genie Agents, Teams, a custom app, or a partner portal. No per-integration reinterpretation of who can see what.</p>
+  <div class="label r">How &mdash; implementation</div>
+  <h2 class="r">The exact calls behind the app server&rsquo;s three steps.</h2>
+  <p class="r muted" style="max-width:76ch;margin-bottom:clamp(.4rem,.8vw,.6rem)">Verified against Databricks&rsquo; reference implementation. This is server code &mdash; the viewer&rsquo;s browser never runs any of it.</p>
+  <div class="two-col mt1">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r" style="margin-bottom:0">Step 1 &mdash; SP token</div>
+      <pre class="r"><span class="kw">POST</span> {workspace}/oidc/v1/token
+Authorization: Basic base64(client_id:secret)
+
+<span class="kw">grant_type</span>=client_credentials&amp;<span class="kw">scope</span>=all-apis</pre>
+      <div class="label r" style="margin-bottom:0">Step 2 &mdash; viewer context</div>
+      <pre class="r"><span class="kw">GET</span> {workspace}/api/2.0/lakeview/
+  dashboards/{id}/published/tokeninfo
+  ?external_viewer_id={email}
+  &amp;external_value={scoping_attr}
+Authorization: Bearer {step_1_token}</pre>
     </div>
-    <div class="card card-blue r">
-      <h4>Lower audit burden</h4>
-      <p>One control plane to prove compliance against: system.access.audit and MLflow traces cover every surface, not a bespoke log per integration.</p>
-    </div>
-    <div class="card card-amber r">
-      <h4>Velocity</h4>
-      <p>New AI surfaces plug into the same identity and authorization model instead of re-solving it, so teams ship faster without reopening the trust question.</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r" style="margin-bottom:0">Step 3 &mdash; scoped embed token</div>
+      <pre class="r"><span class="kw">POST</span> {workspace}/oidc/v1/token
+Authorization: Basic base64(client_id:secret)
+
+<span class="kw">grant_type</span>=client_credentials
+&amp;<span class="kw">authorization_details</span>={step_2_response}</pre>
+      <div class="card card-ink r">
+        <p><code>authorization_details</code> is Step 2&rsquo;s response, passed through <strong>unmodified</strong>. Response: <code>{access_token, token_type, expires_in, created_at}</code>. <code>access_token</code> goes to the embedding SDK &mdash; never to the browser as anything else.</p>
+      </div>
+      <div class="card card-amber r">
+        <p><code>external_viewer_id</code> is <strong>audit-only</strong>. It does not scope access by itself &mdash; only <code>external_value</code>, matched in dashboard SQL, does.</p>
+      </div>
     </div>
   </div>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 9 · HOW: WHERE TO GO DEEPER
+     SLIDE 9 · HOW — SCOPING MODEL
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="9">
-  <div class="label r">How: where to go deeper</div>
-  <h2 class="r">For implementation detail, see:</h2>
+  <div class="label r">How &mdash; scoping model</div>
+  <h2 class="r">This is application-enforced scoping, not Unity Catalog row filters.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0">Dashboard SQL &mdash; the scoping pattern</div>
+      <pre class="r"><span class="kw">SELECT</span> customer_id, region, total_revenue
+<span class="kw">FROM</span> sales.customer_data
+<span class="kw">WHERE</span> department = __aibi_external_value</pre>
+      <div class="card card-red r">
+        <p>If a query <strong>forgets</strong> the <code>__aibi_external_value</code> filter, that viewer sees everything the SP can see. There is no platform-level backstop &mdash; every query has to be reviewed.</p>
+      </div>
+      <div class="card card-amber r">
+        <p><strong>Publish-time decision:</strong> individual data permissions (SP holds the union of access, filtering does the narrowing) vs. shared data permissions (the publisher&rsquo;s access applies to <em>every</em> viewer uniformly &mdash; wrong choice whenever viewers must see different data).</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0">Contrast: the Cross-IdP Federation deck&rsquo;s pattern</div>
+      <div class="card r">
+        <h4>Cross-IdP token exchange (Cross-IdP Federation deck)</h4>
+        <ul>
+          <li>Viewer <strong>does</strong> get a real Databricks identity (SCIM-synced)</li>
+          <li><code>current_user()</code> = the human</li>
+          <li>UC row filters fire <strong>automatically</strong>, for every query, platform-enforced</li>
+          <li>Requires the viewer&rsquo;s IdP to publish a JWKS (RS256/ES256)</li>
+        </ul>
+      </div>
+      <div class="card card-blue r">
+        <h4>Dashboard external embedding (this deck)</h4>
+        <ul>
+          <li>Viewer <strong>never</strong> gets a Databricks identity &mdash; SP only</li>
+          <li><code>current_user()</code> would return the SP, not the human</li>
+          <li>Scoping fires only if the dashboard&rsquo;s SQL includes the parameter</li>
+          <li>Works with any host IdP &mdash; no JWKS requirement at all</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 10 · HOW — PREREQUISITES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label r">How &mdash; before you build</div>
+  <h2 class="r">Six prerequisites to confirm before implementation.</h2>
+  <div class="flex1 mt2" style="display:flex;flex-direction:column;gap:clamp(.4rem,.8vw,.6rem);overflow:hidden">
+    <div class="seq-step r">
+      <div class="seq-num">1</div>
+      <div class="seq-body">
+        <strong>Publish the dashboard</strong>
+        <p>The embedding APIs only work against a published dashboard, not a draft.</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">2</div>
+      <div class="seq-body">
+        <strong>Choose individual data permissions at publish time</strong>
+        <p>Not shared. This is the setting that makes per-viewer scoping possible at all &mdash; and it&rsquo;s a republish to change later, not a toggle.</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">3</div>
+      <div class="seq-body">
+        <strong>Identify the scoping attribute up front</strong>
+        <p>What column or value distinguishes one viewer&rsquo;s data from another&rsquo;s? Where does that scoping value live: in an IdP claim, your app&rsquo;s user table, or a Databricks-side lookup table?</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">4</div>
+      <div class="seq-body">
+        <strong>Create the Service Principal and grant the union of access</strong>
+        <p><code>Can View</code> on the dashboard, <code>Can Use</code> on the warehouse, UC <code>SELECT</code> across everything any viewer might need &mdash; the ceiling that <code>external_value</code> then narrows.</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">5</div>
+      <div class="seq-body">
+        <strong>Approve your app&rsquo;s domain for embedding</strong>
+        <p>Workspace Settings &rarr; Security &rarr; External Access &rarr; Embed Dashboards. Add your app&rsquo;s domain to the allowed list. Specify subdomains if needed (e.g., <code>*.example.com</code>).</p>
+      </div>
+    </div>
+    <div class="seq-step r">
+      <div class="seq-num">6</div>
+      <div class="seq-body">
+        <strong>Confirm third-party cookies work for your viewers</strong>
+        <p>The embedding SDK relies on them. If your viewer base runs strict browser policies that block third-party cookies, test this before deployment.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 11 · HOW — GOTCHAS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label r">How &mdash; gotchas</div>
+  <h2 class="r">Operational details that are easy to miss.</h2>
   <div class="r flex1" style="overflow-x:auto">
-    <table style="min-width:720px">
-      <thead><tr><th>Deck</th><th>Covers</th></tr></thead>
+    <table style="min-width:680px">
+      <thead><tr><th>Issue</th><th>What to know</th></tr></thead>
       <tbody>
-        <tr><td><a class="deck-link" href="02-unity-ai-gateway.html">Unity AI Gateway</a><span class="deck-file">02-unity-ai-gateway.html</span></td><td>Routing, rate limits, guardrails, spend caps, MCP Services</td></tr>
-        <tr><td><a class="deck-link" href="03-identity-auth-foundations.html">Identity &amp; Auth Foundations</a><span class="deck-file">03-identity-auth-foundations.html</span></td><td>U2M/OBO/M2M in depth, one authentication layer</td></tr>
-        <tr><td><a class="deck-link" href="04-authorization-by-resource.html">Authorization by Resource Type</a><span class="deck-file">04-authorization-by-resource.html</span></td><td>The full resource-authorization matrix</td></tr>
-        <tr><td><a class="deck-link" href="05-orchestration-tool-governance.html">Orchestration &amp; Tool Governance</a><span class="deck-file">05-orchestration-tool-governance.html</span></td><td>Agent Bricks, MCP, service policies</td></tr>
-        <tr><td><a class="deck-link" href="06-cross-idp-federation.html">Cross-IdP Federation</a><span class="deck-file">06-cross-idp-federation.html</span></td><td>Token exchange across identity providers</td></tr>
-        <tr><td><a class="deck-link" href="07-sp-m2m-identity.html">SP &amp; M2M Identity</a><span class="deck-file">07-sp-m2m-identity.html</span></td><td>Governance for service principals and machine identities</td></tr>
-        <tr><td><a class="deck-link" href="08-uc-connections.html">UC Connections</a><span class="deck-file">08-uc-connections.html</span></td><td>Unity Catalog HTTP Connections to external services</td></tr>
-        <tr><td><a class="deck-link" href="09-uc-governance.html">UC Governance</a><span class="deck-file">09-uc-governance.html</span></td><td>Row filters, column masks, ABAC</td></tr>
-        <tr><td><a class="deck-link" href="10-agent-cost-governance.html">Agent Cost Governance</a><span class="deck-file">10-agent-cost-governance.html</span></td><td>Cost control for agentic workloads</td></tr>
-        <tr><td><a class="deck-link" href="11-aibi-dashboard-embedding.html">AI/BI Dashboard Embedding</a><span class="deck-file">11-aibi-dashboard-embedding.html</span></td><td>Embedding dashboards for foreign identity providers</td></tr>
-        <tr><td><a class="deck-link" href="12-teams-copilot-genie-obo.html">Teams/Copilot Studio &rarr; Genie Agents OBO</a><span class="deck-file">12-teams-copilot-genie-obo.html</span></td><td>Per-user identity from Teams and Copilot Studio</td></tr>
+        <tr><td><strong>&ldquo;Ask Genie Agents&rdquo; requires basic embedding</strong></td><td>Conversational dashboard search (Genie Agents) works under basic embedding. For external-user embedding, use static or parameterized dashboards.</td></tr>
+        <tr><td><strong>Token TTL ~1 hour</strong></td><td>The SDK calls <code>getNewToken()</code> ~5 min before expiry. Your backend must re-run the full 3-step token exchange; there is no &ldquo;refresh token&rdquo; shortcut.</td></tr>
+        <tr><td><strong>SP blast radius</strong></td><td>The SP holds the union of every viewer&rsquo;s access. If credentials leak, all tenant data is exposed unless every dashboard query enforces the <code>__aibi_external_value</code> filter.</td></tr>
+        <tr><td><strong>Query review is mandatory</strong></td><td>There is no platform-level backstop. If a dashboard query forgets the scoping filter, that viewer sees everything the SP can see. Every query must be reviewed.</td></tr>
+        <tr><td><strong>SP credentials stay server-side</strong></td><td><code>client_id</code> and <code>client_secret</code> never leave your backend. Only the minted <code>embed_token</code> is sent to the browser.</td></tr>
+        <tr><td><strong>Publish-time decision</strong></td><td>Individual vs. shared data permissions is set when you publish. Changing it later requires republishing the dashboard, not toggling a setting.</td></tr>
       </tbody>
     </table>
   </div>
@@ -589,18 +826,17 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 10 · CLOSING CALLIGRAM
+     SLIDE 12 · CLOSING CALLIGRAM
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide slide-calli" data-slide="10">
+<div class="slide slide-calli" data-slide="12">
   <div class="calli-hero r">
-    UNITY CATALOG.
-    <span class="line2">THE TRUST BOUNDARY.</span>
-    <span class="line3">GOVERNANCE FOLLOWS IDENTITY.</span>
+    ONE LOGIN.
+    <span class="line2">YOUR BACKEND AUTHENTICATES.</span>
+    <span class="line3">ZERO PROMPTS.</span>
   </div>
   <div class="calli-rule r"></div>
-  <div class="calli-sub r">Identity &middot; Permission &middot; Data &middot; Execution &middot; Service &middot; Content &middot; Audit</div>
-  <div class="calli-sub r" style="margin-top:clamp(.4rem,1vh,.7rem)">OBO &middot; M2M &middot; Federation &middot; MCP Services &middot; Multi-Provider LLMs</div>
-  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Databricks Applied AI Governance Series &middot; Deck 01</div>
+  <div class="calli-sub r">Your backend mints scoped tokens. Your viewers never authenticate to Databricks.</div>
+  <div class="calli-sub r" style="margin-top:clamp(.6rem,1.5vh,1.1rem);font-size:var(--xs);opacity:.4">Databricks Applied AI Governance Series &middot; AI/BI Dashboard Embedding</div>
 </div>
 
 

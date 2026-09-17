@@ -179,7 +179,7 @@ as whatever token you provide.
 
 ## Presentations
 
-- [Cross-IdP Federation (Deck 06)](https://bhavink.github.io/applied-ai-governance/presentations/06-cross-idp-federation.html): propagating an external end-user identity from an app and its IdP through Unity Catalog enforcement.
+- [Cross-IdP Federation](https://bhavink.github.io/applied-ai-governance/presentations/cross-idp-federation.html): propagating an external end-user identity from an app and its IdP through Unity Catalog enforcement.
 
 ## Public References
 

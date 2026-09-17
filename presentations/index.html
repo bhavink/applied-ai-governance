@@ -41,7 +41,7 @@ h1 span { color: var(--red); }
 .deck-grid { display: flex; flex-direction: column; gap: 16px; margin-top: 2rem; }
 .deck-card {
     display: grid;
-    grid-template-columns: 56px 1fr auto;
+    grid-template-columns: 1fr auto;
     align-items: center;
     gap: 16px;
     padding: 20px 24px;
@@ -56,17 +56,7 @@ h1 span { color: var(--red); }
     border-color: var(--red);
     box-shadow: 0 2px 12px rgba(204,51,17,0.08);
 }
-.deck-num {
-    width: 44px; height: 44px;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--ink);
-    color: #fff;
-    border-radius: 4px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-}
-.deck-card.entry .deck-num { background: var(--red); }
+.deck-card.entry { border-left: 3px solid var(--red); }
 .deck-body h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; }
 .deck-body p { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
 .deck-meta { text-align: right; white-space: nowrap; }
@@ -106,7 +96,7 @@ h1 span { color: var(--red); }
 .footer a:hover { text-decoration: underline; }
 
 @media (max-width: 600px) {
-    .deck-card { grid-template-columns: 40px 1fr; }
+    .deck-card { grid-template-columns: 1fr; }
     .deck-meta { display: none; }
 }
     </style>
@@ -136,8 +126,7 @@ h1 span { color: var(--red); }
     <div class="section-label">Start Here</div>
 
     <div class="deck-grid">
-        <a href="01-ai-governance-complete.html" class="deck-card entry">
-            <div class="deck-num">01</div>
+        <a href="ai-governance-complete.html" class="deck-card entry">
             <div class="deck-body">
                 <h3>AI Governance on Databricks — Overview</h3>
                 <p>The governance model at a glance: one auth layer, three token paths, seven enforcement layers, and a map to the deeper decks below.</p>
@@ -152,8 +141,7 @@ h1 span { color: var(--red); }
     <div class="section-label">Identity &amp; Access Foundations</div>
 
     <div class="deck-grid">
-        <a href="02-unity-ai-gateway.html" class="deck-card">
-            <div class="deck-num">02</div>
+        <a href="unity-ai-gateway.html" class="deck-card">
             <div class="deck-body">
                 <h3>Unity AI Gateway</h3>
                 <p>The single control plane for AI traffic: routing, rate limits, guardrails, spend caps, and MCP Services.</p>
@@ -163,8 +151,7 @@ h1 span { color: var(--red); }
             </div>
         </a>
 
-        <a href="03-identity-auth-foundations.html" class="deck-card">
-            <div class="deck-num">03</div>
+        <a href="identity-auth-foundations.html" class="deck-card">
             <div class="deck-body">
                 <h3>Identity &amp; Authentication Foundations</h3>
                 <p>U2M, OBO, and M2M token paths, and how Unity Catalog acts as the single authorization boundary regardless of path.</p>
@@ -174,8 +161,7 @@ h1 span { color: var(--red); }
             </div>
         </a>
 
-        <a href="04-authorization-by-resource.html" class="deck-card">
-            <div class="deck-num">04</div>
+        <a href="authorization-by-resource.html" class="deck-card">
             <div class="deck-body">
                 <h3>Authorization by Resource Type</h3>
                 <p>How authorization differs across Genie Agents, UC Functions, Vector Search, MCP Services, Tables, and Lakebase.</p>
@@ -185,8 +171,7 @@ h1 span { color: var(--red); }
             </div>
         </a>
 
-        <a href="05-orchestration-tool-governance.html" class="deck-card">
-            <div class="deck-num">05</div>
+        <a href="orchestration-tool-governance.html" class="deck-card">
             <div class="deck-body">
                 <h3>AI Orchestration &amp; Tool Governance</h3>
                 <p>Agent Bricks orchestration, the three MCP types, and service policies for tool-calling agents.</p>
@@ -200,8 +185,7 @@ h1 span { color: var(--red); }
     <div class="section-label">Cross-Boundary Identity</div>
 
     <div class="deck-grid">
-        <a href="06-cross-idp-federation.html" class="deck-card">
-            <div class="deck-num">06</div>
+        <a href="cross-idp-federation.html" class="deck-card">
             <div class="deck-body">
                 <h3>Cross-IdP Token Federation</h3>
                 <p>Propagating a real end-user identity from an external app and IdP through to Unity Catalog enforcement.</p>
@@ -211,8 +195,7 @@ h1 span { color: var(--red); }
             </div>
         </a>
 
-        <a href="07-sp-m2m-identity.html" class="deck-card">
-            <div class="deck-num">07</div>
+        <a href="sp-m2m-identity.html" class="deck-card">
             <div class="deck-body">
                 <h3>Service Principal &amp; M2M Identity Governance</h3>
                 <p>One SP per service, purpose-scoped groups, client-credentials flow, and RLS behavior under M2M.</p>
@@ -222,8 +205,7 @@ h1 span { color: var(--red); }
             </div>
         </a>
 
-        <a href="08-uc-connections.html" class="deck-card">
-            <div class="deck-num">08</div>
+        <a href="uc-connections.html" class="deck-card">
             <div class="deck-body">
                 <h3>UC HTTP Connections</h3>
                 <p>Governed access to external services through Unity Catalog connections, without static secrets.</p>
@@ -237,8 +219,7 @@ h1 span { color: var(--red); }
     <div class="section-label">Data Governance</div>
 
     <div class="deck-grid">
-        <a href="09-uc-governance.html" class="deck-card">
-            <div class="deck-num">09</div>
+        <a href="uc-governance.html" class="deck-card">
             <div class="deck-body">
                 <h3>Unity Catalog Governance</h3>
                 <p>Row filters, column masks, ABAC, and governed tags as the enforcement layer beneath every access path.</p>
@@ -252,8 +233,7 @@ h1 span { color: var(--red); }
     <div class="section-label">Applied Patterns</div>
 
     <div class="deck-grid">
-        <a href="10-agent-cost-governance.html" class="deck-card">
-            <div class="deck-num">10</div>
+        <a href="agent-cost-governance.html" class="deck-card">
             <div class="deck-body">
                 <h3>Agent Cost Governance on Unity AI Gateway</h3>
                 <p>Model routing, per-agent rate limits, hard spend caps, guardrails, approval gates, and sandbox isolation, plus which coding-agent runtime to pick: Omnigent or ug.</p>
@@ -264,8 +244,7 @@ h1 span { color: var(--red); }
             </div>
         </a>
 
-        <a href="11-aibi-dashboard-embedding.html" class="deck-card">
-            <div class="deck-num">11</div>
+        <a href="aibi-dashboard-embedding.html" class="deck-card">
             <div class="deck-body">
                 <h3>AI/BI Dashboard Embedding Behind a Foreign IdP</h3>
                 <p>Embedding a dashboard in an app whose identity provider differs from the Databricks account's, without a second login.</p>
@@ -276,8 +255,7 @@ h1 span { color: var(--red); }
             </div>
         </a>
 
-        <a href="12-teams-copilot-genie-obo.html" class="deck-card">
-            <div class="deck-num">12</div>
+        <a href="teams-copilot-genie-obo.html" class="deck-card">
             <div class="deck-body">
                 <h3>Per-User Identity in Teams &amp; Copilot Studio</h3>
                 <p>Bringing per-user identity into Genie Agents from Microsoft Teams and Copilot Studio, and the publish-mode setting that can quietly override it.</p>
@@ -293,8 +271,7 @@ h1 span { color: var(--red); }
     <div class="section-label">Technical Deep Dives</div>
 
     <div class="deck-grid">
-        <a href="15-identity-audit-architecture.html" class="deck-card">
-            <div class="deck-num">15</div>
+        <a href="identity-audit-architecture.html" class="deck-card">
             <div class="deck-body">
                 <h3>Databricks Identity &amp; Audit Architecture</h3>
                 <p>Which identity each AI service honors, the three proxy types, confused-deputy prevention, and the chain of custody from human to tool to SQL. Companion to the Service Identity and Audit doc.</p>
@@ -305,8 +282,7 @@ h1 span { color: var(--red); }
             </div>
         </a>
 
-        <a href="16-federation-deep-dive.html" class="deck-card">
-            <div class="deck-num">16</div>
+        <a href="federation-deep-dive.html" class="deck-card">
             <div class="deck-body">
                 <h3>Federation Exchange Deep Dive</h3>
                 <p>The IdP-agnostic identity chain end to end: what is in the token at each stage, the enforcement points, a failure decision tree, and how IdP config maps to Databricks config. Companion to the Production Federation Guide.</p>
@@ -317,8 +293,7 @@ h1 span { color: var(--red); }
             </div>
         </a>
 
-        <a href="17-ug-coding-agent-governance.html" class="deck-card">
-            <div class="deck-num">17</div>
+        <a href="ug-coding-agent-governance.html" class="deck-card">
             <div class="deck-body">
                 <h3>Governing Coding Agents with ug</h3>
                 <p>Route Claude Code, Codex, and other coding agents through Unity Gateway for identity, governed MCP tools and Skills, usage visibility, and cost control. Companion to the ug quickstart.</p>

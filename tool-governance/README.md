@@ -30,9 +30,9 @@ cheapest to make total.
 
 ## Presentations
 
-- [Orchestration & Tool Governance (Deck 05)](https://bhavink.github.io/applied-ai-governance/presentations/05-orchestration-tool-governance.html): Agent Bricks orchestration, MCP types, service policies for tool-calling agents.
-- [Service Principal & M2M (Deck 07)](https://bhavink.github.io/applied-ai-governance/presentations/07-sp-m2m-identity.html): one SP per service, purpose-scoped groups, client-credentials flow.
-- [UC Connections (Deck 08)](https://bhavink.github.io/applied-ai-governance/presentations/08-uc-connections.html): governed external service access without static secrets.
+- [Orchestration & Tool Governance](https://bhavink.github.io/applied-ai-governance/presentations/orchestration-tool-governance.html): Agent Bricks orchestration, MCP types, service policies for tool-calling agents.
+- [Service Principal & M2M](https://bhavink.github.io/applied-ai-governance/presentations/sp-m2m-identity.html): one SP per service, purpose-scoped groups, client-credentials flow.
+- [UC Connections](https://bhavink.github.io/applied-ai-governance/presentations/uc-connections.html): governed external service access without static secrets.
 
 ## Related Pillars
 

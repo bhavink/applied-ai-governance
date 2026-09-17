@@ -26,7 +26,7 @@ day one.
 
 ## Presentations
 
-- [UC Governance (Deck 09)](https://bhavink.github.io/applied-ai-governance/presentations/09-uc-governance.html): row filters, column masks, ABAC, and governed tags as the enforcement layer.
+- [UC Governance](https://bhavink.github.io/applied-ai-governance/presentations/uc-governance.html): row filters, column masks, ABAC, and governed tags as the enforcement layer.
 
 ## Related Pillars
 
