@@ -109,7 +109,7 @@ No YAML. No policy engines. No deployment pipelines. SQL is the policy language.
 
 ## Pillars This Repository Documents
 
-The six questions above are answered across every layer of a Databricks deployment. This repository goes deep on the three pillars where identity and observability are established and where an agent runtime enforces them. The remaining concerns (the network perimeter, data-layer filtering, connection governance, and compliance-as-SQL) are enforced by Databricks platform features, and this repository cites the public documentation where they come up rather than restating them.
+The six questions above are answered across every layer of a Databricks deployment. This repository goes deep on the five pillars where identity is established, data and tool access are governed, and an agent runtime enforces them under observation. The remaining concerns (the network perimeter and compliance-as-SQL) are enforced by Databricks platform features, and this repository cites the public documentation where they come up rather than restating them.
 
 ```
 +------------------------------------------------------------------+
@@ -121,16 +121,23 @@ The six questions above are answered across every layer of a Databricks deployme
 |      Access Control  one governance plane. OAuth scopes enforce   |
 |                      least privilege per token.                   |
 |                                                                   |
-|  [2] Observability   Platform audit + app audit + MLflow traces.  |
+|  [2] Data            Row filters, column masks, ABAC. Govern the  |
+|      Governance      data, not the tool; every AI service that    |
+|                      issues SQL inherits it.                      |
+|                                                                   |
+|  [3] Tool & API      Custom MCP as the single gateway; scopes     |
+|      Governance      over grants; UC Connections for external     |
+|                      credentials; hot-deployable tool policy.      |
+|                                                                   |
+|  [4] Observability   Platform audit + app audit + MLflow traces.  |
 |      & Audit         Chain of custody: human -> tool -> SQL.      |
 |                                                                   |
-|  [3] Agent Runtime   Where identity and observability meet at     |
+|  [5] Agent Runtime   Where identity and observability meet at     |
 |      Harness         runtime: per-user tokens, policy verdicts,   |
 |                      traces, and cost caps around tool calls.     |
 |                                                                   |
 |  Enforced by the platform (cited to Databricks docs):             |
-|  network isolation, row filters and column masks, UC Connections, |
-|  governance-as-SQL for compliance.                                |
+|  network isolation, and governance-as-SQL for compliance.         |
 +------------------------------------------------------------------+
 ```
 
@@ -150,7 +157,36 @@ OAuth scopes enforce least privilege per token: `sql`, `genie`, `serving`, never
 
 **Future-proof because:** Every new Databricks AI service supports OAuth tokens and UC identity. The three models cover all caller types (human-with-account, machine, human-without-account), so new services do not require new identity patterns.
 
-### Pillar 2: Observability & Audit
+### Pillar 2: Data Governance
+
+**Question:** Once identity is established, which rows and columns may this identity see?
+
+Access control lives at the data layer, so every AI service that issues SQL inherits it. Row
+filters exclude rows the caller should not see; column masks redact values; ABAC via governed
+tags applies one policy to every table carrying a tag. The pivotal fact for federated access:
+when an external user reaches Databricks through a service principal, `current_user()` is the
+SP, not the human, so individual-identity filters do not fire and group-based filtering (or a
+mapping table) is the correct pattern. See [Access Control Patterns](data-governance/access-control-patterns.md).
+
+**Future-proof because:** the policy is attached to the data, not the application. A new AI
+tool inherits the same filters and masks on day one without any governance code.
+
+### Pillar 3: Tool & API Governance
+
+**Question:** What tools and external services can an agent call, and how is that controlled?
+
+A custom MCP server is the single gateway agents call; scopes cap what a token can do and UC
+grants decide what the identity may access, enforced independently. External credentials live
+in UC Connections (`GRANT USE CONNECTION` is the on/off switch), never in code. The runtime
+policy that decides which role may call which tool is decoupled from code into a governed,
+versioned config store so it changes in seconds without a redeploy. See
+[Custom MCP Principles](tool-governance/custom-mcp-principles.md) and
+[Runtime Config Patterns](tool-governance/runtime-config-patterns.md).
+
+**Future-proof because:** adding an external tool is `CREATE CONNECTION` plus
+`GRANT USE CONNECTION`, and changing tool access is a config update, not a deploy.
+
+### Pillar 4: Observability & Audit
 
 **Question:** What happened, and can you prove it?
 
@@ -166,7 +202,7 @@ The chain of custody is `human -> tool -> SQL -> data`, correlated across all th
 
 **Future-proof because:** Every new AI service writes to `system.access.audit`, so the platform audit surface grows automatically. Application audit is a pattern you implement once (decorator or middleware) and apply to every tool.
 
-### Pillar 3: Agent Runtime Harness
+### Pillar 5: Agent Runtime Harness
 
 **Question:** As an agent calls tools at runtime, does the caller's identity carry through, and can you see and constrain what it did?
 
@@ -209,13 +245,15 @@ This repository's reference documentation is organized around the pillars:
 
 | Pillar | Key Documents |
 |--------|--------------|
-| Identity & Access | [Identity/](identity/): [Authentication](identity/authentication.md), [Authorization](identity/authorization.md), [Federation](identity/federation.md), [Proxy Architecture](identity/proxy-architecture.md), [OAuth Scopes](identity/oauth-scopes-reference.md), [Cloud Auth Patterns](identity/cloud-auth-patterns.md), [Service Principal M2M](identity/sp-m2m-identity.md), [U2M External OBO](identity/u2m-external-obo.md) |
+| Identity & Access | [Identity/](identity/): [Authentication](identity/authentication.md), [Authorization](identity/authorization.md), [Production Federation](identity/federation-production.md), [Federation](identity/federation.md), [Proxy Architecture](identity/proxy-architecture.md), [OAuth Scopes](identity/oauth-scopes-reference.md), [Cloud Auth Patterns](identity/cloud-auth-patterns.md), [Service Principal M2M](identity/sp-m2m-identity.md), [U2M External OBO](identity/u2m-external-obo.md) |
+| Data Governance | [Data-governance/](data-governance/): [Access Control Patterns](data-governance/access-control-patterns.md) (row filters, column masks, ABAC, the service-principal identity gap) |
+| Tool & API Governance | [Tool-governance/](tool-governance/): [Custom MCP Principles](tool-governance/custom-mcp-principles.md), [Runtime Config Patterns](tool-governance/runtime-config-patterns.md) |
 | Observability & Audit | [Observability/](observability/): [Audit Reference](observability/audit-reference.md), [Agent Tracing](observability/agent-tracing.md), [App Observability](observability/app-observability.md), [Endpoint Telemetry](observability/endpoint-telemetry.md) |
 | Agent Runtime Harness | [Harness/](harness/): [Omnigent Guardrails Demo](harness/omnigent-guardrails-demo/) (identity and observability at the agent runtime boundary) |
 
-The presentation library ([presentations/](https://bhavink.github.io/applied-ai-governance/presentations/)) spans 14 talks covering identity, authorization, federation, cost control, UC governance, orchestration, and the applied AI governance model end-to-end.
+The presentation library ([presentations/](https://bhavink.github.io/applied-ai-governance/presentations/)) covers identity, authorization, federation, cost control, UC governance, orchestration, and the applied AI governance model end-to-end.
 
-The network perimeter, data-layer filtering (UC row filters and column masks), connection governance (UC Connections), and compliance-as-SQL are enforced through Databricks platform features and are cited to the public documentation where they come up, rather than restated as reference docs here. Prompt security is a cross-cutting concern addressed within the identity, observability, and harness pillars.
+The network perimeter and compliance-as-SQL are enforced through Databricks platform features and are cited to the public documentation where they come up, rather than restated as reference docs here. Prompt security is a cross-cutting concern addressed within the identity, data-governance, tool-governance, observability, and harness pillars.
 
 ---
 

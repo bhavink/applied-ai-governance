@@ -1,15 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: auth/peruser-byoidp-federation.md, auth/token-federation.md, auth/obo-passthrough.md, governance/row-filters.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-exchange
-    - https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/
-    - https://docs.databricks.com/aws/en/genie/conversation-api
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Per-User Data Access from an External App with a Bring-Your-Own IdP
 
 > **What this is**: A service running **outside** Databricks, whose users log in with **their own (customer/partner) IdP**, calls Databricks data APIs (Genie, SQL, Vector Search, serving) **as each individual user** — so Unity Catalog row filters fire per person. The app exchanges the user's IdP JWT for a **per-user** Databricks token (RFC 8693, account-wide policy). The architecture hinges on **one fact: how the IdP signs its tokens.**
@@ -225,6 +213,7 @@ Thanks! :pray: #1 alone unblocks most of the design.
 
 ## Related
 
+- [Production Federation Guide](federation-production.md) — decision framework across all three identity paths, token lifecycle at scale, cross-cutting hardening
 - [Federation blueprint](federation-implementation-blueprint.md) — RFC 8693 exchange recipe, error catalog, IdP supplements
 - [U2M from external apps](u2m-external-obo.md) — the no-JWKS / U2M-OAuth fallback path
 - [Databricks Apps Proxy Architecture](proxy-architecture.md) — how a per-user token propagates (or is lost) across an app-to-app hop

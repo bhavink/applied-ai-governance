@@ -1,13 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: apps/teams-agentbricks-obo.md, apps/powerbi-agentbricks-obo.md, auth/peruser-byoidp-federation.md, auth/token-federation.md, auth/obo-passthrough.md
-  Public docs grounding:
-    - https://learn.microsoft.com/en-us/azure/databricks/generative-ai/agent-framework/teams-agent
-    - https://docs.databricks.com/aws/en/integrations/msft-teams
-    - https://docs.databricks.com/aws/en/integrations/msft-m365-copilot
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Microsoft Teams / Copilot Studio → Genie & Agent Bricks with Per-User Identity
 
 > **What this is**: Per-user identity into Genie/Agent Bricks from Microsoft Teams or Copilot Studio is real and supported — but it requires **two independent gates to both be open**, not one. Getting the token-layer auth right and still failing on the second gate is the most common way this silently doesn't work.

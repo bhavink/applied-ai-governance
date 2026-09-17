@@ -1,12 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-07-14
-  Sources: auth/gcp-wif-databricks.md
-  Public docs grounding:
-    - https://docs.databricks.com/gcp/en/dev-tools/auth/oauth-federation
-    - https://docs.databricks.com/gcp/en/dev-tools/auth/oauth-federation-policy
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # GCP Workload Identity Federation → Databricks (RFC 8693)
 
 > **TL;DR**: Any GCP workload with a Google Service Account can authenticate to Databricks APIs without storing Databricks secrets. Exchange a Google ID token for a Databricks service principal token via RFC 8693 token exchange. Works from GKE, Cloud Run, Compute Engine, Cloud Functions, Composer, or a developer laptop.

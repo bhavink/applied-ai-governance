@@ -1,11 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: auth/token-federation.md, auth/_azure/token-federation.md, auth/_okta/token-federation.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Federation Exchange
 
 > Bridging external identity providers to Databricks for users who don't have workspace accounts.
@@ -204,6 +196,12 @@ The prerequisite federation trust policy is self-service on Azure: an account ad
 | Native Azure AD token used against Model Serving / Agent Bricks | These services expect a Databricks-issued OAuth token rather than a raw Entra token | Use the token-exchange flow above for Model Serving, Agent Bricks, and ML APIs; a direct Azure AD token works fine for workspace REST APIs (clusters, jobs, SQL) |
 
 ---
+
+## Related
+
+- [Production Federation Guide](federation-production.md) — decision framework across all three identity paths, token lifecycle at scale, cross-cutting hardening
+- [Per-User BYO-IdP Federation](byoidp-peruser-federation.md) — the per-user alternative to this role-based pattern
+- [Federation blueprint](federation-implementation-blueprint.md) — step-by-step exchange recipe and error catalog
 
 ## Databricks Documentation
 

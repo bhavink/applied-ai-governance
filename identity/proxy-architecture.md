@@ -1,18 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: apps/proxy-architecture.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth
-    - https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/auth
-    - https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/key-concepts
-    - https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/http-headers
-    - https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/networking
-    - https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/observability
-    - https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/cicd-github-actions
-    - https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/embed
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Databricks Apps Proxy Architecture
 
 > **TL;DR**: Every Databricks App has an invisible reverse proxy that authenticates users, strips the original Authorization header, and injects `X-Forwarded-*` identity headers. The proxy is the single source of truth for caller identity. When one app calls another app (app-to-app), a second proxy intervenes — creating the "two-proxy problem" where the user's token is replaced by the second app's SP token. External clients connecting directly (for example, MCP-based coding assistants) need `authorization: enabled` so the proxy can validate the session and inject identity headers.

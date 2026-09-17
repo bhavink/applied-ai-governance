@@ -1,15 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: auth/overview.md, auth/m2m-service-principal.md, auth/obo-passthrough.md
-  Public docs grounding:
-    - https://docs.databricks.com/aws/en/dev-tools/auth/
-    - https://docs.databricks.com/aws/en/dev-tools/auth/unified-auth
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-u2m
-    - https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m
-    - https://docs.databricks.com/aws/en/security/auth/single-sign-on/
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Authentication (AuthN)
 
 > AuthN is delegated to Identity Providers. Databricks does not run its own IdP — every user and every service authenticates against the same IdP configured at the account level, and Databricks trusts that identity for everything downstream.

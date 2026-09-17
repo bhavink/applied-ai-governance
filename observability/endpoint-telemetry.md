@@ -1,11 +1,3 @@
-<!--
-  Synced from databricks-fieldkit on 2026-09-14
-  Sources: ai/endpoint-telemetry.md
-  Public docs grounding: 
-    - https://learn.microsoft.com/en-us/azure/databricks/machine-learning/model-serving/custom-model-serving-uc-logs
-  This file is auto-prepared and human-reviewed before publish.
--->
-
 # Endpoint Telemetry — OpenTelemetry to UC Delta
 
 > **TL;DR**: Model serving endpoints — both custom model endpoints and agent serving endpoints — can persist **OpenTelemetry logs, traces, and metrics** to Unity Catalog Delta tables. Standard Python `logging` is captured automatically; OTel spans and metrics require SDK instrumentation in the model code. Three tables are produced (`<prefix>_otel_logs`, `<prefix>_otel_spans`, `<prefix>_otel_metrics`). This is complementary to inference tables — inference tables capture request/response payloads; telemetry captures structured signals from inside the model code.
