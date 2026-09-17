@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Coding Agents on Databricks — Omnigent &amp; ucode</title>
+<title>Coding Agents on Databricks — Omnigent &amp; ug</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -204,14 +204,14 @@
 
   <!-- 1 — TITLE -->
   <section class="slide active">
-    <div class="snapshot">Snapshot · Jul 2026 · omnigent 0.8.0.dev0 · ucode 0.1.0</div>
+    <div class="snapshot">Snapshot · Jul 2026 · omnigent 0.8.0.dev0 · ug 0.1.0</div>
     <div class="kicker">Applied AI Governance</div>
     <h1 class="r d1">Coding agents,<br>governed on Databricks.</h1>
-    <p class="sub r d2">Three ways to run Claude Code, Codex, and friends through your workspace: Omnigent open source, Omnigent managed, and ucode. What each is for, how the traffic flows, and how to choose.</p>
+    <p class="sub r d2">Three ways to run Claude Code, Codex, and friends through your workspace: Omnigent open source, Omnigent managed, and ug (formerly ucode; the older name remains a backward-compatible alias). What each is for, how the traffic flows, and how to choose.</p>
     <div class="pills">
       <span class="pill v r d3">Omnigent OSS</span>
       <span class="pill v r d4">Omnigent managed</span>
-      <span class="pill v r d5">ucode</span>
+      <span class="pill v r d5">ug</span>
     </div>
     <div class="foot"><span>Coding Agents on Databricks</span><span class="n">01 / 16</span></div>
   </section>
@@ -224,9 +224,9 @@
     <div class="cols">
       <div class="col r d3"><span class="tag">Same engine</span><h3>Omnigent OSS</h3><ul><li>Apache 2.0 meta-harness you host</li><li>Full policy engine + sandbox</li><li>Bring any model credentials</li></ul></div>
       <div class="col r d4"><span class="tag">Same engine, hosted</span><h3>Omnigent managed</h3><ul><li>Databricks runs the server</li><li>Built-in policies, workspace auth</li><li>Zero setup</li></ul></div>
-      <div class="col r d5"><span class="tag">Different category</span><h3>ucode</h3><ul><li>Thin CLI launcher</li><li>Auth + routing only</li><li>No sessions, sandbox, or policy</li></ul></div>
+      <div class="col r d5"><span class="tag">Different category</span><h3>ug</h3><ul><li>Thin CLI launcher</li><li>Auth + routing only</li><li>No sessions, sandbox, or policy</li></ul></div>
     </div>
-    <p class="note r d6">Open source vs managed is a hosting choice, not a feature paywall. ucode is not a "lite Omnigent."</p>
+    <p class="note r d6">Open source vs managed is a hosting choice, not a feature paywall. ug is not a "lite Omnigent."</p>
     <div class="foot"><span>The landscape</span><span class="n">02 / 16</span></div>
   </section>
 
@@ -433,7 +433,7 @@
         <div class="layer"><span class="num">›</span> Applies to every caller of the endpoint, agents and apps alike</div>
       </div>
     </div>
-    <p class="note r d5">Omnigent alone gives layer 1. ucode alone gives layer 2. Managed Omnigent through the Gateway is the only combination with both.</p>
+    <p class="note r d5">Omnigent alone gives layer 1. ug alone gives layer 2. Managed Omnigent through the Gateway is the only combination with both.</p>
     <div class="foot"><span>Guardrails</span><span class="n">11 / 16</span></div>
   </section>
 
@@ -481,7 +481,7 @@
     <div class="kicker">Side by side</div>
     <h2 class="r d1">Capability matrix.</h2>
     <table class="mat r d2">
-      <tr><th>Capability</th><th>Omnigent OSS</th><th>Managed · serverless host</th><th>Managed · local host</th><th>ucode</th></tr>
+      <tr><th>Capability</th><th>Omnigent OSS</th><th>Managed · serverless host</th><th>Managed · local host</th><th>ug</th></tr>
       <tr><td>Policy engine</td><td class="yes">Full + custom</td><td class="yes">Built-in</td><td class="yes">Built-in</td><td class="no">None</td></tr>
       <tr><td>Kernel sandbox</td><td class="yes">Yes, if Linux</td><td class="yes">Always on</td><td class="yes">Yes, OS-dependent</td><td class="no">No</td></tr>
       <tr><td>AI Gateway layer</td><td class="no">Optional</td><td class="yes">Forced</td><td class="yes">Default</td><td class="yes">Forced</td></tr>
@@ -500,14 +500,14 @@
     <div class="kicker">Choosing</div>
     <h2 class="r d1">Pick by constraint, not by brand.</h2>
     <div class="tree">
-      <div class="branch r d2"><span class="q">Just per-user auth + usage on an installed agent?</span><span class="ans">→ <span class="pick">ucode</span></span></div>
+      <div class="branch r d2"><span class="q">Just per-user auth + usage on an installed agent?</span><span class="ans">→ <span class="pick">ug</span></span></div>
       <div class="branch r d3"><span class="q">Shared sessions, sandbox, spend + approval gates?</span><span class="ans">→ <span class="pick">Omnigent managed</span></span></div>
       <div class="branch r d4"><span class="q">Source code cannot leave your machine?</span><span class="ans">→ <span class="pick">managed + local host</span></span></div>
       <div class="branch r d4"><span class="q">Want the strongest sandbox, on any laptop OS?</span><span class="ans">→ <span class="pick">managed + serverless host</span></span></div>
       <div class="branch r d5"><span class="q">Custom policies, own host, or your own model keys?</span><span class="ans">→ <span class="pick">Omnigent OSS</span></span></div>
       <div class="branch r d6"><span class="q">A UI-driven data app, not a coding agent?</span><span class="ans">→ <span class="pick">Agent Bricks / Genie Agents</span></span></div>
     </div>
-    <p class="note r d7">Each option is the right answer for its constraint. They compose: start with ucode, graduate to Omnigent when you need sessions and governance.</p>
+    <p class="note r d7">Each option is the right answer for its constraint. They compose: start with ug, graduate to Omnigent when you need sessions and governance.</p>
     <div class="foot"><span>Decision guide</span><span class="n">15 / 16</span></div>
   </section>
 
