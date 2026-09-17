@@ -2,7 +2,26 @@
 
 Run your coding agent through Databricks without wiring its model connection by hand.
 
-**Jump to:** [Setup](#get-running) · [Choose a model service](#choose-a-model-service) · [Configure routing](#configure-model-service-routing) · [Smart Routing vs. model routing](#smart-routing-vs-model-service-routing)
+**Jump to:** [Why ug](#why-ug) · [Setup](#get-running) · [Governed tools](#governed-tool-access-mcp-and-skills) · [Choose a model service](#choose-a-model-service) · [Configure routing](#configure-model-service-routing) · [Smart Routing vs. model routing](#smart-routing-vs-model-service-routing)
+
+## Why ug
+
+`ug` gives coding agents one governed entry point to Databricks. Rather than each developer wiring endpoints, tokens, and environment variables by hand, the CLI configures the agent and routes its model calls through the gateway, where the platform team already controls access, spend, and audit.
+
+| Benefit | What it gives you |
+|---------|-------------------|
+| Simple setup | `ug` runs OAuth sign-in and writes each agent's configuration, so there is no manual endpoint, token, or environment-variable wiring. |
+| No API keys for normal use | Agents authenticate with Databricks workspace credentials over OAuth instead of long-lived provider keys. |
+| One CLI for many agents | Configure and launch Claude Code, Codex, Gemini CLI, OpenCode, Copilot CLI, Pi, and Cursor through the same command. Supported agents depend on your workspace and CLI version. |
+| Centralized governance | Traffic flows through Unity Gateway, so the platform team sets model permissions, rate limits, usage tracking, and inference tables at the model-service, user, or group level. |
+| Unified visibility and cost | Usage across coding tools is visible in one place, and `ug usage` summarizes spend. |
+| Governed MCP tools | Register Databricks MCP servers (SQL, Unity Catalog functions, AI Search, and external connections) with supported agents, governed by Unity Catalog. |
+| Secure token refresh | The local MCP proxy obtains a fresh OAuth token per request, reducing expired-token interruptions without developers managing credentials. |
+| Smart Routing | For Claude Code and Codex, `ug` can select a lower-cost capable model per task. See the caveats in [Smart Routing vs. Model-Service Routing](#smart-routing-vs-model-service-routing). |
+| Unity Gateway Skills | Connect agents to governed Skills published in Unity Catalog, downloaded locally or loaded live through MCP. |
+| Backward compatibility | Existing `ucode` commands keep working; use `ug` for new configuration. |
+
+Routing model traffic through the gateway governs the model calls, not what the agent does on your filesystem or which tools it may run. Keep agent approvals and tool authorization separate, as described in [How the Pieces Connect](#how-the-pieces-connect) and [Governed Tool Access](#governed-tool-access-mcp-and-skills) below.
 
 ## First, the Names
 
@@ -84,6 +103,30 @@ This is a logical model-request path, not a process-level network diagram. Local
 **Model governance is not tool governance.** AI Gateway supports permission controls, rate limits, and usage monitoring; guardrails and payload logging require configuration. Do not assume every control is enabled because setup succeeded. See the [gateway overview](https://docs.databricks.com/aws/en/ai-gateway/overview-model-services).
 
 Likewise, routing model traffic through a gateway is not a filesystem sandbox or a grant of SQL/MCP access. Keep agent approvals and tool authorization separate: [Custom MCP Principles](custom-mcp-principles.md) and [Authorization](../identity/authorization.md).
+
+## Governed Tool Access: MCP and Skills
+
+Model routing decides which model answers a prompt. Tool access decides what the agent can read, run, and act on. Beyond routing model calls, `ug` can register governed Databricks tools with a supported agent so those tool calls run through Unity Catalog rather than through ad hoc local configuration.
+
+### Register MCP servers
+
+Add Databricks-hosted MCP servers to a supported agent:
+
+```bash
+ug mcp add
+```
+
+This makes governed servers available to the agent, spanning capabilities such as SQL, Unity Catalog functions, AI Search, and external connections. Registering a server does not by itself grant data access. Each call is still governed by Unity Catalog privileges on the underlying objects, so confirm the caller has the grants it needs. See the [CLI README](https://github.com/databricks/unity-gateway#readme) for the exact server types your version supports, and [Custom MCP Principles](custom-mcp-principles.md) for the governance model.
+
+### Secure token refresh
+
+Registered servers are reached through a local MCP proxy that obtains a fresh OAuth token per request. This reduces interruptions from expired tokens without asking developers to store, paste, or rotate credentials by hand. Treat the proxy as part of the request path, not as a grant of access. Authorization still comes from Unity Catalog on every call.
+
+### Unity Gateway Skills
+
+Skills published in Unity Catalog give agents governed, reusable capabilities. `ug` can connect an agent to these Skills, either downloading them locally or loading them live through MCP. Because the Skills are published in Unity Catalog, the same permission model that governs other catalog objects applies to them.
+
+**Availability varies.** MCP server support, Skills, and per-request token refresh depend on your workspace configuration and CLI version. Do not assume a capability is present because setup succeeded. Record `ug --version` when reporting differences, and confirm with your administrator which features are enabled.
 
 ## Choose a Model Service
 
