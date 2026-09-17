@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Governing Coding Agents with ug</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── tokens ────────────────────────────────────────────────────────────── */
+:root {
+  --bg:     #ffffff;
+  --ink:    #1a1a1a;
+  --red:    #cc3311;
+  --surface:#f5f5f5;
+  --border: #e2e2e2;
+  --muted:  #616161;
+  --green:  #1a7a3c;
+  --green-bg:#e8f5ed;
+  --amber:  #a85e00;
+  --amber-bg:#fff4e0;
+  --blue:   #1648c0;
+  --blue-bg:#eef2ff;
+  --font:   'Space Grotesk', sans-serif;
+  --mono:   'DM Mono', monospace;
+  --pad:    clamp(2rem,4.5vw,4rem);
+  --h1:     clamp(2rem,4.5vw,3.4rem);
+  --h2:     clamp(1.35rem,2.8vw,2.1rem);
+  --h3:     clamp(0.98rem,1.8vw,1.32rem);
+  --body:   clamp(0.83rem,1.35vw,1.02rem);
+  --sm:     clamp(0.72rem,1.05vw,0.86rem);
+  --xs:     clamp(0.62rem,0.82vw,0.72rem);
+  --code:   clamp(0.66rem,0.95vw,0.80rem);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:var(--font);background:var(--bg);color:var(--ink)}
+
+/* ── chrome ─────────────────────────────────────────────────────────────── */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:46px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 22px;
+  background:var(--ink);color:#fff;z-index:100;font-size:var(--sm);
+}
+.topbar .title{font-weight:600;letter-spacing:-0.02em}
+.topbar .title span{color:var(--red)}
+.topbar .counter{font-variant-numeric:tabular-nums;opacity:.65}
+.progress-track{position:fixed;top:46px;left:0;right:0;height:3px;background:var(--border);z-index:100}
+.progress-bar{height:100%;background:var(--red);transition:width .38s ease;width:0}
+
+/* ── nav controls ────────────────────────────────────────────────────────── */
+.nav-controls{position:fixed;bottom:18px;right:22px;display:flex;align-items:center;gap:7px;z-index:200}
+.nav-btn{
+  width:38px;height:38px;border-radius:50%;border:1.5px solid var(--border);
+  background:var(--bg);color:var(--ink);font-size:.95rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .18s;padding:0;line-height:1;
+}
+.nav-btn:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+.nav-btn:disabled{opacity:.22;cursor:default;pointer-events:none}
+.help-btn{
+  width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);
+  background:var(--bg);color:var(--muted);font-size:.68rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-weight:700;
+  margin-left:6px;transition:all .18s;
+}
+.help-btn:hover{border-color:var(--ink);color:var(--ink)}
+
+/* nav dot cluster */
+.nav-dots{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:200}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer;transition:all .25s}
+.dot.active{background:var(--red);width:18px;border-radius:3px}
+.dot:hover{background:var(--muted)}
+
+/* keyboard overlay */
+.kb-overlay{position:fixed;inset:0;background:rgba(26,26,26,.82);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .28s}
+.kb-overlay.visible{opacity:1;pointer-events:auto}
+.kb-card{background:#fff;border-radius:8px;padding:30px 38px;max-width:360px;width:90%;text-align:center}
+.kb-card h3{font-size:1.05rem;font-weight:700;margin-bottom:14px;letter-spacing:-.02em}
+.kb-card table{width:100%;text-align:left;font-size:.80rem;border-collapse:collapse}
+.kb-card td{padding:5px 8px;border-bottom:1px solid #eee}
+.kb-card td:first-child{font-family:var(--mono);font-weight:600;color:var(--red);white-space:nowrap}
+.kb-card .dismiss{margin-top:14px;font-size:.70rem;color:var(--muted)}
+
+/* ── slide shell ─────────────────────────────────────────────────────────── */
+.slide{
+  position:absolute;top:46px;left:0;right:0;bottom:0;
+  opacity:0;pointer-events:none;
+  transform:translateX(56px);
+  transition:opacity .38s ease,transform .38s ease;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  padding:var(--pad);
+}
+.slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+.slide.exit-left{opacity:0;transform:translateX(-56px)}
+
+/* ── stagger reveals ─────────────────────────────────────────────────────── */
+.r{opacity:0;transform:translateY(16px);transition:opacity .45s ease,transform .45s ease}
+.slide.active .r{opacity:1;transform:translateY(0)}
+.slide.active .r:nth-child(1){transition-delay:.05s}
+.slide.active .r:nth-child(2){transition-delay:.12s}
+.slide.active .r:nth-child(3){transition-delay:.20s}
+.slide.active .r:nth-child(4){transition-delay:.28s}
+.slide.active .r:nth-child(5){transition-delay:.36s}
+.slide.active .r:nth-child(6){transition-delay:.44s}
+.slide.active .r:nth-child(7){transition-delay:.52s}
+.slide.active .r:nth-child(8){transition-delay:.60s}
+.slide.active .r:nth-child(9){transition-delay:.68s}
+.slide.active .r:nth-child(10){transition-delay:.76s}
+
+/* extra named delays for architecture arrows */
+.delay-1{transition-delay:.10s!important}
+.delay-2{transition-delay:.25s!important}
+.delay-3{transition-delay:.40s!important}
+.delay-4{transition-delay:.55s!important}
+.delay-5{transition-delay:.70s!important}
+.delay-6{transition-delay:.85s!important}
+
+/* ── typography ──────────────────────────────────────────────────────────── */
+.label{font-size:var(--xs);text-transform:uppercase;letter-spacing:.10em;color:var(--red);font-weight:600;margin-bottom:5px}
+.slide h2{font-size:var(--h1);font-weight:700;letter-spacing:-.03em;line-height:1.08;margin-bottom:6px}
+.slide h3{font-size:var(--h2);font-weight:600;letter-spacing:-.02em;margin-bottom:5px}
+.slide p,.slide li{font-size:var(--body);line-height:1.62}
+.muted{color:var(--muted)}
+.red{color:var(--red)}
+.bold{font-weight:700}
+
+/* ── title slide ─────────────────────────────────────────────────────────── */
+.slide-title{justify-content:center;align-items:center;text-align:center}
+.slide-title h1{font-size:clamp(2.5rem,5.5vw,4.2rem);font-weight:700;letter-spacing:-.04em;line-height:1.06;max-width:820px;text-wrap:balance}
+.slide-title h1 em{font-style:normal;color:var(--red)}
+.slide-title .sub{font-size:var(--h3);color:var(--muted);margin-top:14px;font-weight:400;max-width:660px}
+.red-rule{width:72px;height:4px;background:var(--red);margin:18px auto 0}
+
+/* ── layout helpers ──────────────────────────────────────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.2rem,2.5vw,2.2rem);flex:1;min-height:0}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(.9rem,1.8vw,1.4rem);flex:1;min-height:0}
+.flex1{flex:1 1 0;min-height:0;overflow:hidden}
+.mt1{margin-top:8px}.mt2{margin-top:16px}.mt3{margin-top:24px}.mt4{margin-top:32px}
+.mb1{margin-bottom:8px}.mb2{margin-bottom:16px}
+
+/* ── cards ───────────────────────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:clamp(.9rem,1.8vw,1.4rem)}
+.card h4{font-size:var(--h3);font-weight:600;margin-bottom:7px;letter-spacing:-.01em}
+.card p,.card li{font-size:var(--sm);line-height:1.58}
+.card ul{padding-left:1.1em}
+.card-red{border-left:4px solid var(--red)}
+.card-ink{border-left:4px solid var(--ink)}
+.card-green{border-left:4px solid var(--green);background:var(--green-bg)}
+.card-amber{border-left:4px solid var(--amber);background:var(--amber-bg)}
+.card-blue{border-left:4px solid var(--blue);background:var(--blue-bg)}
+
+/* ── code / pre ──────────────────────────────────────────────────────────── */
+pre,code{font-family:var(--mono);font-size:var(--code)}
+pre{
+  background:#f9f9f9;color:var(--ink);
+  border:1px solid var(--border);border-left:3px solid var(--red);
+  border-radius:4px;padding:clamp(.55rem,1.1vw,.9rem);
+  overflow-x:auto;line-height:1.52;
+}
+code{background:var(--surface);padding:.1em .38em;border-radius:3px;color:var(--ink)}
+.kw{color:var(--red);font-weight:500}
+.cm{color:var(--muted)}
+.st{color:var(--green)}
+
+/* ── table ───────────────────────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:var(--sm)}
+th{text-align:left;font-weight:600;font-size:var(--xs);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:7px 9px;border-bottom:2px solid var(--border)}
+td{padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ── badge ───────────────────────────────────────────────────────────────── */
+.badge{display:inline-block;font-size:var(--xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+.badge-red{background:rgba(204,51,17,.10);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-amber{background:var(--amber-bg);color:var(--amber)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-ink{background:var(--ink);color:#fff}
+.badge-muted{background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+
+/* ── architecture flow ───────────────────────────────────────────────────── */
+.arch-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;gap:0;min-height:0}
+.arch-row{display:flex;align-items:center;justify-content:center;gap:0}
+.abox{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  padding:clamp(.5rem,1vw,.85rem) clamp(.9rem,1.8vw,1.4rem);
+  text-align:center;font-size:var(--body);font-weight:500;min-width:clamp(160px,26vw,300px);
+}
+.abox small{display:block;font-size:var(--xs);color:var(--muted);font-weight:400;margin-top:2px}
+.abox.uc{border-color:var(--red);background:rgba(204,51,17,.06);color:var(--red);font-weight:700}
+.abox.sys{border-color:var(--ink);background:var(--ink);color:#fff}
+.abox.gateway{border-color:var(--amber);background:var(--amber-bg);font-weight:600}
+.arch-step{display:flex;flex-direction:column;align-items:center;gap:3px;margin:clamp(.3rem,.7vw,.6rem) 0}
+.arch-varrow{color:var(--red);font-size:var(--h3);font-weight:700;line-height:1;opacity:0}
+.slide.active .arch-varrow{opacity:1;animation:varrowPulse 1.8s ease-in-out infinite}
+.arch-varrow.delay-1{animation-delay:.2s}
+.arch-varrow.delay-2{animation-delay:.5s}
+.arch-varrow.delay-3{animation-delay:.8s}
+.arch-lbl{font-size:var(--xs);color:var(--muted)}
+@keyframes varrowPulse{
+  0%,100%{color:var(--red);transform:translateY(0)}
+  50%{color:rgba(204,51,17,.40);transform:translateY(3px)}
+}
+
+/* ── story callout ───────────────────────────────────────────────────────── */
+.callout{
+  border-left:4px solid var(--red);padding:14px 20px;
+  background:var(--surface);border-radius:0 5px 5px 0;
+  font-size:clamp(.95rem,1.9vw,1.28rem);line-height:1.55;font-style:italic;
+}
+
+/* ── implementation sequence ─────────────────────────────────────────────── */
+.seq-step{
+  display:flex;align-items:flex-start;gap:clamp(.8rem,1.5vw,1.2rem);
+  padding:clamp(.5rem,1vw,.8rem);
+  border:1px solid var(--border);border-radius:6px;
+  background:var(--surface);
+}
+.seq-num{
+  flex-shrink:0;width:clamp(1.6rem,3vw,2.2rem);height:clamp(1.6rem,3vw,2.2rem);
+  border-radius:50%;background:var(--red);color:#fff;
+  font-weight:700;font-size:var(--sm);
+  display:flex;align-items:center;justify-content:center;
+  margin-top:.1em;
+}
+.seq-body strong{font-size:var(--body);font-weight:600;display:block;margin-bottom:2px}
+.seq-body p{font-size:var(--sm);color:var(--muted);line-height:1.5}
+
+/* ── calligram / closing ─────────────────────────────────────────────────── */
+.slide-calli{background:var(--ink);color:#fff;justify-content:center;align-items:center;text-align:center}
+.calli-hero{font-size:clamp(2.4rem,7vw,6rem);font-weight:700;letter-spacing:-.04em;line-height:.98;color:#fff;position:relative;display:inline-block}
+.calli-hero .line2{display:block;font-size:clamp(1.4rem,4vw,3.2rem);font-weight:300;letter-spacing:.16em;color:var(--red);text-transform:uppercase;margin-top:.15em}
+.calli-sub{margin-top:clamp(1.2rem,3vh,2.2rem);font-size:var(--body);color:rgba(255,255,255,.55);letter-spacing:.04em;text-transform:uppercase}
+.calli-rule{width:56px;height:3px;background:var(--red);margin:clamp(.8rem,2vh,1.4rem) auto}
+
+/* ── height breakpoints ──────────────────────────────────────────────────── */
+@media(max-height:700px){
+  :root{--pad:clamp(1.2rem,3vw,2.2rem)}
+  .slide{padding:clamp(1.2rem,3vw,2.2rem)}
+  .mt3{margin-top:14px}.mt4{margin-top:20px}
+  .seq-step{padding:.4rem .7rem}
+}
+@media(max-height:600px){
+  :root{--pad:1rem}
+  .slide{padding:1rem}
+  .mt2{margin-top:8px}.mt3{margin-top:10px}.mt4{margin-top:14px}
+}
+@media(max-height:500px){
+  :root{--h1:clamp(1.6rem,3.5vw,2.4rem);--h2:clamp(1.1rem,2vw,1.6rem)}
+}
+
+/* ── width breakpoints ───────────────────────────────────────────────────── */
+@media(max-width:900px){
+  .two-col,.three-col{grid-template-columns:1fr}
+}
+
+/* ── print ───────────────────────────────────────────────────────────────── */
+@media print{
+  .slide{position:relative!important;opacity:1!important;transform:none!important;pointer-events:auto!important;page-break-after:always;overflow:visible}
+  .topbar,.progress-track,.nav-controls,.nav-dots,.kb-overlay{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">Governing Coding Agents with <span>ug</span></div>
+  <div class="counter" id="counter">01 / 11</div>
+</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+
+<div class="nav-dots" id="navDots"></div>
+<div class="nav-controls">
+  <button class="nav-btn" id="homeBtn" title="First slide (Home)" onclick="goTo(0)">&#8962;</button>
+  <button class="nav-btn" id="prevBtn" title="Previous" onclick="goTo(current-1)">&larr;</button>
+  <button class="nav-btn" id="nextBtn" title="Next" onclick="goTo(current+1)">&rarr;</button>
+  <button class="help-btn" id="helpBtn" title="Keyboard shortcuts">?</button>
+</div>
+<div class="kb-overlay" id="kbOverlay">
+  <div class="kb-card">
+    <h3>Navigation</h3>
+    <table>
+      <tr><td>&rarr; / Space</td><td>Next slide</td></tr>
+      <tr><td>&larr;</td><td>Previous slide</td></tr>
+      <tr><td>Home</td><td>First slide</td></tr>
+      <tr><td>End</td><td>Last slide</td></tr>
+      <tr><td>Swipe</td><td>Touch navigation</td></tr>
+    </table>
+    <div class="dismiss">Click anywhere or press Esc to close</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 1 · TITLE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide slide-title active" data-slide="1">
+  <h1 class="r">Governing Coding Agents with <em>ug</em></h1>
+  <div class="sub r">ug turns Unity Gateway from a manually configured integration into a standardized, governed, observable developer workflow for AI coding agents.</div>
+  <div class="red-rule r"></div>
+  <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:640px">
+    <code>ug</code> (formerly <code>ucode</code>) is the local CLI. Unity Gateway is the hosted gateway it points your agent at.
+  </p>
+  <p class="r" style="margin-top:12px;color:var(--muted);font-size:var(--xs);max-width:640px">
+    Companion to the ug quickstart in tool-governance.
+  </p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 2 · THE CHALLENGE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+  <div class="label r">The challenge</div>
+  <h2 class="r">Teams adopt coding agents faster than they can govern them.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="callout r">
+        A team rolls out coding agents like Claude Code, Codex, Gemini CLI, and Cursor. By default each agent authenticates straight to an external model provider. Spend is uncontrolled, usage is invisible to the platform team, and provider keys spread across laptops and CI.
+      </div>
+      <div class="card card-amber r">
+        <h4>Why this happens</h4>
+        <p>A coding agent talks directly to its model vendor out of the box. There is no shared point where identity, limits, and usage records live, so the platform team has nothing to attach a control to.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="label r" style="margin-bottom:0">Where the gaps show up</div>
+      <div class="card card-red r">
+        <h4>Uncontrolled spend</h4>
+        <p>No per-user or per-team ceiling. A looping agent can run for hours before anyone notices the invoice.</p>
+      </div>
+      <div class="card card-red r">
+        <h4>No central visibility</h4>
+        <p>The platform team cannot see who called which model, how often, or at what cost.</p>
+      </div>
+      <div class="card card-red r">
+        <h4>Scattered credentials</h4>
+        <p>Provider API keys copied into shells, dotfiles, and CI, each one a separate leak path.</p>
+      </div>
+      <div class="card card-ink r">
+        <p style="font-size:var(--sm)">Closing these gaps without slowing engineers down is the platform team's job. Routing the agent through the gateway is how you do it.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 3 · WHAT UG IS, AND IS NOT
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="label r">What it is</div>
+  <h2 class="r">ug configures and launches a coding agent so its model calls route through Databricks.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card card-ink r">
+        <h4>What ug does</h4>
+        <p>A local command that configures a supported coding agent and launches it so its model requests authenticate to the Databricks AI Gateway. Supported agents include Claude Code, Codex, Gemini CLI, OpenCode, Copilot CLI, Pi, and Cursor.</p>
+        <ul style="margin-top:6px">
+          <li>Handles OAuth and writes each agent's config automatically, so there is no manual endpoint, token, or environment-variable wiring.</li>
+          <li>Agents authenticate through Databricks workspace credentials and OAuth, so normal use needs no provider API keys.</li>
+          <li>One CLI configures and launches many agents consistently.</li>
+        </ul>
+      </div>
+      <div class="card card-red r">
+        <h4>What ug is not</h4>
+        <p>It is not the hosted gateway. Installing the CLI provisions no gateway infrastructure and grants no model access. Your administrator enables the gateway features and grants model access separately.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r" style="margin-bottom:0">The names, kept straight</div>
+      <table class="r">
+        <thead><tr><th>Name</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td><code>ug</code></td><td>The local command to set up and launch a supported coding agent.</td></tr>
+          <tr><td><code>ucode</code></td><td>The older command name, kept as a backward-compatible alias. Use <code>ug</code> for new work.</td></tr>
+          <tr><td><code>unity-gateway</code></td><td>The Python package that installs both commands.</td></tr>
+          <tr><td>Unity Gateway</td><td>The hosted gateway. Older material calls it UAIG, and the workspace sidebar still says AI Gateway.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 4 · HOW THE PIECES CONNECT
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+  <div class="label r">How it connects</div>
+  <h2 class="r">One authenticated path from your terminal to an authorized model.</h2>
+  <div class="arch-wrap r">
+    <div class="arch-row"><div class="abox">ug<small>local setup and launcher</small></div></div>
+    <div class="arch-step"><div class="arch-varrow delay-1">&#8595;</div><div class="arch-lbl">configures and launches</div></div>
+    <div class="arch-row"><div class="abox">Coding agent<small>Claude Code or Codex</small></div></div>
+    <div class="arch-step"><div class="arch-varrow delay-2">&#8595;</div><div class="arch-lbl">authenticated model requests</div></div>
+    <div class="arch-row"><div class="abox uc" style="min-width:clamp(240px,42vw,400px)">Databricks AI Gateway<small style="color:rgba(204,51,17,.7)">identity &middot; rate limits &middot; usage monitoring &middot; routing</small></div></div>
+    <div class="arch-step"><div class="arch-varrow delay-3">&#8595;</div><div class="arch-lbl">routes inference</div></div>
+    <div class="arch-row"><div class="abox sys">Authorized model</div></div>
+  </div>
+  <div class="r" style="font-size:var(--sm);color:var(--muted);text-align:center;margin-top:10px;max-width:78ch;margin-left:auto;margin-right:auto">
+    A logical request path, not a network diagram. Local adapters can sit in the path depending on the agent. <code>ug</code> handles configuration and authentication; the gateway handles model access and routing.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 5 · GOVERNANCE THE GATEWAY PROVIDES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="label r">Governance</div>
+  <h2 class="r">What routing through the gateway gives the platform team.</h2>
+  <div class="three-col mt2">
+    <div class="card card-green r">
+      <h4>Identity and permissions</h4>
+      <p>Callers need <code>EXECUTE</code> on the Unity Catalog model service, plus <code>USE CATALOG</code> and <code>USE SCHEMA</code>. Controls apply at the model-service, user, or group level, not baked into a laptop.</p>
+    </div>
+    <div class="card card-blue r">
+      <h4>Rate limits</h4>
+      <p>Bound request velocity so a looping agent cannot consume unbounded capacity, and one team cannot starve another.</p>
+    </div>
+    <div class="card r">
+      <h4>Usage tracking</h4>
+      <p>Every call lands in <code>system.ai_gateway.usage</code>, and inference tables can capture request detail, so spend and volume attribute by user, team, and model.</p>
+    </div>
+  </div>
+  <div class="r mt2" style="background:var(--amber-bg);border:1px solid var(--amber);border-left:4px solid var(--amber);border-radius:6px;padding:12px 16px;font-size:var(--sm)">
+    <strong style="color:var(--amber)">Not automatic:</strong> guardrails and payload logging require configuration. Setup succeeding does not mean every control is on. Model governance here is permission, rate, and usage control; enable guardrails and logging deliberately.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 6 · THE HONEST BOUNDARIES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="label r">Boundaries</div>
+  <h2 class="r">Model governance is not tool governance.</h2>
+  <p class="r muted" style="max-width:74ch">Routing model traffic through a gateway is a real control, but it is a narrow one. Be precise about what it does not cover, or access degrades quietly.</p>
+  <div class="two-col mt2">
+    <div class="card card-red r">
+      <h4>Routing model traffic is not a sandbox</h4>
+      <p>Sending an agent's model calls through the gateway does not confine its filesystem or network. Tool access is a separate, deliberate step (see the next slide), and even then Unity Catalog governs the tools, which is not the same as an OS-level sandbox.</p>
+    </div>
+    <div class="card card-ink r">
+      <h4>Keep the layers distinct</h4>
+      <p>Which model an agent may call, which tools it may invoke, and what its process may touch on disk are three separate controls. ug and the gateway cover the first two; sandboxing stays its own layer. See Custom MCP Principles and the Authorization pillar.</p>
+    </div>
+  </div>
+  <div class="r mt2" style="background:rgba(204,51,17,.06);border:1px solid rgba(204,51,17,.22);border-radius:6px;padding:11px 16px;font-size:var(--sm)">
+    <strong style="color:var(--red)">Read a usage record for what it is:</strong> it confirms a model round trip happened, not that every governance control fired.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 7 · GOVERNED TOOL ACCESS (MCP + SKILLS)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="label r">Governed tool access</div>
+  <h2 class="r">MCP servers and Skills, registered through ug and governed by Unity Catalog.</h2>
+  <p class="r muted" style="max-width:74ch">Model routing gets the agent a model. This is the separate, deliberate step that gets it governed tools, and the governance stays in Unity Catalog rather than in the agent.</p>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="card card-green r">
+        <h4>MCP integration</h4>
+        <p><code>ug mcp add</code> registers governed Databricks MCP servers with a supported agent: SQL, Unity Catalog functions, AI Search, and external connections. The agent gains tool access that Unity Catalog governs.</p>
+      </div>
+      <pre class="r"><span class="cm"># register a governed MCP server with the agent</span>
+ug mcp add</pre>
+      <div class="card card-blue r">
+        <h4>Unity Gateway Skills</h4>
+        <p>Connect agents to governed Skills published in Unity Catalog, downloaded locally or loaded live through MCP, so the agent uses reviewed, versioned capabilities rather than ad hoc ones.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="card card-ink r">
+        <h4>Secure token refresh</h4>
+        <p>The local MCP proxy fetches a fresh OAuth token per request. That reduces expired-token interruptions during long sessions, and developers never hold or rotate credentials themselves.</p>
+      </div>
+      <div class="card card-amber r">
+        <h4>The boundary still holds</h4>
+        <p>MCP tool access is governed by Unity Catalog grants, not by an operating-system sandbox. Registering a tool decides what the agent may call, not what its process may touch on disk. Keep sandboxing as its own layer.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 8 · COST CONTROL LEVERS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="label r">Cost control</div>
+  <h2 class="r">Four levers, each solving a different cost problem.</h2>
+  <div class="two-col mt2">
+    <div class="card card-green r">
+      <h4>Smart Routing</h4>
+      <p>A task-aware router selects a capable, lower-cost model for each coding task. Use it for cost and quality selection rather than a fixed allocation.</p>
+    </div>
+    <div class="card card-blue r">
+      <h4>Traffic splitting</h4>
+      <p>Send configured percentages across destinations for a canary, an A/B comparison, or a gradual migration. Up to five destinations, totaling 100%.</p>
+    </div>
+    <div class="card card-amber r">
+      <h4>Ordered fallbacks</h4>
+      <p>Retry eligible failures such as 429 or 5xx down an ordered backup list, for availability when a destination fails. Retries follow the fallback order, not the split weights.</p>
+    </div>
+    <div class="card card-ink r">
+      <h4>Unified visibility</h4>
+      <p><code>system.ai_gateway.usage</code> records spend, and its <code>routing_information</code> field records the split and fallback decisions behind each call. <code>ug usage</code> gives a spend summary across coding tools, and usage lands in one dashboard rather than per-vendor consoles.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 9 · ROUTING MECHANISM COMPARISON
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="label r">Choosing a mechanism</div>
+  <h2 class="r">What chooses the destination, and when to use each.</h2>
+  <div class="r flex1 mt1" style="overflow-x:auto">
+    <table style="min-width:680px">
+      <thead>
+        <tr><th style="min-width:170px">Mechanism</th><th>What chooses the destination</th><th>Use it for</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Explicit <code>--model</code></strong></td><td>You name one service, which can still route internally.</td><td>Predictable service selection.</td></tr>
+        <tr><td><strong>Traffic splitting</strong></td><td>Your configured percentages.</td><td>Canary rollout, A/B testing, load distribution.</td></tr>
+        <tr><td><strong>Fallbacks</strong></td><td>A failure, followed by your ordered backup list.</td><td>Availability when a destination fails.</td></tr>
+        <tr><td><strong>Smart Routing</strong></td><td>A task-aware router picks a capable, lower-cost model.</td><td>Coding-task cost and quality selection.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="r mt2" style="background:var(--amber-bg);border:1px solid var(--amber);border-left:4px solid var(--amber);border-radius:6px;padding:11px 16px;font-size:var(--sm)">
+    <strong style="color:var(--amber)">Smart Routing scope:</strong> it currently selects only <code>system.ai</code> services, not your custom catalog services, and an administrator must enable it. The caller needs access to every candidate model, or routing reports a missing model.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 10 · THE FRONT-DOOR PATTERN
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="label r">The front-door pattern</div>
+  <h2 class="r">Give callers a stable name; change routing behind it.</h2>
+  <div class="two-col mt1">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="seq-step r">
+        <div class="seq-num">1</div>
+        <div class="seq-body">
+          <strong>Create your own model service</strong>
+          <p>A Unity Catalog service named <code>catalog.schema.service</code>, for example <code>main.ai.coding_claude</code>. Point every caller at that name.</p>
+        </div>
+      </div>
+      <div class="seq-step r">
+        <div class="seq-num">2</div>
+        <div class="seq-body">
+          <strong>Change destinations behind it</strong>
+          <p>Set traffic splits and ordered fallbacks on the service. Adjust them without touching any client, since callers only know the service name.</p>
+        </div>
+      </div>
+      <div class="seq-step r">
+        <div class="seq-num">3</div>
+        <div class="seq-body">
+          <strong>Grant callers access</strong>
+          <p>Grant <code>EXECUTE</code> on the service, plus <code>USE CATALOG</code> and <code>USE SCHEMA</code>. Callers use the service name, not Model A or Model B directly.</p>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="label r" style="margin-bottom:0">Point the agent at the service</div>
+      <pre class="r"><span class="cm"># stable front-door name; routing changes behind it</span>
+ug claude <span class="kw">--model</span> main.ai.coding_claude
+ug codex  <span class="kw">--model</span> main.ai.coding_openai</pre>
+      <div class="card card-green r">
+        <h4>Verify before rollout</h4>
+        <p>Send a harmless prompt through a separate test service and inspect <code>system.ai_gateway.usage</code>. The <code>routing_information</code> field shows the split or fallback decision. Validate across enough independent sessions, not one short session.</p>
+      </div>
+      <div class="card card-amber r">
+        <h4>Check API compatibility first</h4>
+        <p>Native Anthropic requests need a Claude-backed service; native OpenAI requests need an OpenAI-backed service. A routing rule does not translate one provider protocol into another.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 11 · GETTING STARTED + CLOSING
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="label r">Getting started</div>
+  <h2 class="r">Three steps to route your first agent.</h2>
+  <div class="two-col mt2">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="seq-step r">
+        <div class="seq-num">1</div>
+        <div class="seq-body">
+          <strong>Install</strong>
+          <p><code>uv tool install git+https://github.com/databricks/unity-gateway</code>, then <code>ug --version</code>. <code>uv tool</code> isolates the CLI's Python dependencies.</p>
+        </div>
+      </div>
+      <div class="seq-step r">
+        <div class="seq-num">2</div>
+        <div class="seq-body">
+          <strong>Connect your workspace</strong>
+          <p>Clear conflicting <code>ANTHROPIC_*</code> and OpenAI or Codex provider overrides first, then run <code>ug configure --workspace https://YOUR-WORKSPACE-HOST --agents claude,codex</code> and sign in as yourself.</p>
+        </div>
+      </div>
+      <div class="seq-step r">
+        <div class="seq-num">3</div>
+        <div class="seq-body">
+          <strong>Launch one agent</strong>
+          <p>From your project directory, run <code>ug claude</code> or <code>ug codex</code>. A basic reply confirms a model round trip; your administrator can confirm the gateway usage record.</p>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card card-ink r">
+        <h4>The rule of thumb</h4>
+        <p>Choose a custom service for administrator-defined traffic policy. Choose Smart Routing for task-aware model selection. They solve different problems, so do not expect Smart Routing to honor a custom service's split.</p>
+      </div>
+      <div class="card card-red r">
+        <h4>Governance stays layered</h4>
+        <p>The gateway governs model access, rate, and usage. Keep tool authorization, sandboxing, and data grants on their own layers.</p>
+      </div>
+      <div class="card r">
+        <h4>Then</h4>
+        <p>Register governed tools with <code>ug mcp add</code>, review spend with <code>ug usage</code>, and rerun <code>ug configure</code> to add agents or change routing. Full setup, routing configuration, and troubleshooting live in the <strong>ug quickstart</strong> under tool-governance.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+/* ── slide engine ─────────────────────────────────────────────────────────── */
+const slides = Array.from(document.querySelectorAll('.slide'));
+const total   = slides.length;
+let current   = 0;
+let touchStartX = 0;
+
+function goTo(n) {
+  if (n < 0 || n >= total) return;
+  const prev = slides[current];
+  prev.classList.remove('active');
+  prev.classList.add('exit-left');
+  setTimeout(() => prev.classList.remove('exit-left'), 420);
+
+  current = n;
+  slides[current].classList.add('active');
+  updateChrome();
+}
+
+function updateChrome() {
+  document.getElementById('counter').textContent =
+    String(current + 1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+  document.getElementById('progressBar').style.width =
+    ((current + 1) / total * 100) + '%';
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === total - 1;
+  document.getElementById('homeBtn').disabled = current === 0;
+
+  document.querySelectorAll('.dot').forEach((d, i) => {
+    d.classList.toggle('active', i === current);
+  });
+}
+
+/* nav dots */
+const dotsEl = document.getElementById('navDots');
+for (let i = 0; i < total; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.addEventListener('click', () => goTo(i));
+  dotsEl.appendChild(d);
+}
+
+/* keyboard */
+document.addEventListener('keydown', e => {
+  const overlay = document.getElementById('kbOverlay');
+  if (overlay.classList.contains('visible')) {
+    if (e.key === 'Escape' || e.key === '?') overlay.classList.remove('visible');
+    return;
+  }
+  if (e.key === 'ArrowRight' || e.key === ' ')  { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft')  goTo(current - 1);
+  if (e.key === 'Home')       goTo(0);
+  if (e.key === 'End')        goTo(total - 1);
+  if (e.key === '?')          overlay.classList.add('visible');
+});
+
+/* touch */
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, {passive:true});
+document.addEventListener('touchend',   e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 45) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+}, {passive:true});
+
+/* help button */
+document.getElementById('helpBtn').addEventListener('click', () =>
+  document.getElementById('kbOverlay').classList.add('visible'));
+document.getElementById('kbOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) document.getElementById('kbOverlay').classList.remove('visible');
+});
+
+/* init */
+updateChrome();
+</script>
+</body>
+</html>

@@ -8,6 +8,9 @@ policy that decides which role may call which tool is managed without redeploys.
 
 ## Reading Order
 
+**Hands-on quickstart:** [Getting Started with `ug` (Formerly `ucode`)](ug-quickstart.md):
+install, sign in, launch a coding agent, and understand its connection to Unity Gateway.
+
 1. [Custom MCP Principles](custom-mcp-principles.md): the architecture of a custom MCP server
    that fronts Databricks data and compute. MCP as the single gateway, scopes over grants, UC
    governance end to end, external credentials via UC connections, full trace/audit coverage,

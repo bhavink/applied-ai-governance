@@ -24,6 +24,8 @@ Your business needs an AI platform where users get governed answers from live da
 
 ## Quick Start
 
+**Coding agents:** [Getting Started with `ug` (Formerly `ucode`)](tool-governance/ug-quickstart.md) — install, authenticate, and connect your coding agent to Unity Gateway.
+
 1. [Authentication](identity/authentication.md): AuthN is delegated to IdPs (brief overview + official doc links)
 2. [Authorization](identity/authorization.md): The three token patterns, OAuth scopes, service principals, federation
 3. [Audit & Tracing](observability/agent-tracing.md): Platform audit, MLflow traces, chain of custody for compliance
@@ -83,4 +85,3 @@ Everything in this repository is grounded in public Databricks documentation. Th
 ---
 
 *Last updated: 2026-09-16*
-
