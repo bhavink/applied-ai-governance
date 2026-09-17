@@ -4,7 +4,7 @@
 
 ## The Problem
 
-Your AI tools run on Databricks. Your partners, customers, or vendors authenticate with their own IdP. They don't have Databricks accounts. You need to give them governed access to Genie, Vector Search, Model Serving, and custom MCP tools without provisioning individual workspace users.
+Your AI tools run on Databricks. Your partners, customers, or vendors authenticate with their own IdP. They don't have Databricks accounts. You need to give them governed access to Genie Agents, Vector Search, Model Serving, and custom MCP tools without provisioning individual workspace users.
 
 ## The Pattern
 
@@ -23,7 +23,7 @@ App maps user's role claim to a Databricks service principal
 Token Exchange: POST /oidc/v1/token (IdP JWT in, Databricks SP token out)
        |
        v
-Databricks SP token used for SQL, Genie, Serving calls
+Databricks SP token used for SQL, Genie Agents, Serving calls
        |
        v
 UC governance fires per SP group membership (is_member())
@@ -138,7 +138,7 @@ Databricks copies the IdP token's `exp` claim verbatim into the exchanged token 
 
 - `exp` is an absolute timestamp, not a duration measured from the exchange call
 - Exchange a **fresh** IdP token immediately before use rather than caching one and exchanging it later
-- Long-running operations — polling Genie or Model Serving results, for example — need the exchanged token to stay valid for the full duration; a token that expires mid-poll returns `401` on the next call
+- Long-running operations — polling Genie Agents or Model Serving results, for example — need the exchanged token to stay valid for the full duration; a token that expires mid-poll returns `401` on the next call
 
 | Flow | TTL controlled by |
 |---|---|

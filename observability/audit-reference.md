@@ -14,7 +14,7 @@ Databricks AI applications generate audit data in two separate planes. Neither a
 
 **Application plane** (you build this): MLflow traces + custom logging. Contains human email (from `X-Forwarded-Email`), tool calls, inputs/outputs, latency, quality scores, token consumption. Stored in Delta via trace archival.
 
-**Data plane** (platform provides this): `system.access.audit` + system tables. Contains SQL queries executed, tables accessed, executing identity (human for OBO, SP UUID for M2M), model serving requests, Genie conversations. Stored in system tables.
+**Data plane** (platform provides this): `system.access.audit` + system tables. Contains SQL queries executed, tables accessed, executing identity (human for OBO, SP UUID for M2M), model serving requests, Genie Agents conversations. Stored in system tables.
 
 **Key design point**: When an app uses M2M for SQL, the data plane records the SP UUID. The human who triggered the request is only visible in the app plane. Correlating the two layers requires a shared identifier (trace ID or timestamp window).
 
@@ -176,7 +176,7 @@ ORDER BY timestamp DESC;
 
 | Table | What it provides |
 |---|---|
-| `system.access.audit` | All API calls: SQL queries, table access, UC operations, Genie conversations |
+| `system.access.audit` | All API calls: SQL queries, table access, UC operations, Genie Agents conversations |
 | `system.serving.endpoint_usage` | Per-request serving metrics: tokens, status codes, latency |
 | `system.ai_gateway.usage` | Token usage and routing through AI Gateway |
 | `system.billing.usage` | DBU cost tracking by SKU and endpoint |
@@ -185,7 +185,7 @@ ORDER BY timestamp DESC;
 
 | Service | Auth pattern | `user_identity.email` in audit |
 |---|---|---|
-| Genie Space | OBO | Human email |
+| Genie Agent | OBO | Human email |
 | SQL Warehouse (OBO + `sql` scope via UI) | OBO | Human email |
 | SQL Warehouse (M2M) | M2M | SP UUID |
 | Agent Bricks (OBO) | OBO | Human email |
@@ -201,7 +201,7 @@ New endpoints can take hours to days to appear. Recent data may lag by 15-60 min
 
 ### The Challenge
 
-A single user interaction may generate an MLflow trace with the human's email (app plane), multiple `system.access.audit` entries with the SP UUID (data plane), and a Genie audit entry with the human's email (data plane).
+A single user interaction may generate an MLflow trace with the human's email (app plane), multiple `system.access.audit` entries with the SP UUID (data plane), and a Genie Agent audit entry with the human's email (data plane).
 
 ### Correlation Strategy
 
@@ -233,11 +233,11 @@ Implement as SQL alerts in Databricks with Slack, email, or PagerDuty notificati
 
 ---
 
-## 5. Genie-Specific Observability
+## 5. Genie Agents-Specific Observability
 
-Genie conversations are captured in `system.access.audit` under the `aibiGenie` service name, recording conversation starts, query execution (generated SQL, table accesses), and response delivery.
+Genie Agents conversations are captured in `system.access.audit` under the `aibiGenie` service name, recording conversation starts, query execution (generated SQL, table accesses), and response delivery.
 
-| Aspect | Genie (platform audit) | App-level (MLflow traces) |
+| Aspect | Genie Agents (platform audit) | App-level (MLflow traces) |
 |---|---|---|
 | Identity | Always human email (OBO) | Human email from X-Forwarded-Email |
 | SQL queries | Generated SQL visible in audit | Not captured unless you log it |

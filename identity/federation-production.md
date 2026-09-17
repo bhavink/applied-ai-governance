@@ -109,7 +109,7 @@ you exchange on demand.
 - **Retry**: retry only `429/500/502/503/504` with exponential backoff plus jitter, capped.
   `400/401/403` are configuration errors; surface them.
 - **Rate limits**: `/oidc/v1/token` is rate limited per account (a short exchange cache
-  keeps you under it); Genie allows about 5 queries per minute per workspace, so enforce a
+  keeps you under it); Genie Agents allows about 5 queries per minute per workspace, so enforce a
   client-side sliding-window limiter and return a retry hint.
 - **Threat model**: rotate IdP signing keys and pin the JWKS URI in the policy; verify
   `iss`/`aud`/`sub` exactly; keep any M2M secret server-side; use short TTLs and
@@ -137,11 +137,11 @@ you exchange on demand.
 | Vector Search | SDK / REST | `vector-search` | token identity |
 | Model Serving / FMAPI | `/serving-endpoints/{id}/invocations` | `serving` | token identity |
 
-**There is no "Genie-only" token exchange.** Genie executes SQL against its backing
-warehouse, so a Genie caller needs `sql` in addition to `genie`; the federation policy
+**There is no "Genie Agents-only" token exchange.** Genie Agents executes SQL against its backing
+warehouse, so a Genie Agent caller needs `sql` in addition to `genie`; the federation policy
 authorizes the exchange, not which service the token may reach; and scope narrowing can be
-rejected by the Databricks Apps proxy. Restrict a caller to Genie via **UC grants** on the
-Genie space and its underlying tables, with scope hardening as defense in depth. See the
+rejected by the Databricks Apps proxy. Restrict a caller to Genie Agents via **UC grants** on the
+Genie Agent and its underlying tables, with scope hardening as defense in depth. See the
 [Genie Conversation API](https://docs.databricks.com/aws/en/genie/conversation-api) and
 [OAuth Scopes](oauth-scopes-reference.md).
 
@@ -163,7 +163,7 @@ OAuth flow against the workspace SSO, mints a per-user token, injects it as
 `X-Forwarded-Access-Token`, and manages refresh for you. Outside Databricks Apps that proxy
 does not exist and cannot be reproduced from SP credentials. The off-platform equivalent is
 Path A: exchange the user's own IdP token for a per-user Databricks token, and own the light
-lifecycle above. The Genie SDK and Conversation API have no OBO mode of their own; they act
+lifecycle above. The Genie Agents SDK and Conversation API have no OBO mode of their own; they act
 as whatever token you provide.
 
 ## Related

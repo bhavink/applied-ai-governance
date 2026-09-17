@@ -447,7 +447,7 @@ tr:hover td{background:var(--surface)}
       <div class="arch-varrow delay-6">&darr;</div>
       <div class="abox sys r delay-7" style="min-width:320px">Model Serving / Agent Bricks<small>Supervisor endpoint</small></div>
       <div class="arch-varrow delay-8">&darr;</div>
-      <div class="abox amber r delay-9" style="min-width:320px">Tools<small>Genie &middot; Vector Search &middot; UC Functions &middot; MCP servers</small></div>
+      <div class="abox amber r delay-9" style="min-width:320px">Tools<small>Genie Agents &middot; Vector Search &middot; UC Functions &middot; MCP servers</small></div>
     </div>
   </div>
   <div class="card card-ink r mt2" style="text-align:center">
@@ -478,13 +478,13 @@ tr:hover td{background:var(--surface)}
   <div class="two-col mt2">
     <div class="card card-blue r">
       <h4>OBO mode</h4>
-      <p style="font-size:var(--sm)">Supervisor auto-forwards the user's token to all sub-agents. <code>current_user()</code> = human email from the supervisor down to the deepest tool call &mdash; row filters, Genie RLS, and function auth all see the actual human.</p>
+      <p style="font-size:var(--sm)">Supervisor auto-forwards the user's token to all sub-agents. <code>current_user()</code> = human email from the supervisor down to the deepest tool call &mdash; row filters, Genie Agents RLS, and function auth all see the actual human.</p>
     </div>
     <div class="card card-red r">
       <h4>Runtime limits &amp; scope requirements</h4>
       <ul class="mt1">
         <li>Each sub-agent's tools need their own UC grants &mdash; grants don't cascade from the supervisor</li>
-        <li>Genie sub-agents need both <code>genie</code> and <code>dashboards.genie</code> scopes, or a <code>403</code></li>
+        <li>Genie Agents sub-agents need both <code>genie</code> and <code>dashboards.genie</code> scopes, or a <code>403</code></li>
       </ul>
     </div>
   </div>
@@ -542,7 +542,7 @@ tr:hover td{background:var(--surface)}
     <div class="card card-blue r">
       <div class="badge badge-blue mb1">Managed</div>
       <h4>Databricks-hosted</h4>
-      <p style="font-size:var(--sm)">Pre-built connectors: Genie, Vector Search, UC Functions, Databricks SQL. No code, no infra. Auth: automatic, OBO, or PAT.</p>
+      <p style="font-size:var(--sm)">Pre-built connectors: Genie Agents, Vector Search, UC Functions, Databricks SQL. No code, no infra. Auth: automatic, OBO, or PAT.</p>
     </div>
     <div class="card card-green r">
       <div class="badge badge-green mb1">Custom</div>
@@ -603,7 +603,7 @@ tr:hover td{background:var(--surface)}
     <table style="min-width:700px">
       <thead><tr><th>Pattern</th><th>Caller &rarr; target</th><th>Governance layer</th></tr></thead>
       <tbody>
-        <tr><td><span class="badge badge-green">1</span></td><td>Agent to Databricks services (Genie, FM API, UC)</td><td><strong>No gateway.</strong> Direct OBO &mdash; UC governs at the data plane</td></tr>
+        <tr><td><span class="badge badge-green">1</span></td><td>Agent to Databricks services (Genie Agents, FM API, UC)</td><td><strong>No gateway.</strong> Direct OBO &mdash; UC governs at the data plane</td></tr>
         <tr><td><span class="badge badge-blue">2</span></td><td>Any caller to an LLM endpoint</td><td><strong>Databricks AI Gateway.</strong> Rate limits, guardrails, usage tracking, fallback routing</td></tr>
         <tr><td><span class="badge badge-red">3</span></td><td>Agent to external services (GitHub, Slack, etc.)</td><td><strong>UC Connections + SNP.</strong> Proxy model, REVOKE = instant removal</td></tr>
         <tr><td><span class="badge badge-ink">4</span></td><td>External clients to Databricks</td><td><strong>External API Gateway.</strong> Auth translation, per-tenant rate limiting, versioning</td></tr>
@@ -712,9 +712,9 @@ tr:hover td{background:var(--surface)}
     <table style="min-width:680px">
       <thead><tr><th>Symptom</th><th>Root cause</th><th>Fix</th></tr></thead>
       <tbody>
-        <tr><td>Genie returns wrong rows, no error</td><td><code>is_member()</code> in a row filter</td><td>Replace with <code>current_user()</code> &mdash; <code>is_member()</code> evaluates the execution service under Genie/Agent Bricks OBO</td></tr>
+        <tr><td>Genie Agents returns wrong rows, no error</td><td><code>is_member()</code> in a row filter</td><td>Replace with <code>current_user()</code> &mdash; <code>is_member()</code> evaluates the execution service under Genie Agents/Agent Bricks OBO</td></tr>
         <tr><td>User identity lost in App A &rarr; App B</td><td>Two-proxy stripping</td><td>Use <code>X-Forwarded-Email</code> (proxy-signed, survives hops) + M2M SQL with an email-based filter</td></tr>
-        <tr><td>Sub-agent 403 on a Genie tool</td><td>Scope not granted on the sub-agent's own SP</td><td>Grant UC permissions and OAuth scopes per sub-agent &mdash; nothing cascades from the supervisor</td></tr>
+        <tr><td>Sub-agent 403 on a Genie Agent tool</td><td>Scope not granted on the sub-agent's own SP</td><td>Grant UC permissions and OAuth scopes per sub-agent &mdash; nothing cascades from the supervisor</td></tr>
         <tr><td>External tool stops working post-deploy</td><td>Connection ownership tied to the old SP</td><td>Set connection ownership to the app SP; re-grant <code>USE CONNECTION</code> after every redeploy</td></tr>
       </tbody>
     </table>
@@ -734,7 +734,7 @@ tr:hover td{background:var(--surface)}
   <div class="check-grid mt2 flex1">
     <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>Agent SP per capability boundary</strong><br><span style="font-size:var(--xs);color:var(--muted)">Not shared &mdash; each agent gets its own SP with scoped permissions</span></div></div>
     <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>UC grants: least privilege, explicit</strong><br><span style="font-size:var(--xs);color:var(--muted)">GRANT only what's needed, REVOKE everything else</span></div></div>
-    <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>Row filters: current_user() only</strong><br><span style="font-size:var(--xs);color:var(--muted)">Never is_member() in Genie or Agent Bricks OBO paths</span></div></div>
+    <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>Row filters: current_user() only</strong><br><span style="font-size:var(--xs);color:var(--muted)">Never is_member() in Genie Agents or Agent Bricks OBO paths</span></div></div>
     <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>USE CONNECTION grants per tool</strong><br><span style="font-size:var(--xs);color:var(--muted)">Every external call governed by GRANT/REVOKE on a connection object</span></div></div>
     <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>Token federation for CI/CD</strong><br><span style="font-size:var(--xs);color:var(--muted)">No Databricks secrets stored in pipeline config</span></div></div>
     <div class="check-item r"><span class="check-icon">&#10003;</span><div><strong>AI Gateway rate limits + guardrails</strong><br><span style="font-size:var(--xs);color:var(--muted)">QPM/TPM per user or SP; content filtering on input and output</span></div></div>

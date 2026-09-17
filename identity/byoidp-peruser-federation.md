@@ -1,6 +1,6 @@
 # Per-User Data Access from an External App with a Bring-Your-Own IdP
 
-> **What this is**: A service running **outside** Databricks, whose users log in with **their own (customer/partner) IdP**, calls Databricks data APIs (Genie, SQL, Vector Search, serving) **as each individual user** — so Unity Catalog row filters fire per person. The app exchanges the user's IdP JWT for a **per-user** Databricks token (RFC 8693, account-wide policy). The architecture hinges on **one fact: how the IdP signs its tokens.**
+> **What this is**: A service running **outside** Databricks, whose users log in with **their own (customer/partner) IdP**, calls Databricks data APIs (Genie Agents, SQL, Vector Search, serving) **as each individual user** — so Unity Catalog row filters fire per person. The app exchanges the user's IdP JWT for a **per-user** Databricks token (RFC 8693, account-wide policy). The architecture hinges on **one fact: how the IdP signs its tokens.**
 >
 > **IdP-agnostic.** Works with any OIDC-compliant IdP that publishes a JWKS; the no-JWKS fallback is covered below.
 
@@ -44,7 +44,7 @@ sequenceDiagram
     participant App as External App
     participant IdP as Custom IdP
     participant DBX as Databricks /oidc/v1/token
-    participant API as Genie / SQL / Vector Search
+    participant API as Genie Agents / SQL / Vector Search
 
     User->>IdP: Login (authorization_code)
     IdP-->>App: IdP JWT (signed)
@@ -76,7 +76,7 @@ Full recipe, error catalog, and IdP supplements: [Federation blueprint](federati
 2. **Users SCIM-synced** to the Databricks account — federation *maps* an identity, it does not create one. The JWT `subject_claim` must resolve to a real account user.
 3. **The IdP publishes a public JWKS** so Databricks can validate the exchanged JWT's signature. ← *the load-bearing requirement; see next section.*
 4. **Row filters / column masks** defined on the UC tables — this is what enforces RLS. See the Databricks docs on [row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/).
-5. The user holds the needed **UC grants** (USE CATALOG/SCHEMA, SELECT), **CAN USE** on the warehouse, and access to the resource (e.g. Genie space).
+5. The user holds the needed **UC grants** (USE CATALOG/SCHEMA, SELECT), **CAN USE** on the warehouse, and access to the resource (e.g. Genie Agent).
 
 ---
 
@@ -107,7 +107,7 @@ Make the custom IdP the workspace's **Unified Login SSO** provider and have the 
 
 The token only establishes *who* the user is. Enforcement is a UC **row filter** (or dynamic view) on each table the query touches, gated by `current_user()` / `is_account_group_member()`. Group-based filters also require the **groups** to be SCIM-synced, not just users. See the Databricks docs on [row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/).
 
-Because the federated token *is* the user, Genie/SQL row filters fire automatically — no special handling in the application. See the [Genie Conversation API](https://docs.databricks.com/aws/en/genie/conversation-api) for the worked data-API example.
+Because the federated token *is* the user, Genie Agents/SQL row filters fire automatically — no special handling in the application. See the [Genie Conversation API](https://docs.databricks.com/aws/en/genie/conversation-api) for the worked data-API example.
 
 ---
 

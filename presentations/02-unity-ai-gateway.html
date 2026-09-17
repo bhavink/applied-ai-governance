@@ -390,7 +390,7 @@ tr:hover td{background:var(--surface)}
   <div class="flex1 mt2" style="display:flex;flex-direction:column;gap:10px;justify-content:center;max-width:760px">
     <div class="seq-step r">
       <div class="seq-num">1</div>
-      <div class="seq-body"><strong>The challenge</strong><p>AI call volume accumulates faster than governance does. Each surface (coding agents, Genie, Apps agents, MCP servers, external APIs) records calls separately, with no unified audit trail.</p></div>
+      <div class="seq-body"><strong>The challenge</strong><p>AI call volume accumulates faster than governance does. Each surface (coding agents, Genie Agents, Apps agents, MCP servers, external APIs) records calls separately, with no unified audit trail.</p></div>
     </div>
     <div class="seq-step r">
       <div class="seq-num">2</div>
@@ -418,14 +418,14 @@ tr:hover td{background:var(--surface)}
 <div class="slide" data-slide="3">
   <div class="label r">The issue</div>
   <h2 class="r">AI traffic accumulates faster than anyone wires up governance for it.</h2>
-  <p class="r muted" style="max-width:80ch">A typical rollout: a production agent on Databricks Apps, a Genie space, developers using Cursor or another coding agent, a custom MCP server built last quarter, and an external model API a team wired up directly. Each path was built independently, by a different team, at a different time.</p>
+  <p class="r muted" style="max-width:80ch">A typical rollout: a production agent on Databricks Apps, a Genie Agent, developers using Cursor or another coding agent, a custom MCP server built last quarter, and an external model API a team wired up directly. Each path was built independently, by a different team, at a different time.</p>
   <div class="r flex1 mt2" style="overflow-x:auto">
     <table style="min-width:680px">
       <thead><tr><th style="width:34%">AI surface</th><th>Where its calls are recorded today</th></tr></thead>
       <tbody>
         <tr><td><strong>Coding agent</strong> (per developer)</td><td>Vendor portal, if the vendor exposes one</td></tr>
         <tr><td><strong>Production agent on Apps</strong></td><td>Agent logs and MLflow traces, if instrumented</td></tr>
-        <tr><td><strong>Genie space</strong></td><td>Its own dashboard, separate from everything else</td></tr>
+        <tr><td><strong>Genie Agent</strong></td><td>Its own dashboard, separate from everything else</td></tr>
         <tr><td><strong>Custom MCP server</strong></td><td>Server stdout or a bucket somewhere</td></tr>
         <tr><td><strong>External model API</strong> (direct)</td><td>Whatever the calling team happened to log</td></tr>
       </tbody>
@@ -552,7 +552,7 @@ tr:hover td{background:var(--surface)}
     <table style="min-width:760px">
       <thead><tr><th style="width:30%">Traffic</th><th style="width:18%">Routing</th><th>What you keep</th><th>What you lose</th></tr></thead>
       <tbody>
-        <tr><td>Agent &harr; Genie, Agent Bricks, Vector Search, custom MCP on Apps</td><td><span class="badge badge-green">Direct</span></td><td>Per-user data access control via OBO. Row filters, column masks apply correctly.</td><td>N/A &mdash; internal Databricks traffic.</td></tr>
+        <tr><td>Agent &harr; Genie Agents, Agent Bricks, Vector Search, custom MCP on Apps</td><td><span class="badge badge-green">Direct</span></td><td>Per-user data access control via OBO. Row filters, column masks apply correctly.</td><td>N/A &mdash; internal Databricks traffic.</td></tr>
         <tr><td>LLM endpoints, external models (OpenAI, Anthropic, Bedrock, Vertex AI, Gemini)</td><td><span class="badge badge-red">Managed</span></td><td>Usage tracking, rate limits, service policies, model access control, inference tables, cost attribution via request tags.</td><td>None. This is the right path.</td></tr>
         <tr><td>External LLM API with features we don&rsquo;t yet wrap (e.g. batch endpoints, files API)</td><td><span class="badge badge-amber">Passthrough</span></td><td>Route the request unmapped. Selective header/query param forwarding.</td><td>Usage tracking, rate limits, service policies, model access control, inference tables. Operator beware.</td></tr>
         <tr><td>External clients (enterprise apps, partners) calling Databricks</td><td><span class="badge badge-blue">External gateway</span></td><td>Boundary crossing from external identity &rarr; Databricks token. Then managed paths or direct.</td><td>None &mdash; external gateway is additive.</td></tr>
@@ -561,7 +561,7 @@ tr:hover td{background:var(--surface)}
   </div>
   <div class="r mt2">
     <div class="card card-amber" style="padding:clamp(.6rem,1.2vw,1rem)">
-      <p><strong>Critical:</strong> Never put the gateway in the OBO path. Internal agent-to-Genie or agent-to-MCP calls must stay direct. The gateway re-issues its own token, so <code>current_user()</code> becomes the gateway&rsquo;s identity, and row filters silently evaluate wrong.</p>
+      <p><strong>Critical:</strong> Never put the gateway in the OBO path. Internal agent-to-Genie Agents or agent-to-MCP calls must stay direct. The gateway re-issues its own token, so <code>current_user()</code> becomes the gateway&rsquo;s identity, and row filters silently evaluate wrong.</p>
     </div>
   </div>
 </div>
@@ -608,7 +608,7 @@ tr:hover td{background:var(--surface)}
   <div class="two-col mt2">
     <div class="card card-red r">
       <h4>Before</h4>
-      <p>&ldquo;Show me every AI call this org made last week&rdquo; means checking a coding-agent vendor portal, agent logs, a Genie dashboard, a custom MCP server&rsquo;s stdout, and whatever the team using an external API happened to log. Days, not minutes &mdash; and still incomplete.</p>
+      <p>&ldquo;Show me every AI call this org made last week&rdquo; means checking a coding-agent vendor portal, agent logs, a Genie Agent dashboard, a custom MCP server&rsquo;s stdout, and whatever the team using an external API happened to log. Days, not minutes &mdash; and still incomplete.</p>
     </div>
     <div class="card card-green r">
       <h4>After</h4>
@@ -786,7 +786,7 @@ response = client.messages.create(...)</pre>
     <table style="min-width:720px">
       <thead><tr><th style="width:28%">Issue</th><th>Detail</th></tr></thead>
       <tbody>
-        <tr><td><strong>Gateway in OBO path</strong></td><td>Critical: never put the gateway in the OBO path between an agent and Genie, Agent Bricks, or a custom MCP server. The gateway re-issues its own token, so <code>current_user()</code> becomes the gateway&rsquo;s identity, and row filters evaluate silently wrong. Keep internal Databricks-to-Databricks traffic direct.</td></tr>
+        <tr><td><strong>Gateway in OBO path</strong></td><td>Critical: never put the gateway in the OBO path between an agent and Genie Agents, Agent Bricks, or a custom MCP server. The gateway re-issues its own token, so <code>current_user()</code> becomes the gateway&rsquo;s identity, and row filters evaluate silently wrong. Keep internal Databricks-to-Databricks traffic direct.</td></tr>
         <tr><td><strong>Guardrails don&rsquo;t soft-fail</strong></td><td>Guardrails fail closed. An evaluator timeout, parse error, or misconfiguration blocks the request (HTTP 400). Use <code>mode=LOG</code> for dry-run testing without enforcement.</td></tr>
         <tr><td><strong>Spend cap is a hard block</strong></td><td>Not a soft alert. Requests return 429 once the budget is hit. No manual override until the billing period resets or an admin raises the cap.</td></tr>
         <tr><td><strong>Output guardrails + streaming</strong></td><td>Output guardrails evaluate post-response, so streaming responses bypass them. Use input guardrails or non-streaming requests for output policy enforcement.</td></tr>
@@ -809,7 +809,7 @@ response = client.messages.create(...)</pre>
     <div class="gate-cell r"><h4>Service policies in LOG mode first</h4><p>Test guardrails on production traffic in <code>mode=LOG</code> dry-run before switching to <code>mode=ENFORCE</code>.</p></div>
     <div class="gate-cell r"><h4>Spend caps + rate limits together</h4><p>Rate limits control traffic volume. Spend caps control dollars. Use both as multi-layer cost control.</p></div>
     <div class="gate-cell r"><h4>Inference tables configured</h4><p>UC catalog with retention policy, audit-grade access controls. Join to <code>system.billing.usage</code> for cost analysis.</p></div>
-    <div class="gate-cell r"><h4>Internal Databricks traffic stays direct</h4><p>Confirm no gateway sits between agent and Genie, Agent Bricks, or custom MCP server. OBO path must be direct.</p></div>
+    <div class="gate-cell r"><h4>Internal Databricks traffic stays direct</h4><p>Confirm no gateway sits between agent and Genie Agents, Agent Bricks, or custom MCP server. OBO path must be direct.</p></div>
   </div>
 </div>
 

@@ -4,7 +4,7 @@
 
 Identity (Pillar 2) establishes *who* is asking. Data governance decides *which rows and
 columns* they may see. In Unity Catalog this is enforced at the SQL engine, so every AI
-service that ultimately issues SQL (Genie, Agent Bricks, Model Serving, custom MCP) inherits
+service that ultimately issues SQL (Genie Agents, Agent Bricks, Model Serving, custom MCP) inherits
 the same row filters and column masks with no per-service work.
 
 ## Reading Order

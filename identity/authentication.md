@@ -63,8 +63,8 @@ flowchart TD
 
 | Component | Recommended path | Identity in UC | How the token arrives |
 |---|---|---|---|
-| Genie (via a Databricks App) | OBO | Calling user | Forwarded proxy header passed through to the Genie API |
-| Genie (direct API integration) | U2M | Calling user | User's own token in `Authorization: Bearer` |
+| Genie Agents (via a Databricks App) | OBO | Calling user | Forwarded proxy header passed through to the Genie Agents API |
+| Genie Agents (direct API integration) | U2M | Calling user | User's own token in `Authorization: Bearer` |
 | Multi-agent orchestration | OBO | Calling user | Token forwarded to sub-agents automatically |
 | Vector Search | M2M | App service principal | `WorkspaceClient()` with no arguments |
 | Unity Catalog Functions | OBO or M2M | User or service principal | Depends on whether per-user filtering matters |
@@ -81,9 +81,9 @@ Lakebase is the one exception worth calling out: every other resource in this ta
 
 A common source of confusion when building AI apps on Databricks: `current_user()` and `is_member()` don't always evaluate the same identity once a request has passed through OBO.
 
-| Function | Evaluates | U2M | OBO (through Genie or an orchestration layer) | M2M |
+| Function | Evaluates | U2M | OBO (through Genie Agents or an orchestration layer) | M2M |
 |---|---|---|---|---|
-| `current_user()` | The authenticated identity | Human email | Human email — Genie and orchestration layers inject the OBO caller's email explicitly | Service principal UUID |
+| `current_user()` | The authenticated identity | Human email | Human email — Genie Agents and orchestration layers inject the OBO caller's email explicitly | Service principal UUID |
 | `is_member('group')` | The identity of whatever is actually executing the SQL | Human's groups (correct) | The execution service's identity, not the human — this is expected behavior for a service acting on the human's behalf | Service principal's groups (correct if the SP is in the group) |
 
 **Recommended pattern**: if the same tables are read across U2M, OBO, and M2M paths, build row filters and column masks on `current_user()` plus an allowlist table rather than `is_member()`. This keeps the same policy correct across all three paths:
@@ -105,7 +105,7 @@ CREATE OR REPLACE FUNCTION my_catalog.my_schema.mask_sensitive(val DECIMAL(12,2)
 
 | Operation | Scope |
 |---|---|
-| Genie space access | `dashboards.genie` **and** `genie` (both required — on Azure, add `genie` explicitly even though the console picker leads with `dashboards.genie`) |
+| Genie Agent access | `dashboards.genie` **and** `genie` (both required — on Azure, add `genie` explicitly even though the console picker leads with `dashboards.genie`) |
 | Model Serving / agent orchestration endpoints | `model-serving` (shown as `serving.serving-endpoints` in the account console's scope picker) |
 | SQL statement execution | `sql` |
 | Unity Catalog operations, including External MCP over a UC HTTP connection | `unity-catalog` — the External MCP proxy checks this scope when verifying `USE CONNECTION` privilege on the target connection |
@@ -180,7 +180,7 @@ GRANT SELECT ON TABLE my_catalog.my_schema.my_table TO `pipeline-readers`;
 
 This makes revoking access, rotating secrets, and adding a second SP (for a blue/green deploy, for example) all group-membership operations rather than privilege changes — and it gives you an audit trail of group membership changes separate from data access events. Scope one service principal per service, with a group name that reflects the service's function (`pipeline-readers`, `api-gateway`, and so on).
 
-Some grants are handled automatically when a Databricks App is deployed with a `resources` block in `app.yaml` (Genie space access, Vector Search index access, serving endpoint access, SQL warehouse access, function execution). Catalog, schema, and table-level Unity Catalog grants are not covered by `app.yaml` and need to be applied once via SQL, as shown above.
+Some grants are handled automatically when a Databricks App is deployed with a `resources` block in `app.yaml` (Genie Agent access, Vector Search index access, serving endpoint access, SQL warehouse access, function execution). Catalog, schema, and table-level Unity Catalog grants are not covered by `app.yaml` and need to be applied once via SQL, as shown above.
 
 Service principals carry two identifiers: an **application ID** (what `current_user()` returns, and what Unity Catalog grants reference) and a numeric **member ID** (used for SCIM group membership operations). Keep the two straight when scripting group membership changes.
 
@@ -241,7 +241,7 @@ if host and not host.startswith("http"):
     host = f"https://{host}"
 ```
 
-For calls to Genie, a Model Serving endpoint, or the Statement Execution API, pass this token directly as `Authorization: Bearer {user_token}` using `httpx` or `requests` — not the Databricks SDK's default `WorkspaceClient()`, which resolves credentials from `DATABRICKS_HOST`/`DATABRICKS_TOKEN` environment variables set to the app's own service principal credentials. Direct HTTP calls keep the forwarded user token separate from the app's own M2M credentials.
+For calls to Genie Agents, a Model Serving endpoint, or the Statement Execution API, pass this token directly as `Authorization: Bearer {user_token}` using `httpx` or `requests` — not the Databricks SDK's default `WorkspaceClient()`, which resolves credentials from `DATABRICKS_HOST`/`DATABRICKS_TOKEN` environment variables set to the app's own service principal credentials. Direct HTTP calls keep the forwarded user token separate from the app's own M2M credentials.
 
 ### `ModelServingUserCredentials()`
 

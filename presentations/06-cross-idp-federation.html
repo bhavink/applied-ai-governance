@@ -454,7 +454,7 @@ tr:hover td{background:var(--surface)}
     </div>
   </div>
   <div class="callout r mt2">
-    Leg 1 alone never reaches Databricks &mdash; sending the raw IdP JWT to Genie or a SQL endpoint fails. Leg 2 is mandatory, and it is the only step Databricks ever sees.
+    Leg 1 alone never reaches Databricks &mdash; sending the raw IdP JWT to Genie Agents or a SQL endpoint fails. Leg 2 is mandatory, and it is the only step Databricks ever sees.
   </div>
 </div>
 
@@ -478,7 +478,7 @@ tr:hover td{background:var(--surface)}
       <div style="font-size:var(--xs);color:var(--muted)">RFC 8693 exchange &mdash; IdP JWT &rarr; Databricks token</div>
       <div class="abox uc r delay-7">/oidc/v1/token<small style="color:var(--red);opacity:.7">Federation policy: issuer + audience + subject</small></div>
       <div class="arch-varrow delay-8">&darr;</div>
-      <div class="abox grp r delay-9">Genie &middot; SQL &middot; MCP tool<small>called with the exchanged token</small></div>
+      <div class="abox grp r delay-9">Genie Agents &middot; SQL &middot; MCP tool<small>called with the exchanged token</small></div>
       <div class="arch-varrow">&darr;</div>
       <div class="card card-green r" style="text-align:center;max-width:620px">
         <p><strong>Unity Catalog enforces at query time</strong> &mdash; row filters, column masks, connection grants &mdash; then audit records the external user&rsquo;s identity from the verified JWT claims.</p>
@@ -633,10 +633,10 @@ tr:hover td{background:var(--surface)}
   <div class="two-col mt1">
     <div class="card r">
       <h4>Five actors, every deployment</h4>
-      <pre style="font-size:var(--xs)">Human &rarr; SPA &rarr; Backend &rarr; Databricks &rarr; MCP/Genie
+      <pre style="font-size:var(--xs)">Human &rarr; SPA &rarr; Backend &rarr; Databricks &rarr; MCP/Genie Agents
             &uarr;         &uarr;
           IdP (login)  IdP (M2M token)</pre>
-      <p style="margin-top:8px">IdP, browser app (SPA), backend server (holds secrets, brokers the exchange), Databricks (token endpoint + UC), and the tool server (SQL/Genie/MCP) that runs the governed query.</p>
+      <p style="margin-top:8px">IdP, browser app (SPA), backend server (holds secrets, brokers the exchange), Databricks (token endpoint + UC), and the tool server (SQL/Genie Agents/MCP) that runs the governed query.</p>
     </div>
     <div class="card card-ink r">
       <h4>12 prerequisites, three groups</h4>

@@ -39,7 +39,7 @@ both map to the identity pillar's paths:
 
 Whichever the source, the server calls Databricks with the supplied token; it does not
 manufacture identity. Typical scopes carried on the token: `sql` (warehouse, where filters
-and masks fire), `genie` (Conversation API), `serving` (Model Serving), and on Azure Genie
+and masks fire), `genie` (Conversation API), `serving` (Model Serving), and on Azure Genie Agents
 also `dashboards.genie`.
 
 ## Scope-based access model
@@ -47,7 +47,7 @@ also `dashboards.genie`.
 | Resource | Scope required | UC grant required | Who checks |
 |---|---|---|---|
 | SQL warehouse | `sql` | `CAN USE` on warehouse | token + UC |
-| Genie space | `genie` (+ `dashboards.genie` on Azure) | access to space + underlying tables | token + UC |
+| Genie Agent | `genie` (+ `dashboards.genie` on Azure) | access to space + underlying tables | token + UC |
 | Model Serving | `serving` | `CAN QUERY` on endpoint | token + UC |
 | Vector Search | `sql` (SDK uses SQL internally) | `SELECT` on index | token + UC |
 | UC connection | `sql` (for `DESCRIBE CONNECTION`) | `USE CONNECTION` | token + UC |
@@ -93,7 +93,7 @@ tags: `service_name`, `tool`, `caller.email`, `caller.role`, `request_id`, `stat
 
 | API | Limit | Strategy |
 |---|---|---|
-| Genie | ~5 queries/min/workspace | in-memory sliding window, return a retry hint |
+| Genie Agents | ~5 queries/min/workspace | in-memory sliding window, return a retry hint |
 | SQL | no hard limit | connection-pool limits (bounded concurrency) |
 | Serving | per-endpoint | retry with backoff on 429 |
 | External API | per token | retry with backoff on 429 |
@@ -112,7 +112,7 @@ conversation threading in a store such as Lakebase, keyed by thread and conversa
 
 - No secrets in environment variables (use UC connections).
 - All SQL parameterized or safely escaped; input validation on every tool parameter.
-- Rate limiting on Genie; connection-pool limits to prevent resource exhaustion.
+- Rate limiting on Genie Agents; connection-pool limits to prevent resource exhaustion.
 - Async audit never blocks the tool response.
 - Structured logging with `request_id`; retry with jitter to avoid thundering herd.
 - Health check validates all dependencies.

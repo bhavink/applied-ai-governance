@@ -9,7 +9,7 @@
 | Plane | Source | Captures |
 |---|---|---|
 | **Application plane** (MLflow Tracing) | Your instrumentation | Tool calls, retrieval steps, prompts and responses, latency per span, token usage, scorer assessments, custom tags (caller, session, app version) |
-| **Data plane** (UC system tables) | Platform automatic | SQL queries (`system.access.audit`), serving endpoint usage (`system.serving.endpoint_usage`), Genie conversations, AI Gateway requests (`system.ai_gateway.usage`) |
+| **Data plane** (UC system tables) | Platform automatic | SQL queries (`system.access.audit`), serving endpoint usage (`system.serving.endpoint_usage`), Genie Agents conversations, AI Gateway requests (`system.ai_gateway.usage`) |
 
 Each plane sees a different cut of the same request. Correlate the two via:
 - **Trace ID** when the agent propagates it as a query tag or HTTP header

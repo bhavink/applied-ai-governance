@@ -40,7 +40,7 @@ See [Federation Exchange](federation.md) for the role-based SP pattern.
 ## Architecture
 
 ```
-External SPA ──→ CORS Proxy (CF Worker / Lambda) ──→ Databricks MCP App ──→ SQL / Genie / Serving
+External SPA ──→ CORS Proxy (CF Worker / Lambda) ──→ Databricks MCP App ──→ SQL / Genie Agents / Serving
      │                                                       │
      ▼                                                       ▼
 Databricks OAuth (PKCE)                            X-Databricks-Token header
@@ -108,7 +108,7 @@ X-Databricks-Token: {USER_TOKEN}
 ```
 
 - `Authorization` is consumed by the Databricks Apps proxy (validates the caller, mints the OBO token)
-- `X-Databricks-Token` is read by the MCP server code for downstream SQL/Genie calls
+- `X-Databricks-Token` is read by the MCP server code for downstream SQL/Genie Agents calls
 
 UC governance fires at the SQL engine level. `current_user()` = the human's email. Row filters, column masks, and connection privileges all evaluate against the individual.
 
@@ -136,7 +136,7 @@ Same code, two deployments, different proxy behavior.
 
 The Databricks Apps proxy mints an OBO token on each request, available to the app code as `x-forwarded-access-token`. By default this token carries a minimal identity scope set (`openid`, `email`, `profile`, `iam.current-user:read`, and similar) — enough for the Genie Conversation API and Model Serving calls, but not for the Statement Execution API or other UC-scoped calls. Extending what this token carries requires configuring the App Integration's scopes through the console's User Authorization step (see Prerequisites below) rather than through CLI updates alone.
 
-For programmatic callers (server-to-server flows like a CORS proxy invoking the MCP app), a more direct pattern is often simpler: send the user's original Databricks OAuth token — the one issued in Step 3 above, requested with the scopes the SPA needs at the App Integration level — in a custom header, and have the MCP server use that token directly for downstream SQL or Genie calls. The header name `X-Databricks-Token` is a common convention.
+For programmatic callers (server-to-server flows like a CORS proxy invoking the MCP app), a more direct pattern is often simpler: send the user's original Databricks OAuth token — the one issued in Step 3 above, requested with the scopes the SPA needs at the App Integration level — in a custom header, and have the MCP server use that token directly for downstream SQL or Genie Agents calls. The header name `X-Databricks-Token` is a common convention.
 
 ```python
 # In the MCP server code
@@ -230,7 +230,7 @@ When App A calls App B and both have `authorization: enabled`, App B's proxy int
 |---|---|
 | Scope changes need re-consent | Adding scopes to the App Integration doesn't apply to tokens already issued to a user. The user needs to complete the OAuth flow again (or an admin can pre-authorize on the user's behalf) before the new scopes take effect in their token. |
 | CLI-only scope configuration is incomplete | Setting scopes only through the CLI records them on the integration, but the console's User Authorization step is what puts them into the issued token's `scope` claim. Use the console flow when the token needs to carry effective scopes for downstream calls. |
-| Use `httpx`/`requests` directly for the forwarded token | The Databricks SDK reads `DATABRICKS_HOST`/`DATABRICKS_TOKEN` from the environment, which on a Databricks App points at the app's own SP credentials. Making the SQL/Genie call with a plain HTTP client and an explicit `Authorization: Bearer {token}` header avoids that conflict. |
+| Use `httpx`/`requests` directly for the forwarded token | The Databricks SDK reads `DATABRICKS_HOST`/`DATABRICKS_TOKEN` from the environment, which on a Databricks App points at the app's own SP credentials. Making the SQL/Genie Agents call with a plain HTTP client and an explicit `Authorization: Bearer {token}` header avoids that conflict. |
 
 ---
 

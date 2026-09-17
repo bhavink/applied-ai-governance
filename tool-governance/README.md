@@ -2,7 +2,7 @@
 
 > **Pillar 4**: What tools and external services can an agent call, and how is that access controlled and changed safely?
 
-Agents act by calling tools: SQL, Genie, Vector Search, Model Serving, and external APIs. This
+Agents act by calling tools: SQL, Genie Agents, Vector Search, Model Serving, and external APIs. This
 pillar covers how a custom MCP server fronts those tools under a governed identity, and how the
 policy that decides which role may call which tool is managed without redeploys.
 

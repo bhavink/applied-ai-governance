@@ -685,7 +685,7 @@ ROLE_SP_MAP = {
           <tr><td><strong>MODIFY + SELECT</strong></td><td>Audit table</td><td>App SP only</td></tr>
           <tr><td><strong>USE CONNECTION</strong></td><td>external_api_conn</td><td>Exec + Admin</td></tr>
           <tr><td><strong>CAN_QUERY</strong></td><td>Serving endpoint</td><td>Exec + Admin</td></tr>
-          <tr><td><strong>CAN_RUN</strong></td><td>Genie Space</td><td>All role SPs</td></tr>
+          <tr><td><strong>CAN_RUN</strong></td><td>Genie Agent</td><td>All role SPs</td></tr>
           <tr><td><strong>Workspace group</strong></td><td>Group per role</td><td>Each role SP</td></tr>
         </tbody>
       </table>
@@ -1219,7 +1219,7 @@ Scope:      Any scope</pre>
           <th style="font-size:0.5rem">Identity</th>
           <th style="font-size:0.5rem">Regions</th>
           <th style="font-size:0.5rem">Sales</th>
-          <th style="font-size:0.5rem">Genie</th>
+          <th style="font-size:0.5rem">Genie Agents</th>
           <th style="font-size:0.5rem">KB</th>
           <th style="font-size:0.5rem">Supervisor</th>
           <th style="font-size:0.5rem">GitHub</th>
@@ -1251,7 +1251,7 @@ Scope:      Any scope</pre>
       <div class="card card-red" style="font-size:var(--sz-small)">
         <h4 style="font-size:var(--sz-body)">Example Flows</h4>
         <ol style="padding-left:1rem;line-height:1.7">
-          <li><strong>Data Isolation</strong>: A west rep asks Genie for top deals and gets WEST only; an east rep gets EAST only.</li>
+          <li><strong>Data Isolation</strong>: A west rep asks Genie Agents for top deals and gets WEST only; an east rep gets EAST only.</li>
           <li><strong>Column Masking</strong>: a rep sees masked margins on the sales data; the auditor sees real values.</li>
           <li><strong>AI Governance</strong>: A west rep sees WEST pipeline; an executive sees all regions.</li>
           <li><strong>UC Connections</strong>: An executive can reach the external connection; a rep gets ACCESS_DENIED.</li>

@@ -340,7 +340,7 @@ pre {
       <table>
         <thead><tr><th>#</th><th>Service</th><th>Identity Model</th><th>current_user()</th><th>UC Audit Shows</th></tr></thead>
         <tbody>
-          <tr><td><span class="badge b-num">1</span></td><td>Genie (Conversation API)</td><td><span class="badge b-obo">True OBO</span></td><td><code>User email</code></td><td>User</td></tr>
+          <tr><td><span class="badge b-num">1</span></td><td>Genie Agents (Conversation API)</td><td><span class="badge b-obo">True OBO</span></td><td><code>User email</code></td><td>User</td></tr>
           <tr><td><span class="badge b-num">2</span></td><td>AI/BI Dashboard (run-as-viewer)</td><td><span class="badge b-obo">True OBO</span></td><td><code>Viewer email</code></td><td>Viewer</td></tr>
           <tr><td><span class="badge b-num">3</span></td><td>AI/BI Dashboard (run-as-owner)</td><td><span class="badge b-del">Delegated</span></td><td><code>Owner email</code></td><td>Owner</td></tr>
           <tr><td><span class="badge b-num">4</span></td><td>Agent Bricks / Model Serving</td><td><span class="badge b-obo">True OBO</span></td><td><code>User email</code></td><td>User</td></tr>
@@ -348,7 +348,7 @@ pre {
           <tr><td><span class="badge b-num">6</span></td><td>SQL Warehouse (SP token)</td><td><span class="badge b-m2m">Pure M2M</span></td><td><code>SP UUID</code></td><td>SP UUID</td></tr>
           <tr><td><span class="badge b-num">7</span></td><td>Custom MCP (Databricks Apps)</td><td><span class="badge b-proxy">Proxy + M2M</span></td><td><code>SP UUID</code></td><td>SP UUID</td></tr>
           <tr><td><span class="badge b-num">8</span></td><td>UC Functions (via M2M SQL)</td><td><span class="badge b-m2m">Pure M2M</span></td><td><code>SP UUID</code></td><td>SP UUID</td></tr>
-          <tr><td><span class="badge b-num">9</span></td><td>UC Functions (via Genie OBO)</td><td><span class="badge b-obo">True OBO</span></td><td><code>User email</code></td><td>User</td></tr>
+          <tr><td><span class="badge b-num">9</span></td><td>UC Functions (via Genie Agents OBO)</td><td><span class="badge b-obo">True OBO</span></td><td><code>User email</code></td><td>User</td></tr>
           <tr><td><span class="badge b-num">10</span></td><td>Vector Search</td><td><span class="badge b-m2m">Pure M2M</span></td><td><code>N/A</code></td><td>SP UUID</td></tr>
           <tr><td><span class="badge b-num">11</span></td><td>Foundation Model API</td><td><span class="badge b-m2m">M2M / OBO</span></td><td><code>N/A</code></td><td>Caller identity</td></tr>
           <tr><td><span class="badge b-num">12</span></td><td>SDP / Lakeflow Pipeline</td><td><span class="badge b-del">Delegated</span></td><td><code>Owner email</code></td><td>Owner</td></tr>
@@ -481,8 +481,8 @@ pre {
           <tr><td><code>email</code></td><td>Email claim in token</td><td>Proxy X-Forwarded-Email</td><td>none</td></tr>
           <tr><td><code>profile</code></td><td>Display name claims</td><td>Proxy X-Forwarded-Preferred-Username</td><td>none</td></tr>
           <tr><td><code>offline_access</code></td><td>Refresh token</td><td>Long-lived sessions</td><td>none</td></tr>
-          <tr><td><code>dashboards.genie</code></td><td>Genie space access</td><td>Genie Conversation API</td><td><span class="red">Must pair with <code>genie</code> on Azure</span></td></tr>
-          <tr><td><code>genie</code></td><td>Genie Conversation API</td><td>Genie (Azure)</td><td><span class="red">Not shown in account UI. Required on Azure. Silent 403 without it.</span></td></tr>
+          <tr><td><code>dashboards.genie</code></td><td>Genie Agent access</td><td>Genie Conversation API</td><td><span class="red">Must pair with <code>genie</code> on Azure</span></td></tr>
+          <tr><td><code>genie</code></td><td>Genie Conversation API</td><td>Genie Agents (Azure)</td><td><span class="red">Not shown in account UI. Required on Azure. Silent 403 without it.</span></td></tr>
           <tr><td><code>model-serving</code></td><td>Model Serving / Agent Bricks</td><td>Agent Bricks, FM API OBO</td><td>none</td></tr>
           <tr><td><code>sql</code></td><td>Statement Execution API</td><td>Direct SQL with user token</td><td><span class="red">CLI <code>custom-app-integration update</code> does NOT embed scope in JWT. Use UI &ldquo;User Authorization&rdquo; instead.</span></td></tr>
           <tr><td><code>unity-catalog</code></td><td>UC REST API + External MCP proxy</td><td>External MCP via UC HTTP</td><td><span class="red">Undocumented. Proxy checks this before <code>USE CONNECTION</code>. Without it: 403.</span></td></tr>
@@ -549,7 +549,7 @@ pre {
         <thead><tr><th>Header</th><th>Trust</th><th>Content</th></tr></thead>
         <tbody>
           <tr><td><code>X-Forwarded-Email</code></td><td><span class="badge b-yes">High</span></td><td>Proxy-verified user identity. Unforgeable. Primary identity source in M2M patterns.</td></tr>
-          <tr><td><code>X-Forwarded-Access-Token</code></td><td><span class="badge b-yes">High</span></td><td>OIDC JWT. SP-scoped but unforgeable. Used for OBO API calls (Genie, Agent Bricks).</td></tr>
+          <tr><td><code>X-Forwarded-Access-Token</code></td><td><span class="badge b-yes">High</span></td><td>OIDC JWT. SP-scoped but unforgeable. Used for OBO API calls (Genie Agents, Agent Bricks).</td></tr>
           <tr><td><code>X-Forwarded-User</code></td><td><span class="badge b-yes">High</span></td><td><code>{user_id}@{workspace_id}</code>. Unique cross-workspace identifier.</td></tr>
         </tbody>
       </table>
@@ -576,7 +576,7 @@ pre {
           <tr>
             <td><strong>SP-A</strong></td>
             <td>Streamlit app</td>
-            <td>Genie (OBO), VS indexes, UC Functions, FM API</td>
+            <td>Genie Agents (OBO), VS indexes, UC Functions, FM API</td>
             <td><em>None</em></td>
             <td>Frontend, no direct write access</td>
           </tr>
@@ -779,7 +779,7 @@ ORDER BY a.event_time DESC;</code></pre>
     <div class="grid-2" style="margin-top:1.5rem">
       <div class="reveal">
         <h3>The Attack</h3>
-        <p style="color:var(--muted);font-size:0.82rem;line-height:1.6">A malicious user creates a function that calls an external endpoint to exfiltrate data. When a benign user triggers that function (via Genie, OneChat, or a shared space), it executes under the benign user's credentials.</p>
+        <p style="color:var(--muted);font-size:0.82rem;line-height:1.6">A malicious user creates a function that calls an external endpoint to exfiltrate data. When a benign user triggers that function (via Genie Agents, OneChat, or a shared space), it executes under the benign user's credentials.</p>
       </div>
       <div class="reveal">
         <h3>The Defense Stack</h3>
@@ -788,7 +788,7 @@ ORDER BY a.event_time DESC;</code></pre>
           <strong>Layer 2:</strong> Tightly govern UC connections, no broad <code>USE CONNECTION</code><br>
           <strong>Layer 3:</strong> No <code>EXECUTE</code> grants to <code>account users</code><br>
           <strong>Layer 4:</strong> Monitor audit logs for function creation + external calls<br>
-          <strong>Layer 5:</strong> Advocate for Genie space review workflows
+          <strong>Layer 5:</strong> Advocate for Genie Agent review workflows
         </div>
       </div>
     </div>
@@ -863,12 +863,12 @@ ORDER BY a.event_time DESC;</code></pre>
 <script>
 /* === SCOPE CALCULATOR DATA === */
 const SVC_SCOPES = {
-  1:  {name:"Genie (Conversation API)",      scopes:["openid","email","profile","offline_access","dashboards.genie","genie"]},
+  1:  {name:"Genie Agents (Conversation API)",      scopes:["openid","email","profile","offline_access","dashboards.genie","genie"]},
   2:  {name:"AI/BI Dashboard (viewer)",       scopes:["openid","email","profile","offline_access"]},
   4:  {name:"Agent Bricks / Model Serving",   scopes:["openid","email","profile","offline_access","model-serving"]},
   5:  {name:"SQL Warehouse (user token)",     scopes:["openid","email","profile","offline_access","sql"]},
   7:  {name:"Custom MCP (Databricks Apps)",   scopes:["openid","email","profile","offline_access"]},
-  9:  {name:"UC Functions (via Genie OBO)",   scopes:["openid","email","profile","offline_access","dashboards.genie","genie"]},
+  9:  {name:"UC Functions (via Genie Agents OBO)",   scopes:["openid","email","profile","offline_access","dashboards.genie","genie"]},
   14: {name:"External MCP (per-user OAuth)",  scopes:["openid","email","profile","offline_access","unity-catalog"]},
   15: {name:"Custom MCP → Custom MCP",        scopes:["openid","email","profile","offline_access"]},
   16: {name:"Lakebase",                       scopes:["postgres"]},

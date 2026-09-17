@@ -12,7 +12,7 @@ The proxy determines **which identity** downstream services see. Misconfigure it
 - Audit records show the SP UUID instead of the human who triggered the action
 - `current_user()` returns the wrong value, and governance fails silently
 
-Every AI app architecture decision — OBO vs M2M, Genie vs direct SQL, app-to-app vs external client — flows through the proxy's identity model.
+Every AI app architecture decision — OBO vs M2M, Genie Agents vs direct SQL, app-to-app vs external client — flows through the proxy's identity model.
 
 ---
 
@@ -23,7 +23,7 @@ Every AI app architecture decision — OBO vs M2M, Genie vs direct SQL, app-to-a
 | `X-Forwarded-Email` | **Primary identity** for audit and access control. Cannot be forged when proxy is enabled. | High |
 | `X-Forwarded-User` | `{user_id}@{workspace_id}` composite identifier; same provenance as email. | High |
 | `X-Forwarded-Groups` | Group membership for `is_member()` evaluation in row filters. | High |
-| `X-Forwarded-Access-Token` | OBO token for downstream API calls (Genie, Agent Bricks). Carries `sql` scope **only when the user has completed UI User Authorization** for the `sql` scope — otherwise a minimal OIDC identity token. | Medium |
+| `X-Forwarded-Access-Token` | OBO token for downstream API calls (Genie Agents, Agent Bricks). Carries `sql` scope **only when the user has completed UI User Authorization** for the `sql` scope — otherwise a minimal OIDC identity token. | Medium |
 | `X-Forwarded-Preferred-Username` | Display name from the user's profile; informational only. | High |
 | `X-Databricks-Org-Id` | Workspace ID; informational. | Informational |
 | `X-Request-Id` | UUID injected per request by the proxy for distributed tracing. Use for correlation across logs and downstream services. | Low |
@@ -159,7 +159,7 @@ client_secret = os.getenv('DATABRICKS_CLIENT_SECRET')   # auto-injected
 | Scope | Grants |
 |---|---|
 | `sql` | SQL warehouse access on behalf of the user |
-| `dashboards.genie` | Genie Space access on behalf of the user |
+| `dashboards.genie` | Genie Agent access on behalf of the user |
 | `files.files` | UC Volumes access on behalf of the user |
 | `iam.current-user:read` | Basic identity (default) |
 | `iam.access-control:read` | Access control read (default) |
@@ -170,7 +170,7 @@ Configure scopes via the workspace UI: app → **Authorization** tab → **User 
 
 ## Declared Resources
 
-Apps declare their dependencies in `databricks.yml` under `resources`: SQL warehouse, Job, Model serving endpoint, Genie Space, Secret, Volume. For a Databricks service without a supported resource type, inject credentials via a Unity Catalog–managed secret.
+Apps declare their dependencies in `databricks.yml` under `resources`: SQL warehouse, Job, Model serving endpoint, Genie Agent, Secret, Volume. For a Databricks service without a supported resource type, inject credentials via a Unity Catalog–managed secret.
 
 ---
 
