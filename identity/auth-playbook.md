@@ -34,8 +34,8 @@ Use this to decide which path a given call in your app needs:
 
 | Component | Recommended path | How the token arrives |
 |---|---|---|
-| Genie (via a Databricks App) | OBO | `X-Forwarded-Access-Token` header, forwarded to the Genie API |
-| Genie (direct API call) | U2M | Caller's own token in `Authorization: Bearer` |
+| Genie Agents (via a Databricks App) | OBO | `X-Forwarded-Access-Token` header, forwarded to the Genie Agents API |
+| Genie Agents (direct API call) | U2M | Caller's own token in `Authorization: Bearer` |
 | Agent Bricks supervisor | OBO | Token auto-forwarded to sub-agents |
 | Vector Search | M2M | `WorkspaceClient()` with no arguments (app SP credentials) |
 | UC Functions | OBO or M2M | Depends on whether per-user filtering is required |
@@ -55,7 +55,7 @@ OAuth scopes control what APIs a user's forwarded (OBO) token can call. Each ser
 | Service | Required Scopes | Where to Configure |
 |---|---|---|
 | SQL Warehouse (OBO) | `sql` | Account Console → App integrations → User Authorization |
-| Genie | `genie`, `dashboards.genie` | Account Console → App integrations → User Authorization (both required) |
+| Genie Agents | `genie`, `dashboards.genie` | Account Console → App integrations → User Authorization (both required) |
 | Vector Search | `vector-search` | Account Console → App integrations → User Authorization |
 | MLflow / Model Serving | `model-serving` (UI label: `serving.serving-endpoints`) | Account Console → App integrations → User Authorization |
 | UC Files / Volumes | `files.files` | Account Console → App integrations → User Authorization |
@@ -90,11 +90,11 @@ If you only update scopes via the CLI, the integration's configuration changes b
 
 A 403 response with "required scopes" in the message body means the user's OBO token does not carry the scope needed for that endpoint. This is a configuration step, not an error in the app code.
 
-### Genie
+### Genie Agents
 
 **Symptom**: `POST /api/genie/<alias>/messages` returns 403. Error message mentions scope validation failure.
 
-**Cause**: The app's OAuth integration is missing one or both Genie scopes. The Genie Conversation API requires the `genie` scope claim on the token in addition to `dashboards.genie`, even on integrations where the scope picker only surfaces `dashboards.genie` as a labeled option.
+**Cause**: The app's OAuth integration is missing one or both Genie Agents scopes. The Genie Conversation API requires the `genie` scope claim on the token in addition to `dashboards.genie`, even on integrations where the scope picker only surfaces `dashboards.genie` as a labeled option.
 
 **Resolution steps**:
 1. Open Account Console → App integrations → User Authorization for your app
@@ -175,12 +175,12 @@ SHOW GRANTS ON CONNECTION <connection_name>;
 
 When the same tables are read through U2M, OBO, and M2M paths, `current_user()` and `is_member()` do not behave the same way — and picking the wrong one is the most common cause of unexpected row-filter or column-mask results in AI apps.
 
-| Function | Evaluates | U2M | OBO (through Genie / Agent Bricks) | M2M |
+| Function | Evaluates | U2M | OBO (through Genie Agents / Agent Bricks) | M2M |
 |---|---|---|---|---|
-| `current_user()` | The authenticated identity | Human email | Human email — Genie/Agent Bricks explicitly inject the OBO caller's identity | SP application UUID |
+| `current_user()` | The authenticated identity | Human email | Human email — Genie Agents/Agent Bricks explicitly inject the OBO caller's identity | SP application UUID |
 | `is_member('group')` | The SQL execution context's group membership | Human's groups (correct) | The execution service's identity, not the human asking the question | SP's workspace-group membership (correct if the SP is in the group) |
 
-**Why `is_member()` looks wrong in OBO**: it evaluates the identity that is actually executing the SQL. In Genie and Agent Bricks, that's the serving identity, not the human whose question triggered it. `current_user()` works because Genie and Agent Bricks explicitly propagate the OBO caller's email into that function's context.
+**Why `is_member()` looks wrong in OBO**: it evaluates the identity that is actually executing the SQL. In Genie Agents and Agent Bricks, that's the serving identity, not the human whose question triggered it. `current_user()` works because Genie Agents and Agent Bricks explicitly propagate the OBO caller's email into that function's context.
 
 **Rule of thumb**: if a table is queried across U2M, OBO, and M2M paths, standardize on `current_user()`. Reserve `is_member()` for paths that are exclusively U2M or exclusively M2M.
 
@@ -328,7 +328,7 @@ After deploying a new app, complete these permission grants before testing:
 GRANT CAN_USE ON SQL WAREHOUSE <warehouse-id>
   TO `<app-service-principal>`;
 
--- Allow app SP to run Genie (if using Genie plugin)
+-- Allow app SP to run Genie Agents (if using Genie Agents plugin)
 GRANT CAN_RUN ON GENIE SPACE <space-id>
   TO `<app-service-principal>`;
 

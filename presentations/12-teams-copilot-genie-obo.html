@@ -373,10 +373,10 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide slide-title active" data-slide="1">
   <h1 class="r">Per-User Identity in <em>Teams and Copilot Studio</em></h1>
-  <div class="sub r">Bringing per-user identity into Genie and Agent Bricks when access is surfaced through Microsoft Teams and Copilot Studio.</div>
+  <div class="sub r">Bringing per-user identity into Genie Agents and Agent Bricks when access is surfaced through Microsoft Teams and Copilot Studio.</div>
   <div class="red-rule r"></div>
   <p class="r" style="margin-top:20px;color:var(--muted);font-size:var(--sm);max-width:640px">
-    Scenario: employees asking Genie questions from inside Teams and Copilot Studio, each seeing only their own row-level permissions
+    Scenario: employees asking Genie Agents questions from inside Teams and Copilot Studio, each seeing only their own row-level permissions
   </p>
   <p class="r" style="margin-top:12px;color:var(--muted);font-size:var(--xs);max-width:640px">
     This deck covers the four integration paths, the two independent gates on per-user identity, the token exchange mechanics, and what breaks silently.
@@ -394,7 +394,7 @@ tr:hover td{background:var(--surface)}
     <div class="seq-step r">
       <div class="seq-num">1</div>
       <div class="seq-body">
-        <strong>Four integration paths into Genie</strong>
+        <strong>Four integration paths into Genie Agents</strong>
         <p>A custom Teams bot, Copilot Studio in two credential modes, and the native marketplace app &mdash; each with a different identity model.</p>
       </div>
     </div>
@@ -402,20 +402,20 @@ tr:hover td{background:var(--surface)}
       <div class="seq-num">2</div>
       <div class="seq-body">
         <strong>The confirmed token-exchange architecture</strong>
-        <p>Teams sign-in through Entra ID, an RFC 8693 token exchange, and how that identity reaches Agent Bricks and Genie.</p>
+        <p>Teams sign-in through Entra ID, an RFC 8693 token exchange, and how that identity reaches Agent Bricks and Genie Agents.</p>
       </div>
     </div>
     <div class="seq-step r">
       <div class="seq-num">3</div>
       <div class="seq-body">
         <strong>The two-gate model</strong>
-        <p>Token-layer identity is Gate 1. The Genie space's publish mode is Gate 2. Most rollouts only check the first.</p>
+        <p>Token-layer identity is Gate 1. The Genie Agent's publish mode is Gate 2. Most rollouts only check the first.</p>
       </div>
     </div>
     <div class="seq-step r">
       <div class="seq-num">4</div>
       <div class="seq-body">
-        <strong>What breaks silently: the Genie space publish mode</strong>
+        <strong>What breaks silently: the Genie Agent publish mode</strong>
         <p>Why a correctly-configured OAuth token still doesn't guarantee per-user data access if the space is published EMBEDDED_CREDENTIALS.</p>
       </div>
     </div>
@@ -435,12 +435,12 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="3">
   <div class="label r">The issue</div>
-  <h2 class="r">Genie and Agent Bricks are reachable from Teams and Copilot Studio through four different paths &mdash; each handling identity differently.</h2>
+  <h2 class="r">Genie Agents and Agent Bricks are reachable from Teams and Copilot Studio through four different paths &mdash; each handling identity differently.</h2>
   <div class="two-col mt2">
     <div style="display:flex;flex-direction:column;gap:12px">
       <div class="card card-red r" style="text-align:center;padding:18px 12px">
         <div class="stat">4</div>
-        <div class="stat-label">distinct integration paths into Genie from Teams and Copilot Studio</div>
+        <div class="stat-label">distinct integration paths into Genie Agents from Teams and Copilot Studio</div>
       </div>
       <div class="card r">
         <h4>The four paths</h4>
@@ -448,13 +448,13 @@ tr:hover td{background:var(--surface)}
           <li>Custom AI agent + Azure Bot Service + OAuth federation</li>
           <li>Copilot Studio via MCP, &ldquo;End user credentials&rdquo; mode</li>
           <li>Copilot Studio via MCP, &ldquo;Maker credentials&rdquo; mode</li>
-          <li>Native &ldquo;Databricks Genie&rdquo; app from Teams/M365 Copilot marketplace</li>
+          <li>Native &ldquo;Databricks Genie Agents&rdquo; app from Teams/M365 Copilot marketplace</li>
         </ul>
       </div>
     </div>
     <div class="card card-ink r">
       <h4>The question every rollout has to answer</h4>
-      <p>When two different employees ask Genie the same question from inside Teams or Copilot Studio, do they get answers scoped to their own row-level permissions &mdash; or the same answer regardless of who's asking?</p>
+      <p>When two different employees ask Genie Agents the same question from inside Teams or Copilot Studio, do they get answers scoped to their own row-level permissions &mdash; or the same answer regardless of who's asking?</p>
       <p class="mt2">The answer depends on which of the four paths is in use, and on two separate settings, not one. The four paths look similar from the client side, which is exactly what makes this easy to get wrong.</p>
     </div>
   </div>
@@ -466,7 +466,7 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="4">
   <div class="label r">What &mdash; the four paths</div>
-  <h2 class="r">Four paths into Genie from Teams and Copilot. They don't share an identity model.</h2>
+  <h2 class="r">Four paths into Genie Agents from Teams and Copilot. They don't share an identity model.</h2>
   <div class="r flex1" style="overflow-x:auto">
     <table style="min-width:720px">
       <thead>
@@ -489,7 +489,7 @@ tr:hover td{background:var(--surface)}
           <td>Intentional M2M mode, not per-user</td>
         </tr>
         <tr>
-          <td><strong>Native &ldquo;Databricks Genie&rdquo; app (Teams / M365 Copilot marketplace)</strong></td>
+          <td><strong>Native &ldquo;Databricks Genie Agents&rdquo; app (Teams / M365 Copilot marketplace)</strong></td>
           <td><span class="badge badge-green">Per-user (Entra ID)</span></td>
           <td>Confirmed per-user sign-in required</td>
         </tr>
@@ -498,7 +498,7 @@ tr:hover td{background:var(--surface)}
   </div>
   <div class="r" style="margin-top:clamp(.6rem,1.2vw,1rem)">
     <div class="card card-green" style="padding:clamp(.6rem,1.2vw,1rem)">
-      <p><strong>All four paths gate on the same second condition: the Genie space's publish mode.</strong> Regardless of which integration you choose, verify that the space is published <code>VIEWER</code>, not <code>EMBEDDED_CREDENTIALS</code>.</p>
+      <p><strong>All four paths gate on the same second condition: the Genie Agent's publish mode.</strong> Regardless of which integration you choose, verify that the space is published <code>VIEWER</code>, not <code>EMBEDDED_CREDENTIALS</code>.</p>
     </div>
   </div>
 </div>
@@ -509,7 +509,7 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="5">
   <div class="label r">What &mdash; the confirmed architecture</div>
-  <h2 class="r">A Teams sign-in card, one token exchange, and the human's identity all the way to Genie.</h2>
+  <h2 class="r">A Teams sign-in card, one token exchange, and the human's identity all the way to Genie Agents.</h2>
   <div class="arch-wrap r">
     <div class="arch-row" style="margin-bottom:clamp(.5rem,1vw,.8rem)">
       <div class="abox sp r delay-1">Teams User<small>sign-in card</small></div>
@@ -521,10 +521,10 @@ tr:hover td{background:var(--surface)}
     <div class="arch-vstack r delay-6">
       <div class="arch-varrow">&darr;</div>
       <div style="font-size:var(--xs);color:var(--muted)">No client_id in exchange = per-user token, not SP</div>
-      <div class="abox uc r delay-7">Agent Bricks Supervisor<small style="color:var(--red);opacity:.7">OBO auto-forwarded to Genie sub-agent</small></div>
+      <div class="abox uc r delay-7">Agent Bricks Supervisor<small style="color:var(--red);opacity:.7">OBO auto-forwarded to Genie Agents sub-agent</small></div>
       <div class="arch-varrow delay-8">&darr;</div>
       <div class="card card-green r delay-9" style="text-align:center;max-width:560px">
-        <p><strong>current_user() = the human</strong> at the Genie/UC layer. Gate 1 passed: the human's identity reached Databricks. But Gate 2 (the space's publish mode) still decides whether RLS fires.</p>
+        <p><strong>current_user() = the human</strong> at the Genie Agents/UC layer. Gate 1 passed: the human's identity reached Databricks. But Gate 2 (the space's publish mode) still decides whether RLS fires.</p>
       </div>
     </div>
   </div>
@@ -544,7 +544,7 @@ tr:hover td{background:var(--surface)}
       <p>OAuth federation, no <code>client_id</code> in the exchange, &ldquo;End user credentials&rdquo; selected in Copilot Studio. This is the gate everyone checks &mdash; and the one all the setup guides walk you through.</p>
     </div>
     <div class="card card-red r" style="display:flex;flex-direction:column;gap:8px">
-      <div class="gate-label" style="color:var(--red)">Gate 2 &mdash; Genie space publish mode</div>
+      <div class="gate-label" style="color:var(--red)">Gate 2 &mdash; Genie Agent publish mode</div>
       <h4>Is the space published VIEWER, not EMBEDDED_CREDENTIALS?</h4>
       <p>This lives on the <strong>space</strong>, not the client integration. It's invisible from the Teams bot's or Copilot Studio connector's configuration screen &mdash; you have to check the space directly.</p>
     </div>
@@ -561,7 +561,7 @@ tr:hover td{background:var(--surface)}
   <div class="two-col mt2">
     <div style="display:flex;flex-direction:column;gap:12px">
       <div class="callout r">
-        &ldquo;We're putting Genie in Teams so employees can ask questions without leaving chat. But when two different employees both ask for their region's revenue, do they get <em>different</em> answers scoped to their access &mdash; or the same answer?&rdquo;
+        &ldquo;We're putting Genie Agents in Teams so employees can ask questions without leaving chat. But when two different employees both ask for their region's revenue, do they get <em>different</em> answers scoped to their access &mdash; or the same answer?&rdquo;
       </div>
       <div class="r" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
         <div class="card card-red" style="text-align:center;padding:14px 10px">
@@ -577,7 +577,7 @@ tr:hover td{background:var(--surface)}
     <div style="display:flex;flex-direction:column;gap:10px">
       <div class="card card-amber r">
         <h4>The assumption that trips people up</h4>
-        <p>&ldquo;We used OAuth / OBO, so we're covered.&rdquo; Getting the token layer right is necessary &mdash; and, on its own, not sufficient. There's a second setting, on the Genie space itself, that decides whether any of that per-user auth actually reaches the data.</p>
+        <p>&ldquo;We used OAuth / OBO, so we're covered.&rdquo; Getting the token layer right is necessary &mdash; and, on its own, not sufficient. There's a second setting, on the Genie Agent itself, that decides whether any of that per-user auth actually reaches the data.</p>
       </div>
       <div class="card card-red r">
         <h4>The concrete consequence</h4>
@@ -616,7 +616,7 @@ tr:hover td{background:var(--surface)}
 )
 <span class="cm"># calls to the serving endpoint now carry</span>
 <span class="cm"># the user's identity; Agent Bricks OBO</span>
-<span class="cm"># forwards it automatically to Genie</span></pre>
+<span class="cm"># forwards it automatically to Genie Agents</span></pre>
       <div class="card card-ink r">
         <p>This RFC 8693 exchange is the account-wide standard for per-user federation from any external IdP. Teams + Azure Bot Service is a new front-end for the same pattern used by Power BI Embedded and other clients.</p>
       </div>
@@ -650,7 +650,7 @@ tr:hover td{background:var(--surface)}
   </div>
   <div class="r" style="margin-top:clamp(.6rem,1.2vw,1rem)">
     <div class="card card-red">
-      <p><strong>Critical:</strong> This setting lives on the Genie space itself, not on the Teams bot configuration or Copilot Studio connector. Don't infer it from the client integration settings. You have to check the space's publish mode directly.</p>
+      <p><strong>Critical:</strong> This setting lives on the Genie Agent itself, not on the Teams bot configuration or Copilot Studio connector. Don't infer it from the client integration settings. You have to check the space's publish mode directly.</p>
     </div>
   </div>
 </div>
@@ -666,7 +666,7 @@ tr:hover td{background:var(--surface)}
     <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
       <div class="gate-label" style="color:var(--green)">Building a custom Teams bot</div>
       <h4>Use Azure Bot Service + OAuth federation</h4>
-      <p>Officially documented pattern. Check Gate 2 on the target Genie space before shipping.</p>
+      <p>Officially documented pattern. Check Gate 2 on the target Genie Agent before shipping.</p>
     </div>
     <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
       <div class="gate-label" style="color:var(--green)">Using Copilot Studio</div>
@@ -674,13 +674,13 @@ tr:hover td{background:var(--surface)}
       <p>Gives real per-user identity &mdash; still gated by Gate 2. &ldquo;Maker credentials&rdquo; is fine when shared access is the actual intent.</p>
     </div>
     <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
-      <div class="gate-label" style="color:var(--green)">Using the native Databricks Genie app</div>
+      <div class="gate-label" style="color:var(--green)">Using the native Databricks Genie Agents app</div>
       <h4>Per-user sign-in is built in</h4>
       <p>The marketplace apps require users to sign in with their Databricks identity. Still gated by Gate 2: verify the space's publish mode before rollout.</p>
     </div>
     <div class="gate-cell r" style="background:var(--blue-bg);border-color:var(--blue)">
       <div class="gate-label" style="color:var(--blue)">Every path, no exceptions</div>
-      <h4>Check the Genie space's publish mode directly</h4>
+      <h4>Check the Genie Agent's publish mode directly</h4>
       <p>Don't infer it from the client integration's settings. It's a property of the space, and it silently overrides everything upstream of it.</p>
     </div>
   </div>
@@ -697,10 +697,10 @@ tr:hover td{background:var(--surface)}
     <table style="min-width:680px">
       <thead><tr><th>Issue</th><th>Detail</th></tr></thead>
       <tbody>
-        <tr><td><strong>Correct per-user token, wrong Genie space publish mode</strong></td><td>The most common silent failure. OAuth is right, but the space runs as publisher. Check the space's own settings, not the client integration.</td></tr>
+        <tr><td><strong>Correct per-user token, wrong Genie Agent publish mode</strong></td><td>The most common silent failure. OAuth is right, but the space runs as publisher. Check the space's own settings, not the client integration.</td></tr>
         <tr><td><strong>Include <code>client_id</code> in token exchange</strong></td><td>Never include it. If you do, it selects a service principal and collapses RLS to the SP's identity regardless of whose token called it.</td></tr>
         <tr><td><strong><code>preferred_username</code> claim mismatch</strong></td><td>The federation policy's subject_claim must match what your Entra tenant actually issues. If tenant issues <code>upn</code> instead, the exchange fails silently.</td></tr>
-        <tr><td><strong>Confusing two &ldquo;Teams + Genie&rdquo; integrations</strong></td><td>The native marketplace app (automatic warehouse, no PrivateLink) is different from custom Azure Bot Service (manual setup, full control). Confirm which one before designing RLS.</td></tr>
+        <tr><td><strong>Confusing two &ldquo;Teams + Genie Agents&rdquo; integrations</strong></td><td>The native marketplace app (automatic warehouse, no PrivateLink) is different from custom Azure Bot Service (manual setup, full control). Confirm which one before designing RLS.</td></tr>
         <tr><td><strong>&ldquo;Maker credentials&rdquo; in Copilot Studio</strong></td><td>This is intentionally shared M2M by design, not an incomplete OBO mode. Use it when you want shared access.</td></tr>
       </tbody>
     </table>

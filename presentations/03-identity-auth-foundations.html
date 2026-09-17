@@ -754,7 +754,7 @@ tr:hover td{background:var(--surface)}
       <p class="r" style="font-size:var(--sm);color:var(--muted);margin-bottom:8px">Account Console → App integrations → enable User Authorization → select scopes:</p>
       <table class="r">
         <tr><td><code>sql</code></td><td>SQL statement execution</td></tr>
-        <tr><td><code>genie</code> + <code>dashboards.genie</code></td><td>Genie API (both required)</td></tr>
+        <tr><td><code>genie</code> + <code>dashboards.genie</code></td><td>Genie Agents API (both required)</td></tr>
         <tr><td><code>serving.serving-endpoints</code></td><td>Model Serving / Agent Bricks</td></tr>
         <tr><td><code>catalog.connections</code></td><td>External MCP (UC HTTP)</td></tr>
         <tr><td><code>unity-catalog</code></td><td>UC governance operations</td></tr>
@@ -821,7 +821,7 @@ tr:hover td{background:var(--surface)}
     <table style="min-width:700px">
       <thead><tr><th>Issue</th><th>Detail</th></tr></thead>
       <tbody>
-        <tr><td><strong><code>genie</code> scope not shown in UI</strong></td><td>Genie API requires both <code>genie</code> AND <code>dashboards.genie</code> scopes. The UI only shows <code>dashboards.genie</code>. Add <code>genie</code> via API: account custom-app-integration update.</td></tr>
+        <tr><td><strong><code>genie</code> scope not shown in UI</strong></td><td>Genie Agents API requires both <code>genie</code> AND <code>dashboards.genie</code> scopes. The UI only shows <code>dashboards.genie</code>. Add <code>genie</code> via API: account custom-app-integration update.</td></tr>
         <tr><td><strong><code>unity-catalog</code> scope for External MCP</strong></td><td>The External MCP proxy checks <code>USE CONNECTION</code> privilege and requires the <code>unity-catalog</code> scope. Missing it returns <code>403: "does not have required scopes: unity-catalog"</code>. Not in docs.</td></tr>
         <tr><td><strong><code>st.context.headers</code> not <code>request.headers</code></strong></td><td>In Streamlit, <code>request.headers</code> (Flask pattern) does not have the proxy headers. Always use <code>st.context.headers</code>.</td></tr>
         <tr><td><strong><code>application_id</code> vs <code>principal_id</code></strong></td><td>UC GRANTs reference <code>application_id</code> (UUID). Workspace ACLs use <code>principal_id</code> (integer). Using one where the other is needed returns cryptic errors.</td></tr>

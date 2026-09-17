@@ -38,7 +38,7 @@ Every deployment has exactly five actors. No more, no less.
 | 2 | **SPA** | Browser app where humans log in and interact | React app, vanilla JS page |
 | 3 | **Backend Server** | Server-side component that holds secrets and talks to Databricks | CF Worker, AWS Lambda, Databricks App, any server |
 | 4 | **Databricks** | The workspace (token endpoint + APIs + Unity Catalog) | `workspace-host.azuredatabricks.net` |
-| 5 | **MCP Server** | The tool server that executes queries/Genie using the SP token | Databricks App running FastAPI |
+| 5 | **MCP Server** | The tool server that executes queries/Genie Agents using the SP token | Databricks App running FastAPI |
 
 ```
 Human ──→ [SPA] ──→ [Backend Server] ──→ [Databricks] ──→ [MCP Server]
@@ -75,7 +75,7 @@ Nothing in this blueprint works without these. Set them up first, verify each on
 | P6 | **Service Principals (one per role)** | Each role (e.g., `sales_west`, `finance`) maps to a dedicated SP. The SP is the Databricks identity that executes queries. | `databricks service-principals list` shows your SPs. |
 | P7 | **Federation policy on each SP** | Tells Databricks "trust JWTs from this IdP for this SP." Each policy specifies the allowed `issuer`, `audience`, and `subject` (the M2M app's client_id). Workload Identity Federation policies are scoped per SP, so there's no cap on how many SPs you federate this way. | Call `/oidc/v1/token` with a valid JWT, get a Databricks token back. If federation policy is wrong, you get a 401. |
 | P8 | **SP group memberships** | Each SP belongs to a workspace group. UC row filters use `is_member()` against these groups to control data access. | `databricks groups list` shows group members. Query a filtered table with each SP token, confirm different rows returned. |
-| P9 | **SQL Warehouse** (conditional) | Only required if the MCP server executes SQL. Not needed if the MCP server only calls Genie, model serving, or other REST APIs. Serverless recommended. | `databricks warehouses list` shows an active warehouse. |
+| P9 | **SQL Warehouse** (conditional) | Only required if the MCP server executes SQL. Not needed if the MCP server only calls Genie Agents, model serving, or other REST APIs. Serverless recommended. | `databricks warehouses list` shows an active warehouse. |
 
 ### On the Backend Server side (3 things)
 
@@ -261,7 +261,7 @@ X-Request-Id: <uuid>
 - `Authorization` is consumed by the Databricks Apps proxy (if MCP server is a Databricks App)
 - `X-Databricks-Token` is read by the MCP server code for downstream API calls
 
-The MCP server uses `X-Databricks-Token` for all Databricks API calls (SQL, Genie, etc.). UC row filters fire per the SP's group membership. Same query, different data per role.
+The MCP server uses `X-Databricks-Token` for all Databricks API calls (SQL, Genie Agents, etc.). UC row filters fire per the SP's group membership. Same query, different data per role.
 
 ---
 
@@ -310,7 +310,7 @@ Every error you will encounter, why it happens, and how to fix it.
 | `unknown role` from MCP server | Step 7 | Role string sent by SPA does not match any key in role-to-SP map | Check the SPA's role mapping table. Ensure every IdP role has a corresponding entry. |
 | 401 from `/oidc/v1/token` | Step 6 | Federation policy not created, or SP not found, or JWT expired | Verify SP exists, federation policy is attached, JWT is fresh (not cached/expired). |
 | 401 shortly after a successful exchange | Step 6/7 | The source IdP token was near expiry when exchanged; Databricks copied that `exp` verbatim onto the Databricks token | Always exchange a fresh IdP token immediately before use — see [Token Lifetime (TTL) Behavior](#token-lifetime-ttl-behavior). |
-| 403 from SQL/Genie | Step 7 | SP lacks permissions on the SQL warehouse or Genie space | Grant `CAN USE` on the warehouse and `CAN RUN` on Genie to each SP or their group. |
+| 403 from SQL/Genie Agents | Step 7 | SP lacks permissions on the SQL warehouse or Genie Agent | Grant `CAN USE` on the warehouse and `CAN RUN` on Genie Agents to each SP or their group. |
 | Row filter returns all/no rows | Step 7 | SP not added to the correct workspace group, or `is_member()` function references wrong group name | Verify `databricks groups list` shows SP in the expected group. Test with `SELECT is_member('group_name')` using each SP token. |
 | `No Databricks token available` | Step 7 | Backend did not send `X-Databricks-Token` header, or MCP middleware failed to extract it | Check backend is sending the header. Check MCP server logs for middleware errors. |
 

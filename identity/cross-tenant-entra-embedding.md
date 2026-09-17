@@ -80,7 +80,7 @@ The dual-login symptom has one root cause: **the viewer's IdP differs from the D
 | Viewer needs a Databricks identity | **No** | Yes (SCIM/AIM) | Yes (SCIM/AIM) |
 | Second-login prompt | **Never** (token injected) | Unlikely (relies on the live session) | **Never** (token minted server-side) |
 | Per-viewer data scoping | App parameter matched in the dashboard SQL | Unity Catalog `current_user()` row filters | Unity Catalog `current_user()` row filters |
-| "Ask Genie" in the embed | Outside this model's scope (parameterized dashboards only) | Available | Available |
+| "Ask Genie Agents" in the embed | Outside this model's scope (parameterized dashboards only) | Available | Available |
 | Backend effort | Medium | Low | High |
 | Reference | [AI/BI external embedding](https://docs.databricks.com/aws/en/ai-bi/admin/embed) | [Basic dashboard embedding](https://docs.databricks.com/aws/en/dashboards/share/embedding) | [OAuth token federation](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation) plus [`byoidp-peruser-federation.md`](byoidp-peruser-federation.md) |
 
@@ -142,7 +142,7 @@ sequenceDiagram
     participant App as React App
     participant BE as App Backend
     participant DBX as Databricks token endpoint
-    participant API as Dashboard / Genie / SQL
+    participant API as Dashboard / Genie Agents / SQL
 
     User->>App: Login via Entra (Tenant 2 issuer)
     App-->>BE: Entra token (Tenant 2 issuer)
@@ -229,9 +229,9 @@ flowchart TD
 
 | Option | Pros | Cons |
 |---|---|---|
-| **External-user embedding** | No second login ever; no Databricks identity, SCIM, or guest management; strongest B2B fit; cross-tenant reduces to app login only | Scoping enforced in app SQL (no Unity Catalog backstop, audit every query); no "Ask Genie"; service principal holds the union of all viewers' access; requires third-party cookies |
+| **External-user embedding** | No second login ever; no Databricks identity, SCIM, or guest management; strongest B2B fit; cross-tenant reduces to app login only | Scoping enforced in app SQL (no Unity Catalog backstop, audit every query); no "Ask Genie Agents"; service principal holds the union of all viewers' access; requires third-party cookies |
 | **Federated token exchange** | Real per-user identity and native Unity Catalog row-level security; server-minted, so no prompt; honors authenticate-against-Tenant-2 | Most backend work; viewers must be provisioned; depends on how the IdP signs tokens (JWKS) |
-| **Basic embedding, aligned** | Least engineering; real identity and Unity Catalog RLS; "Ask Genie" works | Relies on the live SSO session and third-party cookies (a one-time consent or redirect is possible); viewers need identities |
+| **Basic embedding, aligned** | Least engineering; real identity and Unity Catalog RLS; "Ask Genie Agents" works | Relies on the live SSO session and third-party cookies (a one-time consent or redirect is possible); viewers need identities |
 | **B2B guest provisioning** | Central directory control; familiar Azure pattern | Guest UPN fragility (needs AIM or exact SCIM mapping); breaks authenticate-against-Tenant-2 (issuer becomes the company tenant) |
 
 ---

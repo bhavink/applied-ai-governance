@@ -93,7 +93,7 @@ Column masking and external access by role:
 
 The point these matrices make in a demo or review: the same query run by two roles returns
 different rows and different column values, enforced at the SQL engine, with no
-application-side filtering. Genie generates the same SQL for everyone; the SP's group
+application-side filtering. Genie Agents generates the same SQL for everyone; the SP's group
 membership decides what comes back, so natural-language access inherits the same governance.
 
 ## Governance column pattern
@@ -151,7 +151,7 @@ boundary:
 - External users are never provisioned in Databricks; they authenticate with their own IdP
   and tokens are exchanged server-side.
 - Governance is native: row filters, column masks, and connection grants fire at the SQL
-  engine, so AI tools (Genie, Vector Search, agents) inherit it because they run as the SP.
+  engine, so AI tools (Genie Agents, Vector Search, agents) inherit it because they run as the SP.
 - Access is instantly reversible: one `GRANT` or `REVOKE USE CONNECTION` toggles external
   service access with no deploy.
 - The IdP is swappable: moving from one OIDC provider to another changes the federation

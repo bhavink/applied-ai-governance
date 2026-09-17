@@ -646,12 +646,12 @@ tr:hover td{background:var(--surface)}
     <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
       <div class="gate-label" style="color:var(--green)">Use this deck &mdash; External-User Embedding</div>
       <h4>Viewers have no Databricks account</h4>
-      <p>Your app owns the viewer&rsquo;s entire identity. Scoping is a single attribute (client ID, region, department). Dashboards only, no Genie.</p>
+      <p>Your app owns the viewer&rsquo;s entire identity. Scoping is a single attribute (client ID, region, department). Dashboards only, no Genie Agents.</p>
     </div>
     <div class="gate-cell r" style="background:var(--blue-bg);border-color:var(--blue)">
       <div class="gate-label" style="color:var(--blue)">Use the Cross-IdP Federation deck</div>
       <h4>Viewers need platform-enforced row-level security</h4>
-      <p>Viewers are SCIM-synced to Databricks with real <code>current_user()</code> identities. Unity Catalog row filters fire automatically. Genie, SQL, Dashboards all work.</p>
+      <p>Viewers are SCIM-synced to Databricks with real <code>current_user()</code> identities. Unity Catalog row filters fire automatically. Genie Agents, SQL, Dashboards all work.</p>
     </div>
     <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
       <div class="gate-label" style="color:var(--green)">Use this deck even if IdPs differ</div>
@@ -813,7 +813,7 @@ Authorization: Basic base64(client_id:secret)
     <table style="min-width:680px">
       <thead><tr><th>Issue</th><th>What to know</th></tr></thead>
       <tbody>
-        <tr><td><strong>&ldquo;Ask Genie&rdquo; requires basic embedding</strong></td><td>Conversational dashboard search (Genie) works under basic embedding. For external-user embedding, use static or parameterized dashboards.</td></tr>
+        <tr><td><strong>&ldquo;Ask Genie Agents&rdquo; requires basic embedding</strong></td><td>Conversational dashboard search (Genie Agents) works under basic embedding. For external-user embedding, use static or parameterized dashboards.</td></tr>
         <tr><td><strong>Token TTL ~1 hour</strong></td><td>The SDK calls <code>getNewToken()</code> ~5 min before expiry. Your backend must re-run the full 3-step token exchange; there is no &ldquo;refresh token&rdquo; shortcut.</td></tr>
         <tr><td><strong>SP blast radius</strong></td><td>The SP holds the union of every viewer&rsquo;s access. If credentials leak, all tenant data is exposed unless every dashboard query enforces the <code>__aibi_external_value</code> filter.</td></tr>
         <tr><td><strong>Query review is mandatory</strong></td><td>There is no platform-level backstop. If a dashboard query forgets the scoping filter, that viewer sees everything the SP can see. Every query must be reviewed.</td></tr>

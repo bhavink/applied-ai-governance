@@ -1,6 +1,6 @@
 # AppKit Auth Patterns: OBO, U2M, and UC Connections
 
-> Reference architecture for building Databricks Apps that combine multiple auth patterns in a single application. Covers OBO SQL + Genie, OAuth U2M per-user external services, Bearer Token shared credentials, and UC connection governance.
+> Reference architecture for building Databricks Apps that combine multiple auth patterns in a single application. Covers OBO SQL + Genie Agents, OAuth U2M per-user external services, Bearer Token shared credentials, and UC connection governance.
 
 ## Overview
 
@@ -10,7 +10,7 @@ The three patterns address distinct governance questions:
 
 | Pattern | Who does Databricks see? | Use when |
 |---|---|---|
-| **OBO** | The human user (email) | Internal data, row filters, per-user Genie |
+| **OBO** | The human user (email) | Internal data, row filters, per-user Genie Agents |
 | **OAuth U2M Per User** | The human user at the external service | External SaaS with per-user OAuth (Salesforce, etc.) |
 | **Bearer Token** | A shared service account | Internal or partner services with shared credentials |
 
@@ -37,14 +37,14 @@ Browser (Databricks App user)
 |                                           |
 |  server()     -- HTTP, health, static     |
 |  analytics()  -- SQL (SP + OBO)           |
-|  genie()      -- Genie spaces (OBO)       |
+|  genie()      -- Genie Agents (OBO)       |
 |  salesforce() -- custom plugin (U2M)      |
 |  connections()-- custom plugin (GRANT)    |
 +-------------------------------------------+
     |             |                |
     v             v                v
 Databricks    Databricks     Databricks
-SQL Warehouse  Genie API      external-function
+SQL Warehouse  Genie Agents API      external-function
 (OBO/SP)       (OBO)          API
                               |
                     +---------+---------+
@@ -59,7 +59,7 @@ The Databricks Apps proxy handles user authentication before requests reach the 
 
 ## Three Auth Patterns
 
-### Pattern 1: OBO (On-Behalf-Of User) — SQL + Genie
+### Pattern 1: OBO (On-Behalf-Of User) — SQL + Genie Agents
 
 OBO forwards the user's token to Databricks services. `current_user()` returns the human's email. UC row filters and column masks fire per individual identity.
 
@@ -91,9 +91,9 @@ const pipeline = useAnalyticsQuery("my_pipeline", params);
 
 `useAnalyticsQuery` automatically routes OBO queries with the user token. The query key maps to the filename without extension.
 
-**Genie (OBO)**
+**Genie Agents (OBO)**
 
-Genie always runs OBO. Configure named spaces in the plugin, then call by alias:
+Genie Agents always runs OBO. Configure named spaces in the plugin, then call by alias:
 
 ```typescript
 // server.ts
@@ -113,7 +113,7 @@ const resp = await fetch("/api/genie/sales/messages", {
 });
 ```
 
-AppKit streams SSE events: `message_start`, `status`, `message_result`, `query_result`. The Genie plugin reads `X-Forwarded-Access-Token` internally — no explicit token handling in app code.
+AppKit streams SSE events: `message_start`, `status`, `message_result`, `query_result`. The Genie Agents plugin reads `X-Forwarded-Access-Token` internally — no explicit token handling in app code.
 
 **Data flow (OBO)**
 
@@ -121,7 +121,7 @@ AppKit streams SSE events: `message_start`, `status`, `message_result`, `query_r
 User request
     --> Databricks Apps proxy adds X-Forwarded-Access-Token
     --> AppKit reads header
-    --> Passes token to SQL warehouse / Genie API
+    --> Passes token to SQL warehouse / Genie Agents API
     --> current_user() = human email
     --> UC row filters fire per individual
     --> Result returned (scoped to that user's access)
@@ -382,14 +382,14 @@ By default, an app's user token carries only two identity scopes — no data-pla
 | `iam.current-user:read` | Basic user identity (default) |
 | `iam.access-control:read` | Access control read (default) |
 
-Add scopes explicitly for anything beyond identity lookups — SQL, Genie, Files, Vector Search, and Model Serving each require declaring the corresponding scope.
+Add scopes explicitly for anything beyond identity lookups — SQL, Genie Agents, Files, Vector Search, and Model Serving each require declaring the corresponding scope.
 
 ### Required Scopes by Service
 
 | Service | Required Scopes | Notes |
 |---|---|---|
 | SQL Warehouse (OBO) | `sql` | Add explicitly — not included by default |
-| Genie (OBO) | `genie`, `dashboards.genie` | **Both required** — the OAuth consent screen only shows `dashboards.genie` as a user-facing label, but the token validator checks for the `genie` scope claim |
+| Genie Agents (OBO) | `genie`, `dashboards.genie` | **Both required** — the OAuth consent screen only shows `dashboards.genie` as a user-facing label, but the token validator checks for the `genie` scope claim |
 | Files / Volumes | `files.files` | Required for Files plugin OBO operations |
 | Vector Search | `vector-search` | Add explicitly if using embedding lookups |
 | MCP Servers (external) | `all-apis` or specific endpoint scopes | Depends on MCP server's auth requirements |
@@ -407,7 +407,7 @@ Add each required scope. Changes take effect immediately for new user authorizat
 
 Narrowing the allowlist is worth planning for: apps already running keep their existing scopes, but any app that references a scope no longer on the allowlist cannot be started, deployed, or updated until that reference is removed. Audit which scopes each app uses before tightening this setting.
 
-For the Genie pattern specifically, add both `genie` and `dashboards.genie` together.
+For the Genie Agents pattern specifically, add both `genie` and `dashboards.genie` together.
 
 ---
 
@@ -558,7 +558,7 @@ UC connections are governed via GRANT/REVOKE, not declared in `app.yaml`.
 ### Pre-Deploy
 
 - [ ] `DATABRICKS_WAREHOUSE_ID` set in `app.yaml` env section
-- [ ] `GENIE_SPACE_ID` set in `app.yaml` env section (if using Genie)
+- [ ] `GENIE_SPACE_ID` set in `app.yaml` env section (if using Genie Agents)
 - [ ] `sql_warehouse` and `genie` resources declared in `app.yaml` with correct IDs
 - [ ] UC connections created (`salesforce_u2m_conn`, etc.) before app deploy
 - [ ] `package.json` includes all dependencies (no `devDependencies`-only packages used at runtime)
@@ -567,7 +567,7 @@ UC connections are governed via GRANT/REVOKE, not declared in `app.yaml`.
 ### Scope Configuration
 
 - [ ] App OAuth integration has `sql` scope (not granted by default)
-- [ ] If using Genie: add both `genie` AND `dashboards.genie` to app integration scopes
+- [ ] If using Genie Agents: add both `genie` AND `dashboards.genie` to app integration scopes
 - [ ] If using Vector Search: add `vector-search`
 - [ ] If using Files plugin: add `files.files`
 - [ ] Confirm the workspace's scope allowlist (Restrict OAuth scopes for apps) includes every scope this app requests
@@ -575,10 +575,10 @@ UC connections are governed via GRANT/REVOKE, not declared in `app.yaml`.
 ### Post-Deploy
 
 - [ ] Grant app service principal `CAN_USE` on SQL warehouse
-- [ ] Grant app service principal `CAN_RUN` on Genie space
+- [ ] Grant app service principal `CAN_RUN` on Genie Agent
 - [ ] Grant `USE CONNECTION` on each UC connection to target groups/users
 - [ ] Verify OBO queries return user-scoped data (not SP results)
-- [ ] Verify Genie chat runs under user identity (check audit log)
+- [ ] Verify Genie Agents chat runs under user identity (check audit log)
 - [ ] Test `GRANT`/`REVOKE` on connections and confirm access changes immediately
 
 ### UC Governance Verification
@@ -598,9 +598,9 @@ SELECT current_user();
 
 ## Troubleshooting
 
-### 403 on Genie endpoint
+### 403 on Genie Agents endpoint
 
-**Symptom**: Genie calls return 403 with "required scopes" in the message.
+**Symptom**: Genie Agents calls return 403 with "required scopes" in the message.
 **Cause**: App OAuth integration is missing the `genie` scope.
 **Resolution**: Add `genie` AND `dashboards.genie` to the app integration's scope list in Workspace Settings → Developer → App Integrations.
 

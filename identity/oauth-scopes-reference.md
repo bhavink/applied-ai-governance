@@ -40,7 +40,7 @@ Broad-access and identity-management scopes.
 | Scope | What it grants | Notes |
 |---|---|---|
 | `all-apis` | Catch-all for all Databricks REST APIs | Broadest scope. Not a strict superset of the granular scopes — some features also check their specific scope, so pair `all-apis` with the relevant granular scope when in doubt |
-| `dashboards.genie` | Genie space access (UI + API) | On Azure, pair with `genie` |
+| `dashboards.genie` | Genie Agent access (UI + API) | On Azure, pair with `genie` |
 | `iam.current-user:read` | `GET /api/2.0/preview/scim/v2/Me` | Identity verification only |
 | `iam.access-control:read` | Read access control lists | Rarely needed by apps |
 
@@ -91,7 +91,7 @@ Each scope gates a specific product area. The scope string is what you pass in O
 | 12 | Databricks Workspace | `workspace` | Manage notebooks, Git checkouts, and secrets | 24 |
 | 13 | Delta Sharing | `sharing` | Configure data sharing with UC — providers, recipients, shares | 27 |
 | 14 | File Management | `files` | Manage files on Databricks (filesystem-like interface) | 18 |
-| 15 | Genie | `genie` | Manage Genie conversational analytics spaces and queries | 17 |
+| 15 | Genie Agents | `genie` | Manage Genie Agents conversational analytics spaces and queries | 17 |
 | 16 | Global Init Scripts | `global-init-scripts` | Manage global initialization scripts | 5 |
 | 17 | Identity | `identity` | Manage identities in accounts and workspaces | 4 |
 | 18 | Instance Pools | `instance-pools` | Manage instance pools (reduce cluster start/scale-up times) | 9 |
@@ -159,7 +159,7 @@ For Databricks AI apps, most of the 45 granular scopes are irrelevant. Here's wh
 | Use case | Scopes needed |
 |---|---|
 | Identity-only MCP (M2M for all data) | `openid email profile offline_access` — no product scopes needed |
-| Genie OBO | + `dashboards.genie` + `genie` |
+| Genie Agents OBO | + `dashboards.genie` + `genie` |
 | Agent Bricks / Model Serving OBO | + `model-serving` (UI name: `serving.serving-endpoints`) |
 | External MCP (UC HTTP) | + `unity-catalog` |
 | Direct SQL OBO (via UI User Authorization) | + `sql` — `current_user()` resolves to the human's email |
@@ -176,7 +176,7 @@ The Account Console's User Authorization picker exposes a curated set of scopes 
 | UI scope name | CLI scope equivalent | Purpose |
 |---|---|---|
 | `sql` | `sql` | Statement Execution API — OBO SQL with `current_user()` = human |
-| `dashboards.genie` | `dashboards.genie` | Genie space access |
+| `dashboards.genie` | `dashboards.genie` | Genie Agent access |
 | `files.files` | `files` | File management operations |
 | `serving.serving-endpoints` | `model-serving` | Model Serving / Agent Bricks OBO |
 | `vectorsearch.vector-search-indexes` | `vector-search` | Vector Search index queries |
@@ -247,7 +247,7 @@ Every scope except `query-history` allows mutations. There are no read-only scop
 |---|---|
 | `mlflow` | Create/delete experiments, runs, registered models |
 | `dashboards` | Create/delete AI/BI dashboards |
-| `genie` | Create/manage Genie spaces |
+| `genie` | Create/manage Genie Agents |
 | `vector-search` | Create/delete Vector Search indexes and endpoints |
 | `alerts` | Create/delete SQL alerts |
 | `cleanrooms` | Create/delete clean rooms |
@@ -278,7 +278,7 @@ Replace `all-apis` with the union of only the granular scopes each service princ
 
 | App component | Purpose | Recommended scopes | What's excluded by not granting `all-apis` |
 |---|---|---|---|
-| Frontend app using Genie OBO | Genie queries, Vector Search read, Foundation Model API | `genie`, `model-serving` | Cluster creation, job creation, UC mutation, secrets access, app deployment |
+| Frontend app using Genie Agents OBO | Genie Agents queries, Vector Search read, Foundation Model API | `genie`, `model-serving` | Cluster creation, job creation, UC mutation, secrets access, app deployment |
 | Custom MCP server | SQL read/write, UC queries | `sql` | Cluster creation, pipeline management, notebook export, auth configuration |
 | External MCP client | UC HTTP connections | `unity-catalog` | SQL execution, cluster management, app deployment, job creation |
 | Agent Bricks integration | Model serving, MLflow | `model-serving`, `mlflow` | Direct SQL access, cluster management, workspace configuration |
@@ -311,14 +311,14 @@ These Databricks SQL functions determine identity in row filters, column masks, 
 
 Since Runtime 14.1, Databricks recommends `session_user()` over `current_user()` or `user()`. The SQL standard differentiates between the two.
 
-### Genie OBO group membership issue
+### Genie Agents OBO group membership issue
 
-Under Genie on-behalf-of (OBO) flows, `current_user()` returns the human's email correctly, but `is_member()` checks `session_user`'s groups, which resolves to the Genie service context rather than the human's workspace groups. Using `is_member('executives')` in a row filter will not reflect the human's actual group membership.
+Under Genie Agents on-behalf-of (OBO) flows, `current_user()` returns the human's email correctly, but `is_member()` checks `session_user`'s groups, which resolves to the Genie Agents service context rather than the human's workspace groups. Using `is_member('executives')` in a row filter will not reflect the human's actual group membership.
 
-**Pattern**: Use `current_user()` with an allowlist table lookup instead of `is_member()` when policies must apply under Genie OBO:
+**Pattern**: Use `current_user()` with an allowlist table lookup instead of `is_member()` when policies must apply under Genie Agents OBO:
 
 ```sql
--- Does not reflect the human's group membership under Genie OBO:
+-- Does not reflect the human's group membership under Genie Agents OBO:
 CREATE FUNCTION mask_quota(val DECIMAL) RETURNS DECIMAL
   RETURN IF(is_member('executives'), val, NULL);
 
@@ -353,7 +353,7 @@ Lakebase uses Postgres-native functions rather than Databricks SQL functions:
 | `all-apis` is not a superset | `all-apis` covers REST APIs broadly, but some features also check their specific scope. Include both `all-apis` and the granular scope when in doubt. |
 | `postgres` = Lakebase management only | The `postgres` scope gates Lakebase platform management (projects, branches, computes). Database access itself uses a separate auth flow: generate a 1-hour OAuth token via `databricks postgres generate-database-credential` (CLI) or `w.postgres.generate_database_credential()` (SDK), or use a native Postgres password for apps that can't do hourly token rotation — see [Lakebase Authentication](https://learn.microsoft.com/en-us/azure/databricks/oltp/projects/authentication). |
 | Account vs. workspace: same scopes | There is no account-only scope string. The same scope strings work at both levels — the token endpoint determines the audience. |
-| `dashboards` vs. `dashboards.genie` | `dashboards` manages AI/BI Dashboard CRUD. `dashboards.genie` accesses Genie spaces within dashboards. Different scopes for different operations. |
+| `dashboards` vs. `dashboards.genie` | `dashboards` manages AI/BI Dashboard CRUD. `dashboards.genie` accesses Genie Agents within dashboards. Different scopes for different operations. |
 | `scim` vs. `access-management` vs. `identity` | Three overlapping scopes for identity management. `scim` covers SCIM protocol endpoints, `access-management` covers permissions, `identity` covers core identity CRUD. Most apps need none of these. |
 
 ---

@@ -77,7 +77,7 @@ Everything in this repository is grounded in public Databricks documentation. Th
 - [Agent Framework](https://docs.databricks.com/aws/en/generative-ai/agent-framework/author-agent) | [Agent authentication](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication)
 - [Unity Catalog](https://docs.databricks.com/en/data-governance/unity-catalog/index.html) | [Access Control](https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control) | [Row Filters & Column Masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/) | [ABAC tutorial](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/tutorial)
 - [UC HTTP Connections](https://docs.databricks.com/aws/en/query-federation/http)
-- [Genie Space](https://docs.databricks.com/aws/en/genie/)
+- [Genie Agent](https://docs.databricks.com/aws/en/genie/)
 - [Security overview](https://docs.databricks.com/aws/en/security/)
 
 ---

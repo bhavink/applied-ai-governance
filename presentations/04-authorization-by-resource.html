@@ -343,7 +343,7 @@ tr:hover td{background:var(--surface)}
   <div class="two-col mt2">
     <div style="display:flex;flex-direction:column;gap:10px">
       <div class="card r"><p><strong>1.</strong> OAuth scopes &mdash; what they control, the endpoint vs scope confusion, M2M vs OBO tokens</p></div>
-      <div class="card r"><p><strong>2.</strong> Serving endpoints, Genie, Vector Search &mdash; identity model for each</p></div>
+      <div class="card r"><p><strong>2.</strong> Serving endpoints, Genie Agents, Vector Search &mdash; identity model for each</p></div>
       <div class="card r"><p><strong>3.</strong> UC Functions and HTTP Connections &mdash; safe boundaries for writes and external systems</p></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
@@ -364,7 +364,7 @@ tr:hover td{background:var(--surface)}
   <div class="two-col mt2">
     <div style="display:flex;flex-direction:column;gap:12px">
       <div class="callout r">
-        The same token can be valid for Model Serving but rejected by Genie. Vector Search sees one user, Lakebase sees another. Row filters in UC work one way in notebooks and a different way in Agent Bricks. Getting the token right is table stakes, but it's only the first check.
+        The same token can be valid for Model Serving but rejected by Genie Agents. Vector Search sees one user, Lakebase sees another. Row filters in UC work one way in notebooks and a different way in Agent Bricks. Getting the token right is table stakes, but it's only the first check.
       </div>
       <div class="r" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
         <div class="card card-red" style="text-align:center;padding:14px 10px">
@@ -393,7 +393,7 @@ tr:hover td{background:var(--surface)}
   <h2 class="r">Seven resources. Six use Unity Catalog. One doesn't.</h2>
   <div class="resource-grid r mt1">
     <div class="resource-card"><div class="icon">&#9881;</div><div class="name">Serving Endpoints</div><div class="meta">OBO or M2M</div></div>
-    <div class="resource-card"><div class="icon">&#128172;</div><div class="name">Genie</div><div class="meta">OBO only</div></div>
+    <div class="resource-card"><div class="icon">&#128172;</div><div class="name">Genie Agents</div><div class="meta">OBO only</div></div>
     <div class="resource-card"><div class="icon">&#128269;</div><div class="name">Vector Search</div><div class="meta">M2M + filter</div></div>
     <div class="resource-card"><div class="icon">&#119891;</div><div class="name">UC Functions</div><div class="meta">Inherits caller</div></div>
     <div class="resource-card"><div class="icon">&#128279;</div><div class="name">HTTP Connections</div><div class="meta">M2M + auth method</div></div>
@@ -405,11 +405,11 @@ tr:hover td{background:var(--surface)}
       <thead><tr><th>Resource</th><th>Path</th><th>current_user()</th><th>#1 gotcha</th></tr></thead>
       <tbody>
         <tr><td><strong>Serving Endpoints</strong></td><td><span class="badge badge-blue">OBO</span> or <span class="badge badge-ink">M2M</span></td><td>Human (OBO) / SP (M2M)</td><td><code>ModelServingUserCredentials()</code> only in serving context</td></tr>
-        <tr><td><strong>Genie</strong></td><td><span class="badge badge-blue">OBO</span></td><td>Human email</td><td>Both <code>genie</code> + <code>dashboards.genie</code> scopes required</td></tr>
+        <tr><td><strong>Genie Agents</strong></td><td><span class="badge badge-blue">OBO</span></td><td>Human email</td><td>Both <code>genie</code> + <code>dashboards.genie</code> scopes required</td></tr>
         <tr><td><strong>Vector Search</strong></td><td><span class="badge badge-ink">M2M</span></td><td>App SP UUID</td><td>No native OBO — apply pre/post-filter in app layer</td></tr>
         <tr><td><strong>UC Functions</strong></td><td>Inherits caller</td><td>Caller identity</td><td>Grant EXECUTE, never INSERT/UPDATE on table directly</td></tr>
         <tr><td><strong>HTTP Connections</strong></td><td><span class="badge badge-ink">M2M</span> + auth</td><td>Databricks side only</td><td>Only U2M Per User / Managed OAuth pass identity to external service</td></tr>
-        <tr><td><strong>Tables</strong></td><td>Any</td><td>Caller identity</td><td><code>is_member()</code> breaks in Genie + Agent Bricks OBO</td></tr>
+        <tr><td><strong>Tables</strong></td><td>Any</td><td>Caller identity</td><td><code>is_member()</code> breaks in Genie Agents + Agent Bricks OBO</td></tr>
         <tr><td><strong style="color:var(--red)">Lakebase</strong></td><td><span class="badge badge-ink">M2M</span></td><td>SP client ID (PG role)</td><td>PG GRANT + RLS, not UC policy</td></tr>
       </tbody>
     </table>
@@ -448,7 +448,7 @@ tr:hover td{background:var(--surface)}
      SLIDE 6 · GENIE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="6">
-  <div class="label r">What — Genie Spaces</div>
+  <div class="label r">What — Genie Agents</div>
   <h2 class="r">OBO only. Both scopes required. is_member() breaks silently.</h2>
   <div class="two-col mt2">
     <div class="card card-blue r">
@@ -457,12 +457,12 @@ tr:hover td{background:var(--surface)}
         <li>OBO only — user's token via <code>Authorization: Bearer {user_token}</code></li>
         <li>Both <code>genie</code> AND <code>dashboards.genie</code> scopes required (UI doesn't show both)</li>
         <li><code>current_user()</code> = caller human email</li>
-        <li><code>is_member()</code> = Genie execution service (not the caller)</li>
+        <li><code>is_member()</code> = Genie Agents execution service (not the caller)</li>
       </ul>
     </div>
     <div class="card card-amber r">
       <h4>The scope trap</h4>
-      <p>App integration UI lists only <code>dashboards.genie</code>. Genie API checks for both. Missing <code>genie</code> scope = 403 with cryptic error.</p>
+      <p>App integration UI lists only <code>dashboards.genie</code>. Genie Agents API checks for both. Missing <code>genie</code> scope = 403 with cryptic error.</p>
       <div class="card card-ink mt2" style="padding:10px 12px">
         <p style="font-size:var(--sm);color:#fff"><strong>Fix:</strong> Add both scopes via account API or CLI, not the UI.</p>
       </div>
@@ -580,7 +580,7 @@ tr:hover td{background:var(--surface)}
       <h4>Row filters &amp; column masks</h4>
       <ul class="mt1">
         <li>SQL function evaluated at query time, attached to the table</li>
-        <li>Fires in all access paths: notebooks, apps, Genie, agents, API</li>
+        <li>Fires in all access paths: notebooks, apps, Genie Agents, agents, API</li>
         <li>Column masks transform values per user — same trigger rules as row filters</li>
       </ul>
     </div>
@@ -591,11 +591,11 @@ tr:hover td{background:var(--surface)}
         <tbody>
           <tr><td>Notebook</td><td style="color:var(--green)">Human ✓</td><td style="color:var(--green)">Human groups ✓</td></tr>
           <tr><td>App SQL (OBO)</td><td style="color:var(--green)">Human ✓</td><td style="color:var(--green)">Human groups ✓</td></tr>
-          <tr><td>Genie (OBO)</td><td style="color:var(--green)">Human ✓</td><td style="color:var(--red)">Genie service ✗</td></tr>
+          <tr><td>Genie Agents (OBO)</td><td style="color:var(--green)">Human ✓</td><td style="color:var(--red)">Genie Agents service ✗</td></tr>
           <tr><td>Agent Bricks (OBO)</td><td style="color:var(--green)">Human ✓</td><td style="color:var(--red)">Agent service ✗</td></tr>
         </tbody>
       </table>
-      <p class="mt1" style="font-size:var(--sm)"><strong>Rule:</strong> Use <code>current_user()</code> everywhere. It works in all paths. <code>is_member()</code> breaks silently in Genie and Agent Bricks OBO — no error, just wrong rows.</p>
+      <p class="mt1" style="font-size:var(--sm)"><strong>Rule:</strong> Use <code>current_user()</code> everywhere. It works in all paths. <code>is_member()</code> breaks silently in Genie Agents and Agent Bricks OBO — no error, just wrong rows.</p>
     </div>
   </div>
 </div>
@@ -637,7 +637,7 @@ tr:hover td{background:var(--surface)}
   <div class="three-col mt2">
     <div class="card card-red r">
       <h4>Security</h4>
-      <p style="font-size:var(--sm)">A row filter using <code>is_member()</code> in Genie leaks data silently — no error, just wrong rows to the wrong user.</p>
+      <p style="font-size:var(--sm)">A row filter using <code>is_member()</code> in Genie Agents leaks data silently — no error, just wrong rows to the wrong user.</p>
     </div>
     <div class="card card-amber r">
       <h4>Compliance</h4>
@@ -664,7 +664,7 @@ tr:hover td{background:var(--surface)}
     <div class="card r">
       <div class="label" style="margin-bottom:6px">Question 1</div>
       <h4 style="font-size:var(--h3)">Which resource?</h4>
-      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-green">Serving Endpoints, Genie, Vector Search, Functions, HTTP Connections, Tables</span> — UC + scopes.</p>
+      <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-green">Serving Endpoints, Genie Agents, Vector Search, Functions, HTTP Connections, Tables</span> — UC + scopes.</p>
       <p class="mt1" style="font-size:var(--sm)"><span class="badge badge-red">Lakebase</span> — PG GRANT + RLS, not UC.</p>
     </div>
     <div class="card r">
@@ -694,11 +694,11 @@ tr:hover td{background:var(--surface)}
       <thead><tr><th>Resource</th><th>Checklist item</th></tr></thead>
       <tbody>
         <tr><td><strong>Serving Endpoints</strong></td><td>Use <code>ModelServingUserCredentials()</code> inside Model Serving only. From apps, read <code>X-Forwarded-Access-Token</code> header explicitly.</td></tr>
-        <tr><td><strong>Genie</strong></td><td>Both <code>genie</code> + <code>dashboards.genie</code> scopes present (add via CLI, not UI). Row filters use <code>current_user()</code>, not <code>is_member()</code>.</td></tr>
+        <tr><td><strong>Genie Agents</strong></td><td>Both <code>genie</code> + <code>dashboards.genie</code> scopes present (add via CLI, not UI). Row filters use <code>current_user()</code>, not <code>is_member()</code>.</td></tr>
         <tr><td><strong>Vector Search</strong></td><td>Pre-filter or post-filter implemented in application — M2M SP retrieval returns same results to all users by default.</td></tr>
         <tr><td><strong>UC Functions</strong></td><td>Agent SP has EXECUTE only. No INSERT/UPDATE/DELETE direct on table. Grant is on the function.</td></tr>
         <tr><td><strong>HTTP Connections</strong></td><td>Connection owner = app SP. <code>GRANT USE CONNECTION</code> re-run after each redeploy (new SP = new grants needed).</td></tr>
-        <tr><td><strong>Tables</strong></td><td>Row filter audit: grep for <code>is_member()</code>, especially if table queried via Genie. Use <code>current_user()</code> instead.</td></tr>
+        <tr><td><strong>Tables</strong></td><td>Row filter audit: grep for <code>is_member()</code>, especially if table queried via Genie Agents. Use <code>current_user()</code> instead.</td></tr>
         <tr><td><strong>Databricks Apps</strong></td><td>Apps declare least-privilege user API scopes (e.g. sql, files, genie, ai-gateway) for OBO user authorization calls. M2M app identity (service principal) handles background operations. Scope consent is managed by admins. Both identity models share UC governance rules.</td></tr>
         <tr><td><strong>Lakebase</strong></td><td>PG GRANT and RLS policies configured per table. Do NOT assume UC row filters apply to direct PG connections.</td></tr>
       </tbody>

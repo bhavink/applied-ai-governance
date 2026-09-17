@@ -190,7 +190,7 @@ tr:hover td{background:var(--surface)}
     <ul style="padding-left:1.2em">
       <li>The problem: once identity is resolved, what can each user actually see</li>
       <li>What: the UC hierarchy and four governance layers (workspace bindings, privileges, ABAC, row filters/column masks)</li>
-      <li>Why: one consistent enforcement model across Genie, Agent Bricks, MCP, notebooks, and dashboards</li>
+      <li>Why: one consistent enforcement model across Genie Agents, Agent Bricks, MCP, notebooks, and dashboards</li>
       <li>How: row filter and column mask syntax, ABAC tags/policies, the OBO gotcha, and a decision guide</li>
     </ul>
   </div>
@@ -206,7 +206,7 @@ tr:hover td{background:var(--surface)}
     <p>Your AI platform answers questions from live data, but not every user should see every answer. <strong>Sales reps</strong> should only see their own region's pipeline. <strong>Partners</strong> should see aggregated metrics but never individual end-user records. <strong>Auditors</strong> need read access to compliance tables but nothing else.</p>
   </div>
   <div class="card mt-2 reveal" style="max-width:800px;border-left:4px solid var(--ink)">
-    <p>These rules must apply consistently whether the question comes from a Genie space, a Vector Search query, an agent workflow, or a direct SQL call. <strong>Unity Catalog</strong> is the single enforcement layer that makes this possible: row filters, column masks, attribute-based access control, all resolved from the caller's identity.</p>
+    <p>These rules must apply consistently whether the question comes from a Genie Agent, a Vector Search query, an agent workflow, or a direct SQL call. <strong>Unity Catalog</strong> is the single enforcement layer that makes this possible: row filters, column masks, attribute-based access control, all resolved from the caller's identity.</p>
     <p class="mt-1"><strong>This deck shows you the four layers of data access control and how they compose.</strong></p>
   </div>
 </div>
@@ -489,7 +489,7 @@ WHERE tag_name = 'sensitivity'
   </div>
   <div class="card mt-2 reveal" style="max-width:800px;margin:0 auto;text-align:center;border-left:4px solid var(--ink)">
     <p style="font-size:var(--sz-h3);font-weight:600">Same table. Same query. Different identity. Different data.</p>
-    <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">This is the core principle of UC governance. It works identically for Genie, Agent Bricks, MCP servers, notebooks, dashboards, and any tool that executes SQL through a warehouse.</p>
+    <p style="font-size:var(--sz-small);color:var(--muted);margin-top:4px">This is the core principle of UC governance. It works identically for Genie Agents, Agent Bricks, MCP servers, notebooks, dashboards, and any tool that executes SQL through a warehouse.</p>
   </div>
 </div>
 
@@ -507,7 +507,7 @@ WHERE tag_name = 'sensitivity'
       <pre style="font-size:var(--sz-code)"><span style="color:var(--green)">-- Filter: only see your own rows</span>
 WHERE owner = current_user()</pre>
       <table class="mt-1">
-        <tr><td style="font-weight:600;width:80px">OBO</td><td>Returns the human's email. Propagates through Genie, Agent Bricks, MCP chains.</td></tr>
+        <tr><td style="font-weight:600;width:80px">OBO</td><td>Returns the human's email. Propagates through Genie Agents, Agent Bricks, MCP chains.</td></tr>
         <tr><td style="font-weight:600">M2M</td><td>Returns the SP's application ID.</td></tr>
         <tr><td style="font-weight:600">Best for</td><td>Per-user row ownership, individual audit trails.</td></tr>
       </table>
@@ -547,7 +547,7 @@ is_member('admins') => TRUE
     </div>
     <div class="card card-amber reveal">
       <h4>OBO: is_member() evaluates service identity</h4>
-      <p style="font-size:var(--sz-small);margin-bottom:8px">In Genie or Agent Bricks OBO flows, <code>is_member()</code> checks the <strong>service layer's</strong> groups, not the human's. Use a lookup table instead:</p>
+      <p style="font-size:var(--sz-small);margin-bottom:8px">In Genie Agents or Agent Bricks OBO flows, <code>is_member()</code> checks the <strong>service layer's</strong> groups, not the human's. Use a lookup table instead:</p>
       <pre style="font-size:var(--sz-code)"><span style="color:var(--amber)">-- Pattern: current_user() + lookup</span>
 CASE
   WHEN EXISTS (

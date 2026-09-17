@@ -27,7 +27,7 @@ The pattern:
 
 1. **The need:** What does the business require? Plain-English analytics, knowledge retrieval, multi-agent orchestration, governed access for partners. Real, specific, relatable.
 2. **The tension:** What makes this hard? Two identity worlds, external users without platform accounts, compliance across organizational boundaries.
-3. **The platform:** Databricks resolves the tension. *Now* you name Genie, Vector Search, Agent Bricks, Unity Catalog, AI Gateway. The reader arrives at the technology naturally because the business need led them there.
+3. **The platform:** Databricks resolves the tension. *Now* you name Genie Agents, Vector Search, Agent Bricks, Unity Catalog, AI Gateway. The reader arrives at the technology naturally because the business need led them there.
 4. **The how:** The rest of the content delivers the implementation.
 
 A pillar that opens with "Unity Catalog row filters let you..." is doing it wrong. A pillar that opens with "Sales reps should only see their region's pipeline, partners should see aggregated metrics but never individual records..." is doing it right. The reader should feel the problem before they hear about the solution.

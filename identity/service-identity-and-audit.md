@@ -1,6 +1,6 @@
 # Service Identity and Audit Architecture
 
-> A Databricks AI application usually spans several services (Genie, Vector Search, UC
+> A Databricks AI application usually spans several services (Genie Agents, Vector Search, UC
 > Functions, custom MCP, Agent Bricks, external MCP). Each has its own identity model: some
 > run as the user (OBO), some as the app service principal (M2M). This doc maps which identity
 > each service honors, and shows how to build the audit trail that the platform does not build
@@ -38,7 +38,7 @@ without it, it is a minimal OIDC token that only proves identity.
 
 | Service | Identity model | `current_user()` | Row filters fire as | UC audit identity |
 |---|---|---|---|---|
-| Genie (Conversation API) | True OBO | user email | user (Genie service context for group checks) | user |
+| Genie Agents (Conversation API) | True OBO | user email | user (Genie Agents service context for group checks) | user |
 | AI/BI Dashboard (run-as-viewer) | True OBO | viewer email | viewer | viewer |
 | AI/BI Dashboard (run-as-owner) | delegated | owner email | owner | owner |
 | Agent Bricks / Model Serving | True OBO (token propagated to sub-agents) | user email | user | user |
@@ -46,7 +46,7 @@ without it, it is a minimal OIDC token that only proves identity.
 | SQL Warehouse (SP token) | Pure M2M | SP UUID | SP | SP UUID |
 | Custom MCP (Databricks Apps) | Proxy + M2M, or True OBO with user authorization + `sql` | SP UUID (M2M) or user email (OBO SQL) | manual WHERE (M2M) or automatic (OBO SQL) | SP UUID or user email |
 | UC Functions (via M2M SQL) | Pure M2M | SP UUID | SP | SP UUID |
-| UC Functions (via Genie OBO) | True OBO | user email | user | user |
+| UC Functions (via Genie Agents OBO) | True OBO | user email | user | user |
 | Vector Search | Pure M2M | not applicable | not applicable | SP UUID |
 | Foundation Model API | M2M or OBO | not relevant to inference | not applicable | caller |
 | External MCP (shared bearer, UC HTTP) | M2M at proxy; shared key externally | not applicable | not applicable | caller at proxy; `USE CONNECTION` is the boundary |
@@ -66,7 +66,7 @@ without it, it is a minimal OIDC token that only proves identity.
 ## 4. Scopes, in brief
 
 A user token should carry the minimum scopes for what it must do: `openid email profile
-offline_access` to prove identity, plus `genie` (and `dashboards.genie` on Azure) for Genie,
+offline_access` to prove identity, plus `genie` (and `dashboards.genie` on Azure) for Genie Agents,
 `model-serving` for Agent Bricks / Model Serving, `unity-catalog` for External MCP over UC
 HTTP connections, and `sql` for OBO SQL. Prefer configuring `sql` through the Apps user
 authorization panel so the forwarded token is a real OBO JWT. Avoid a catch-all scope. The
@@ -85,7 +85,7 @@ as choices, not complaints.
 - **There is no platform join between MLflow traces and UC audit.** They are separate system
   tables with no foreign key. Correlate on SP UUID plus a time window (approximate) or on a
   shared `trace_id`/`request_id` you propagate (precise).
-- **`is_member()` evaluates the SQL execution identity.** Under Genie or Agent Bricks OBO, a
+- **`is_member()` evaluates the SQL execution identity.** Under Genie Agents or Agent Bricks OBO, a
   row filter using `is_member()` checks the service's groups, not the caller's, so it returns
   the wrong result. Use `current_user()` plus an allowlist table, or account-group checks,
   and re-test under OBO SQL where the execution identity is the real user.
@@ -108,7 +108,7 @@ other's privileges.
 
 | App / component | SP | Read | Write | Why separate |
 |---|---|---|---|---|
-| Front-end app | SP-A | Genie (OBO), Vector Search, UC Functions, FM API | none | a front end should never hold direct write access |
+| Front-end app | SP-A | Genie Agents (OBO), Vector Search, UC Functions, FM API | none | a front end should never hold direct write access |
 | Custom MCP server | SP-B | specific data tables | one approval table (INSERT only) | tools need targeted write; the front end does not |
 | External-client MCP | SP-C | same reads as SP-B | same writes as SP-B | different auth setting and lifecycle; isolate credentials |
 | Agent Bricks supervisor | platform-managed | sub-agents inherit the user token (OBO) | through sub-agent tools only | supervisor SP is managed; access equals the user's |

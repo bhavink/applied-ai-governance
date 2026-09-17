@@ -26,7 +26,7 @@
 | Category | Examples | Where |
 |---|---|---|
 | Runtime policy | tool-access matrix, roles, persona metadata, UI labels | config store (hot-deployable) |
-| Infrastructure IDs | warehouse id, Genie space id, endpoint names | env vars (deploy-time) |
+| Infrastructure IDs | warehouse id, Genie Agent id, endpoint names | env vars (deploy-time) |
 | Credentials | SP client secrets, API keys, bearer tokens | secret manager / env |
 | Business logic | tool implementations, SQL, API calls | code (version-controlled) |
 
