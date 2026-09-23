@@ -341,7 +341,7 @@ tr:hover td{background:var(--surface)}
 
 <div class="topbar">
   <div class="title">Applied AI Governance &mdash; <span>Orchestration &amp; Tool Governance</span></div>
-  <div class="counter" id="counter">01 / 15</div>
+  <div class="counter" id="counter">01 / 16</div>
 </div>
 <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 
@@ -396,6 +396,7 @@ tr:hover td{background:var(--surface)}
       <div class="card r"><p><strong>4.</strong> Unity AI Gateway as the single control surface for LLMs, MCPs, and Model Serving</p></div>
       <div class="card r"><p><strong>5.</strong> Token federation for automation and external callers</p></div>
       <div class="card r"><p><strong>6.</strong> Configuration steps, common gotchas, and a production checklist</p></div>
+      <div class="card r"><p><strong>7.</strong> Building new agents in 2026: Genie Agents, custom agents on Databricks Apps, and the Supervisor API deprecation</p></div>
     </div>
   </div>
 </div>
@@ -745,9 +746,40 @@ tr:hover td{background:var(--surface)}
 
 
 <!-- ═══════════════════════════════════════════════════════════
-     SLIDE 15 · CLOSING CALLIGRAM
+     SLIDE 15 · BUILD DIRECTION (2026)
      ═══════════════════════════════════════════════════════════ -->
-<div class="slide slide-calli" data-slide="15">
+<div class="slide" data-slide="15">
+  <div class="label r">What's changing &mdash; Build direction</div>
+  <h2 class="r">Building new orchestrated agents: two supported surfaces, one deprecating API.</h2>
+  <div class="three-col mt2">
+    <div class="card card-green r">
+      <div class="badge badge-green mb1">Low-code</div>
+      <h4>Genie Agents</h4>
+      <p style="font-size:var(--sm)">Natural-language &ldquo;talk to your data&rdquo; for business users and supported low-code orchestration over structured data, document search, UC functions, and MCP tools. Governed by Unity Catalog, with OBO carrying the human identity through every sub-agent.</p>
+    </div>
+    <div class="card card-blue r">
+      <div class="badge badge-blue mb1">Code-based</div>
+      <h4>Custom agents on Databricks Apps</h4>
+      <p style="font-size:var(--sm)">The recommended target for new code-based and multi-agent systems, built with LangGraph, the OpenAI Agents SDK, or a custom loop. Git packaging, app or on-behalf-of auth, MCP tools, Unity Gateway model access, and MLflow tracing and evaluation. You own the agent loop, state, retries, and tool authorization.</p>
+    </div>
+    <div class="card r">
+      <div class="badge badge-muted mb1">Tools</div>
+      <h4>MCP stays the tool layer</h4>
+      <p style="font-size:var(--sm)">Managed, custom, and external MCP servers remain the preferred way to expose governed tools, and existing Unity Catalog function tools are not deprecated. MLflow Tracing gives one execution trace across model and tool calls.</p>
+    </div>
+  </div>
+  <div class="card card-red r mt2" style="border-width:2px">
+    <h4 style="color:var(--red)">Supervisor API (Beta) is deprecated &mdash; end of life September 30, 2026</h4>
+    <p style="font-size:var(--sm)">Migrate Supervisor API workloads to a custom agent loop on Databricks Apps. The replacement hands you the agent loop, state, retries, and deployment lifecycle, so plan an application change rather than a URL swap. The managed Supervisor Agent and Genie Agents orchestration paths shown earlier are separate products and are unaffected by this change.</p>
+    <p style="font-size:var(--xs);color:var(--muted);margin-top:6px">Source: Databricks docs &mdash; Build a custom agent using the Supervisor API (Beta) (deprecated), docs.databricks.com/aws/en/agents/custom-agents/supervisor-api-app</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 16 · CLOSING CALLIGRAM
+     ═══════════════════════════════════════════════════════════ -->
+<div class="slide slide-calli" data-slide="16">
   <div class="calli-hero r">
     ORCHESTRATION
     <span class="line2">IS</span>

@@ -108,6 +108,12 @@ so the calling user's identity propagates to sub-agents, which is how per-user p
 checks work end to end. For stateful agents, keep short- and long-term memory and
 conversation threading in a store such as Lakebase, keyed by thread and conversation ids.
 
+For new code-based or multi-agent orchestration, Databricks recommends building a custom agent
+loop on Databricks Apps rather than the Supervisor API, which is a deprecated Beta that reaches
+end of life on September 30, 2026. A custom MCP server plugs into either path as a governed tool
+or sub-agent through the same UC connection and `USE CONNECTION` control, so the governance model
+here is unchanged by that choice.
+
 ## Security checklist
 
 - No secrets in environment variables (use UC connections).
@@ -129,4 +135,5 @@ conversation threading in a store such as Lakebase, keyed by thread and conversa
 
 - [Author a Databricks agent](https://docs.databricks.com/aws/en/generative-ai/agent-framework/author-agent)
 - [HTTP connections (query federation)](https://docs.databricks.com/aws/en/query-federation/http)
+- [Supervisor API (Beta) (deprecated), end of life September 30, 2026](https://docs.databricks.com/aws/en/agents/custom-agents/supervisor-api-app)
 - [Unity Catalog privileges](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/privileges)
