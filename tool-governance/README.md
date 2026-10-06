@@ -11,10 +11,9 @@ policy that decides which role may call which tool is managed without redeploys.
 **Hands-on quickstart:** [Getting Started with `ug` (Formerly `ucode`)](ug-quickstart.md):
 install, sign in, launch a coding agent, and understand its connection to Unity Gateway.
 
-**Governed rollout:** [Enforcing Unity Gateway Across the Enterprise](enforcing-unity-gateway.md):
-how to make Unity Gateway the sanctioned path, how close a rollout gets to immutable, and where
-the enforcement boundary sits. Covers the Enforce setting, least-privilege service grants,
-client pinning via managed config, a stable corporate URL, drift detection, and a threat model.
+**Pin the workspace:** [Pin Coding Agents to One Unity Gateway Workspace](ug-managed-workspace.md):
+the prescriptive way to funnel every coding agent through one enterprise Unity Gateway workspace
+by making the workspace a managed setting, so developers choose the harness but not where it points.
 
 1. [Custom MCP Principles](custom-mcp-principles.md): the architecture of a custom MCP server
    that fronts Databricks data and compute. MCP as the single gateway, scopes over grants, UC
