@@ -18,7 +18,7 @@ Databricks supports two federation models. Pick based on **who** is authenticati
 |---|---|---|
 | Who | Human users and service principals synced via SCIM | Automated workloads running outside Databricks (CI/CD, cloud VMs, Kubernetes) |
 | SCIM sync | Required before the exchange works | Not required — the service principal is created directly |
-| Issuer limit | Up to 5 federated token issuers per account | No limit (policy is scoped per service principal) |
+| Issuer limit | Up to 20 account-wide federation policies | No account-wide issuer limit (policy is scoped per service principal) |
 | Flow types supported | U2M and M2M | M2M only |
 | Secrets stored in the app | None | None |
 

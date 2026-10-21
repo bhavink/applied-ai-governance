@@ -35,7 +35,7 @@ Databricks exposes two federation entry points, chosen by **who** is authenticat
 
 | Model | Who uses it | Setup | Flow |
 |---|---|---|---|
-| Account Token Federation | Users and service principals authenticating through your IdP | SSO enabled on the account; SCIM sync of users/SPs; up to 5 federated token issuers per account | Supports both U2M and M2M |
+| Account Token Federation | Users and service principals authenticating through your IdP | SSO enabled on the account; SCIM sync of users/SPs; up to 20 account-wide federation policies | Supports both U2M and M2M |
 | Workload Identity Federation (WIF) | Automated workloads running outside Databricks (CI/CD runners, cloud VMs, Kubernetes pods) | Per-SP federation policy; no issuer limit; no Databricks secrets | M2M only, using the workload runtime's own token (GitHub Actions OIDC, Azure Workload Identity, GCP service account) |
 
 The role-based service principal pattern in this doc runs on Account Token Federation with M2M exchange: the external user's IdP token maps to a service principal via a role claim, rather than to an individual Databricks account.
@@ -188,7 +188,7 @@ The prerequisite federation trust policy is self-service on Azure: an account ad
 
 | Issue | Impact | Fix |
 |---|---|---|
-| Account limit: 5 federated token issuers | A 6th issuer registration fails with a non-obvious error | Consolidate issuers where possible; each environment (dev/stage/prod) counts toward the limit if it uses a distinct IdP issuer |
+| Account limit: 20 account-wide federation policies | Another policy fails after the account reaches the limit | Consolidate issuers where possible; each environment can consume a separate policy when issuer or audience values differ |
 | JDBC/ODBC connections | Token exchange (RFC 8693) is API-only | Perform the exchange in application code and pass the resulting Databricks token to the driver, or route JDBC/ODBC callers through an API layer that performs the exchange server-side |
 | `client_id` required for SP (role-based) exchange | Omitting `client_id` routes the exchange to the per-user account-wide policy instead of the intended service principal | Always include `client_id` (the Databricks SP UUID) for role-to-SP mapping in this pattern |
 | Audience mismatch (`400 invalid_grant`) | The IdP token's `aud` claim doesn't match what the federation policy expects | Decode the token (for example at jwt.io) and confirm `aud` matches the policy audience exactly |

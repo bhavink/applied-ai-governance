@@ -731,7 +731,7 @@ tr:hover td{background:var(--surface)}
         <tr><td><strong>Subject claim format varies by IdP</strong></td><td>Auth0: <code>{client_id}@clients</code>. Okta: <code>{client_id}</code>, no suffix. Entra: the app&rsquo;s Object ID (a GUID), not the Application ID. Decode a real token before writing the policy.</td></tr>
         <tr><td><strong>Trailing slash on issuer</strong></td><td>Must match the JWT&rsquo;s <code>iss</code> claim exactly. Most IdPs include it; some don&rsquo;t. A mismatch here is the single most common cause of exchange failures.</td></tr>
         <tr><td><strong>Including <code>client_id</code> changes the outcome</strong></td><td>Present &rarr; token is scoped to that service principal. Omitted &rarr; token is scoped to the calling user. Pick deliberately, not by accident.</td></tr>
-        <tr><td><strong>5-issuer account limit</strong></td><td>Databricks allows up to five federated token issuers per account. More IdPs require consolidation or the SSO fallback for the extras.</td></tr>
+        <tr><td><strong>20-policy account limit</strong></td><td>Databricks allows up to 20 account-wide federation policies. More policies require issuer consolidation or another supported authentication path.</td></tr>
         <tr><td><strong>Wrong row-filter function for the pattern</strong></td><td>See previous slide &mdash; the most consequential mistake on this list.</td></tr>
       </tbody>
     </table>

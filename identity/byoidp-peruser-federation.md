@@ -72,7 +72,7 @@ Full recipe, error catalog, and IdP supplements: [Federation blueprint](federati
 
 ## Prerequisites
 
-1. **Account SSO enabled** and a **federated token issuer** registered for the custom IdP (max **5** issuers per account).
+1. **Account SSO enabled** and a **federated token issuer** registered for the custom IdP (up to **20** account-wide federation policies).
 2. **Users SCIM-synced** to the Databricks account — federation *maps* an identity, it does not create one. The JWT `subject_claim` must resolve to a real account user.
 3. **The IdP publishes a public JWKS** so Databricks can validate the exchanged JWT's signature. ← *the load-bearing requirement; see next section.*
 4. **Row filters / column masks** defined on the UC tables — this is what enforces RLS. See the Databricks docs on [row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/).
@@ -204,7 +204,7 @@ Thanks! :pray: #1 alone unblocks most of the design.
 | Silent `401` after exchange (first attempt) | SCIM provisioning hasn't completed yet — federation *maps* an identity, it does not create one. The user must exist in the account before the first exchange | Complete SCIM sync for the user before attempting the exchange (Q D.11) |
 | Silent `401` after exchange (established user) | `subject_claim` doesn't resolve to a SCIM-synced user | Confirm the user exists in the account and the claim matches (Q B.6, D.11) |
 | Can't register the issuer for exchange | IdP has no JWKS / signs HS256 | Use the SSO fallback above |
-| 6th IdP won't federate | Account limit is 5 federated token issuers | Consolidate issuers or use SSO login for the extra IdP |
+| Another IdP exceeds the policy limit | The account already has 20 account-wide federation policies | Consolidate issuers or use another supported authentication path |
 | Token expires mid-request | Databricks copies the JWT `exp` verbatim | Always exchange a **fresh** IdP token |
 | Row filter using `is_member()` always evaluates FALSE | Groups are account-level (SCIM-synced), and `is_member()` only checks workspace-level groups | Use a lookup table keyed on `current_user()`, or mirror the groups at the workspace level |
 | API call returns the app's own data instead of the user's | Downstream code used a no-args client instead of passing the exchanged per-user token explicitly | Pass the token explicitly to the SDK/REST call; see [Databricks Apps Proxy Architecture](proxy-architecture.md) for the proxy-mediated case |

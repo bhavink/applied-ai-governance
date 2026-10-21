@@ -1,6 +1,6 @@
 # Microsoft Teams / Copilot Studio → Genie Agents & Agent Bricks with Per-User Identity
 
-> **What this is**: Per-user identity into Genie Agents/Agent Bricks from Microsoft Teams or Copilot Studio is real and supported — but it requires **two independent gates to both be open**, not one. Getting the token-layer auth right and still failing on the second gate is the most common way this silently doesn't work.
+> **What this is**: Per-user identity into Genie Agents/Agent Bricks from Microsoft Teams or Copilot Studio is real and supported. The caller must use an end-user identity, and that identity must map to an existing Databricks user with access to the agent and underlying data.
 >
 > **Azure-specific.** Entra ID as the IdP; Azure Bot Service is Azure infrastructure.
 
@@ -8,38 +8,33 @@ This completes the Microsoft-surface picture alongside the sibling pattern:
 
 | Pattern | Front-end | Token exchange | RLS granularity |
 |---|---|---|---|
-| [Power BI → Agent Bricks OBO](federation-implementation-blueprint.md) | Power BI Embedded (MSAL) | RFC 8693, account-wide | Individual, platform-enforced *(if publish mode allows — see below)* |
-| **This doc** — Teams/Copilot Studio → Genie Agents/Agent Bricks | Azure Bot Service or Copilot Studio | RFC 8693, account-wide (custom path) or Copilot Studio's own OAuth | Individual, *gated by publish mode* |
+| [Power BI → Agent Bricks OBO](federation-implementation-blueprint.md) | Power BI Embedded (MSAL) | RFC 8693, account-wide | Individual, platform-enforced |
+| **This doc** — Teams/Copilot Studio → Genie Agents/Agent Bricks | Azure Bot Service or Copilot Studio | RFC 8693, account-wide (custom path) or Copilot Studio's own OAuth | Individual, when end-user credentials are used |
 
 ---
 
-## The two gates
+## The two permission checks
 
-1. **Token layer**: the caller used per-user OBO/token-exchange, not a shared SP/M2M credential.
-2. **Genie Agent publish mode**: the space is published as `VIEWER`, not `EMBEDDED_CREDENTIALS`.
+1. **Caller identity**: the caller used per-user OBO/token-exchange, not a shared SP/M2M credential.
+2. **Data authorization**: Unity Catalog evaluates the end user's grants, row filters, and column masks.
 
-**Both must be true.** Get #1 right — a genuine per-user OAuth token reaches Databricks, correctly, with no `client_id` in the exchange — and it still won't enforce per-person access if the space itself is published `EMBEDDED_CREDENTIALS`: the SQL runs as the space's **publisher**, always, regardless of whose token called the API.
+**Both must be true.** The current Genie Agent documentation distinguishes compute access from data access: embedded author credentials can provide access to the SQL warehouse, while Unity Catalog data authorization is still evaluated as the end user.
 
-| Publish mode | Who the SQL runs as | Per-user RLS possible? |
-|---|---|---|
-| `VIEWER` | The calling identity (the human, if a per-user token reached the API) | ✅ Yes |
-| `EMBEDDED_CREDENTIALS` | The space's publisher, always | ❌ No — every caller executes as the publisher, OBO or not |
-
-This setting lives on the **space**, independent of the client integration. Verify it directly — don't infer it from the Teams bot's or Copilot Studio connector's auth configuration.
+Do not infer the caller's data permissions from the warehouse credential. Verify them with two users who have different Unity Catalog grants.
 
 ---
 
 ## Four integration paths, mapped
 
-| Path | Token-layer identity | Confidence | Still gated by publish mode |
-|---|---|---|---|
-| Custom AI agent + Azure Bot Service + OAuth federation | Per-user OBO — `current_user()` = human | Confirmed, code-traced against the official reference implementation | Yes |
-| Copilot Studio via MCP, "End user credentials" | Per-user (U2M) | Confirmed to exist | Yes |
-| Copilot Studio via MCP, "Maker credentials" | Shared — everyone runs as the maker's identity | Confirmed M2M by design, not a degraded OBO mode | N/A — already shared |
-| Native "Databricks Genie Agents" app (Teams marketplace) | Per-user, Entra sign-in required | Confirmed per-user ([Databricks Genie Agents app in Microsoft Teams](https://docs.databricks.com/aws/en/integrations/msft-teams)) | Yes |
-| Native "Databricks Genie Agents on Microsoft 365 Copilot" | Per-user, same Entra sign-in pattern as the Teams app | Confirmed per-user ([Databricks Genie Agents on Microsoft 365 Copilot](https://docs.databricks.com/aws/en/integrations/msft-m365-copilot)) | Yes |
+| Path | Token-layer identity | Confidence |
+|---|---|---|
+| Custom AI agent + Azure Bot Service + OAuth federation | Per-user OBO — `current_user()` = human | Confirmed, code-traced against the official reference implementation |
+| Copilot Studio via MCP, "End user credentials" | Per-user (U2M) | Confirmed to exist |
+| Copilot Studio via MCP, "Maker credentials" | Shared — everyone runs as the maker's identity | Confirmed M2M by design, not a degraded OBO mode |
+| Native "Databricks Genie Agents" app (Teams marketplace) | Per-user, Entra sign-in required | Confirmed per-user ([Databricks Genie Agents app in Microsoft Teams](https://docs.databricks.com/aws/en/integrations/msft-teams)) |
+| Native "Databricks Genie Agents on Microsoft 365 Copilot" | Per-user, same Entra sign-in pattern as the Teams app | Confirmed per-user ([Databricks Genie Agents on Microsoft 365 Copilot](https://docs.databricks.com/aws/en/integrations/msft-m365-copilot)) |
 
-The native "Databricks Genie Agents" marketplace app uses **per-user authentication**: each user signs in with Entra ID, and `current_user()` resolves to that human. The Microsoft 365 Copilot native app follows the same Entra sign-in pattern. A quick confirmation before rollout is still worthwhile: two users with different UC grants, same question, compare results and `system.access.audit`.
+The native "Databricks Genie Agents" marketplace app uses **per-user authentication**: each user signs in with Entra ID, and `current_user()` resolves to that human. The Microsoft 365 Copilot native app follows the same Entra sign-in pattern. Confirm before rollout: two users with different UC grants ask the same question, then compare results and `system.access.audit`.
 
 ### Native Teams app: capabilities and constraints
 
@@ -47,7 +42,7 @@ The native marketplace app trades configurability for a turnkey setup. Plan arou
 
 | Characteristic | Native Teams app |
 |---|---|
-| Authentication | Per-user Entra sign-in; per-user RLS applies (subject to publish mode) |
+| Authentication | Per-user Entra sign-in; Unity Catalog evaluates end-user data permissions |
 | PrivateLink | Not available. When IP access lists are enforced, allowlist the outbound IPs of the Databricks control plane for the workspace's region |
 | Compute | Automatic warehouse selection; users cannot pick a SQL warehouse |
 | Chart visualizations | Text answers only; charts are outside the app's scope |
@@ -111,7 +106,7 @@ This is the same account-wide RFC 8693 exchange as [Per-User BYO-IdP Federation]
 
 ## Copilot Studio via MCP — "End user credentials"
 
-The Copilot Studio MCP connector to Genie Agents offers an explicit toggle between shared M2M ("Maker credentials") and per-user ("End user credentials"). Selecting the latter produces the same effect as the custom-bot path above, where `current_user()` resolves to the human, subject to the same publish-mode gate. See [Databricks Genie Agents on Microsoft 365 Copilot](https://docs.databricks.com/aws/en/integrations/msft-m365-copilot) for the connector setup.
+The Copilot Studio MCP connector to Genie Agents offers an explicit toggle between shared M2M ("Maker credentials") and per-user ("End user credentials"). Selecting the latter produces the same effect as the custom-bot path above, where `current_user()` resolves to the human. See [Databricks Genie Agents on Microsoft 365 Copilot](https://docs.databricks.com/aws/en/integrations/msft-m365-copilot) for the connector setup.
 
 ---
 
@@ -119,7 +114,7 @@ The Copilot Studio MCP connector to Genie Agents offers an explicit toggle betwe
 
 | Issue | Detail |
 |---|---|
-| Correct OBO token, wrong publish mode | The most common way this silently fails. A genuine per-user token reaches the API and still doesn't enforce per-person access because the space is `EMBEDDED_CREDENTIALS`. |
+| Confusing compute and data credentials | Embedded author credentials can provide warehouse access, while Unity Catalog still evaluates data permissions as the end user. Test the data result and audit identity, not only the warehouse setting. |
 | `client_id` in the token exchange | Omit it. Including it selects a service principal and collapses RLS to the SP. |
 | `preferred_username` vs other claims | The federation policy's subject claim must match what the exchanged JWT actually carries in your tenant. |
 | Two unrelated things named "Genie Agents + Teams" | The native marketplace app and the custom Azure Bot Service pattern are different integrations with different, differently-documented identity models. Confirm which one is in play before answering an RLS question. |
@@ -132,7 +127,7 @@ The Copilot Studio MCP connector to Genie Agents offers an explicit toggle betwe
 - [Per-User BYO-IdP Federation](byoidp-peruser-federation.md) — the general pattern this specializes for Teams/Copilot Studio
 - [Federation blueprint](federation-implementation-blueprint.md) — RFC 8693 exchange recipe this reuses
 - [Authorization](authorization.md) — the three token patterns overview
-- [Row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/) — where the publish-mode gate ultimately resolves at the SQL layer
+- [Row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/) — how Unity Catalog enforces end-user data permissions
 
 ## Public References
 

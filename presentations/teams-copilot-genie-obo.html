@@ -408,15 +408,15 @@ tr:hover td{background:var(--surface)}
     <div class="seq-step r">
       <div class="seq-num">3</div>
       <div class="seq-body">
-        <strong>The two-gate model</strong>
-        <p>Token-layer identity is Gate 1. The Genie Agent's publish mode is Gate 2. Most rollouts only check the first.</p>
+        <strong>The two permission checks</strong>
+        <p>The caller must use an end-user identity, and Unity Catalog must authorize that user for the requested data.</p>
       </div>
     </div>
     <div class="seq-step r">
       <div class="seq-num">4</div>
       <div class="seq-body">
-        <strong>What breaks silently: the Genie Agent publish mode</strong>
-        <p>Why a correctly-configured OAuth token still doesn't guarantee per-user data access if the space is published EMBEDDED_CREDENTIALS.</p>
+        <strong>Compute access is not data access</strong>
+        <p>Embedded author credentials can provide warehouse access while Unity Catalog still evaluates the end user's data permissions.</p>
       </div>
     </div>
     <div class="seq-step r">
@@ -498,7 +498,7 @@ tr:hover td{background:var(--surface)}
   </div>
   <div class="r" style="margin-top:clamp(.6rem,1.2vw,1rem)">
     <div class="card card-green" style="padding:clamp(.6rem,1.2vw,1rem)">
-      <p><strong>All four paths gate on the same second condition: the Genie Agent's publish mode.</strong> Regardless of which integration you choose, verify that the space is published <code>VIEWER</code>, not <code>EMBEDDED_CREDENTIALS</code>.</p>
+      <p><strong>All per-user paths require the same outcome:</strong> the caller must resolve to the correct Databricks user, and Unity Catalog must enforce that user's data permissions.</p>
     </div>
   </div>
 </div>
@@ -524,7 +524,7 @@ tr:hover td{background:var(--surface)}
       <div class="abox uc r delay-7">Agent Bricks Supervisor<small style="color:var(--red);opacity:.7">OBO auto-forwarded to Genie Agents sub-agent</small></div>
       <div class="arch-varrow delay-8">&darr;</div>
       <div class="card card-green r delay-9" style="text-align:center;max-width:560px">
-        <p><strong>current_user() = the human</strong> at the Genie Agents/UC layer. Gate 1 passed: the human's identity reached Databricks. But Gate 2 (the space's publish mode) still decides whether RLS fires.</p>
+        <p><strong>current_user() = the human</strong> at the Genie Agents/UC layer. Unity Catalog can now apply that user's grants, row filters, and column masks.</p>
       </div>
     </div>
   </div>
@@ -535,18 +535,18 @@ tr:hover td{background:var(--surface)}
      SLIDE 6 · WHAT — TWO GATES, NOT ONE
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="6">
-  <div class="label r">What &mdash; two gates, not one</div>
-  <h2 class="r">Per-user identity depends on two separate settings.</h2>
+  <div class="label r">What &mdash; two checks, not one</div>
+  <h2 class="r">Per-user access depends on identity and data authorization.</h2>
   <div class="two-col mt2">
     <div class="card card-green r" style="display:flex;flex-direction:column;gap:8px">
-      <div class="gate-label" style="color:var(--green)">Gate 1 &mdash; Token layer</div>
+      <div class="gate-label" style="color:var(--green)">Check 1 &mdash; Caller identity</div>
       <h4>Did a real per-user token reach Databricks?</h4>
       <p>OAuth federation, no <code>client_id</code> in the exchange, &ldquo;End user credentials&rdquo; selected in Copilot Studio. This is the gate everyone checks &mdash; and the one all the setup guides walk you through.</p>
     </div>
     <div class="card card-red r" style="display:flex;flex-direction:column;gap:8px">
-      <div class="gate-label" style="color:var(--red)">Gate 2 &mdash; Genie Agent publish mode</div>
-      <h4>Is the space published VIEWER, not EMBEDDED_CREDENTIALS?</h4>
-      <p>This lives on the <strong>space</strong>, not the client integration. It's invisible from the Teams bot's or Copilot Studio connector's configuration screen &mdash; you have to check the space directly.</p>
+      <div class="gate-label" style="color:var(--red)">Check 2 &mdash; Data authorization</div>
+      <h4>Does Unity Catalog evaluate the end user's permissions?</h4>
+      <p>Embedded author credentials can supply warehouse compute access. They do not replace the end user's Unity Catalog grants, row filters, or column masks.</p>
     </div>
   </div>
 </div>
@@ -629,28 +629,28 @@ tr:hover td{background:var(--surface)}
      SLIDE 9 · HOW — GATE 2, IN DETAIL
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="9">
-  <div class="label r">How &mdash; check the publish mode</div>
-  <h2 class="r">One setting decides who the SQL runs as &mdash; regardless of the token.</h2>
+  <div class="label r">How &mdash; separate compute from data</div>
+  <h2 class="r">Warehouse access and data access use different credentials.</h2>
   <div class="r flex1" style="overflow-x:auto">
     <table style="min-width:640px">
-      <thead><tr><th>Publish mode</th><th>Who the SQL runs as</th><th>Per-user RLS?</th></tr></thead>
+      <thead><tr><th>Access type</th><th>Credential</th><th>What it controls</th></tr></thead>
       <tbody>
         <tr>
-          <td><code>VIEWER</code></td>
-          <td>The calling identity &mdash; the human, if a per-user token reached the API</td>
-          <td><span class="badge badge-green">Yes</span></td>
+          <td>Warehouse compute</td>
+          <td>Embedded author credential</td>
+          <td>Permission to use the configured SQL warehouse</td>
         </tr>
         <tr>
-          <td><code>EMBEDDED_CREDENTIALS</code></td>
-          <td>The space's publisher &mdash; always</td>
-          <td><span class="badge badge-red">No</span></td>
+          <td>Unity Catalog data</td>
+          <td>The end user's identity</td>
+          <td>Tables, rows, and columns the end user may access</td>
         </tr>
       </tbody>
     </table>
   </div>
   <div class="r" style="margin-top:clamp(.6rem,1.2vw,1rem)">
     <div class="card card-red">
-      <p><strong>Critical:</strong> This setting lives on the Genie Agent itself, not on the Teams bot configuration or Copilot Studio connector. Don't infer it from the client integration settings. You have to check the space's publish mode directly.</p>
+      <p><strong>Critical:</strong> Embedded warehouse credentials do not mean every user inherits the author's data access. Verify with two users who have different Unity Catalog permissions.</p>
     </div>
   </div>
 </div>
@@ -666,22 +666,22 @@ tr:hover td{background:var(--surface)}
     <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
       <div class="gate-label" style="color:var(--green)">Building a custom Teams bot</div>
       <h4>Use Azure Bot Service + OAuth federation</h4>
-      <p>Officially documented pattern. Check Gate 2 on the target Genie Agent before shipping.</p>
+      <p>Officially documented pattern. Verify the returned data and audit identity before shipping.</p>
     </div>
     <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
       <div class="gate-label" style="color:var(--green)">Using Copilot Studio</div>
       <h4>Select &ldquo;End user credentials,&rdquo; not &ldquo;Maker credentials&rdquo;</h4>
-      <p>Gives real per-user identity &mdash; still gated by Gate 2. &ldquo;Maker credentials&rdquo; is fine when shared access is the actual intent.</p>
+      <p>Gives real per-user identity. &ldquo;Maker credentials&rdquo; is appropriate only when shared access is the actual intent.</p>
     </div>
     <div class="gate-cell r" style="background:var(--green-bg);border-color:var(--green)">
       <div class="gate-label" style="color:var(--green)">Using the native Databricks Genie Agents app</div>
       <h4>Per-user sign-in is built in</h4>
-      <p>The marketplace apps require users to sign in with their Databricks identity. Still gated by Gate 2: verify the space's publish mode before rollout.</p>
+      <p>The marketplace apps require users to sign in with their Databricks identity. Verify results with users who have different Unity Catalog grants.</p>
     </div>
     <div class="gate-cell r" style="background:var(--blue-bg);border-color:var(--blue)">
       <div class="gate-label" style="color:var(--blue)">Every path, no exceptions</div>
-      <h4>Check the Genie Agent's publish mode directly</h4>
-      <p>Don't infer it from the client integration's settings. It's a property of the space, and it silently overrides everything upstream of it.</p>
+      <h4>Check end-user data authorization directly</h4>
+      <p>Warehouse access and Unity Catalog data access are separate. Verify the returned rows and audit identity.</p>
     </div>
   </div>
 </div>
@@ -697,7 +697,7 @@ tr:hover td{background:var(--surface)}
     <table style="min-width:680px">
       <thead><tr><th>Issue</th><th>Detail</th></tr></thead>
       <tbody>
-        <tr><td><strong>Correct per-user token, wrong Genie Agent publish mode</strong></td><td>The most common silent failure. OAuth is right, but the space runs as publisher. Check the space's own settings, not the client integration.</td></tr>
+        <tr><td><strong>Confusing compute and data credentials</strong></td><td>Embedded author credentials provide warehouse access, while Unity Catalog evaluates data access as the end user. Verify results and audit identity.</td></tr>
         <tr><td><strong>Include <code>client_id</code> in token exchange</strong></td><td>Never include it. If you do, it selects a service principal and collapses RLS to the SP's identity regardless of whose token called it.</td></tr>
         <tr><td><strong><code>preferred_username</code> claim mismatch</strong></td><td>The federation policy's subject_claim must match what your Entra tenant actually issues. If tenant issues <code>upn</code> instead, the exchange fails silently.</td></tr>
         <tr><td><strong>Confusing two &ldquo;Teams + Genie Agents&rdquo; integrations</strong></td><td>The native marketplace app (automatic warehouse, no PrivateLink) is different from custom Azure Bot Service (manual setup, full control). Confirm which one before designing RLS.</td></tr>
