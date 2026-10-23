@@ -107,7 +107,7 @@ h1 span { color: var(--red); }
     <a href="../" class="back">&larr; Back to Applied AI Governance</a>
 
     <h1>Presentation <span>Decks</span></h1>
-    <p class="subtitle">Slide decks covering identity, federation, authorization, orchestration, Unity Catalog governance, agent cost governance, AI governance patterns and well-architected deployments on Databricks.</p>
+    <p class="subtitle">Slide decks covering identity, claim-based external-user authorization, orchestration, Unity Catalog governance, agent cost governance, and well-architected deployments on Databricks.</p>
     <div class="red-line"></div>
 
     <!-- The Challenge -->
@@ -188,7 +188,7 @@ h1 span { color: var(--red); }
         <a href="cross-idp-federation.html" class="deck-card">
             <div class="deck-body">
                 <h3>Cross-IdP Token Federation</h3>
-                <p>Propagating a real end-user identity from an external app and IdP through to Unity Catalog enforcement.</p>
+                <p>The opinionated external-user path: one shared service principal, an immutable OAuth custom identity claim, and fail-closed Unity Catalog entitlement enforcement.</p>
             </div>
             <div class="deck-meta">
                 <span class="badge badge-tech">Technical</span>
@@ -299,7 +299,7 @@ h1 span { color: var(--red); }
         <a href="federation-deep-dive.html" class="deck-card">
             <div class="deck-body">
                 <h3>Federation Exchange Deep Dive</h3>
-                <p>The IdP-agnostic identity chain end to end: what is in the token at each stage, the enforcement points, a failure decision tree, and how IdP config maps to Databricks config. Companion to the Production Federation Guide.</p>
+                <p>The token chain, custom identity claim, Unity Catalog enforcement points, audit correlation, and fail-closed validation. Companion to the canonical external-user authorization reference.</p>
             </div>
             <div class="deck-meta">
                 <span class="badge badge-tech">Technical</span>
@@ -320,7 +320,7 @@ h1 span { color: var(--red); }
     </div>
 
     <div class="footer">
-        <p>Part of <a href="https://github.com/bhavink/applied-ai-governance">Applied AI Governance</a> &middot; <a href="../GOVERNANCE-FRAMEWORK.md">Governance Framework</a></p>
+        <p>Part of <a href="https://github.com/bhavink/applied-ai-governance">Applied AI Governance</a> &middot; <a href="../GOVERNANCE-FRAMEWORK.md">Governance Framework</a> &middot; <a href="https://github.com/bhavink/applied-ai-governance/blob/main/identity/external-user-authorization.md">External-User Authorization</a></p>
     </div>
 
 </div>
