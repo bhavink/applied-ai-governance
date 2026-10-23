@@ -1,6 +1,6 @@
 # Federation Exchange
 
-> **Canonical architecture:** Use the single [External-User Authorization](external-user-authorization.md) pattern: one shared service principal, an immutable OAuth custom identity claim, and fail-closed Unity Catalog entitlement filters. Any role-SP, group-mapping, or app-enforced alternative retained below is historical context and is not recommended for new work.
+> **Canonical architecture:** Use the single [External-User Authorization](external-user-authorization.md) pattern: one shared service principal, an immutable OAuth custom identity claim, and fail-closed Unity Catalog entitlement filters.
 
 > Bridging external identity providers to Databricks for users who don't have workspace accounts.
 
@@ -40,7 +40,7 @@ Databricks exposes two federation entry points, chosen by **who** is authenticat
 | Account Token Federation | Users and service principals authenticating through your IdP | SSO enabled on the account; SCIM sync of users/SPs; up to 20 account-wide federation policies | Supports both U2M and M2M |
 | Workload Identity Federation (WIF) | Automated workloads running outside Databricks (CI/CD runners, cloud VMs, Kubernetes pods) | Per-SP federation policy; no issuer limit; no Databricks secrets | M2M only, using the workload runtime's own token (GitHub Actions OIDC, Azure Workload Identity, GCP service account) |
 
-The role-based service principal pattern in this doc runs on Account Token Federation with M2M exchange: the external user's IdP token maps to a service principal via a role claim, rather than to an individual Databricks account.
+The external-user pattern in this document runs on Account Token Federation: the validated IdP identity exchanges for a token issued to one shared service principal with an immutable external subject in `custom_claim`.
 
 ### U2M vs M2M
 
@@ -51,7 +51,7 @@ The role-based service principal pattern in this doc runs on Account Token Feder
 | `current_user()` in UC | Resolves to the mapped Databricks identity | Resolves to the service principal |
 | Typical use | Interactive apps where the user's own identity should govern row/column access | Backend jobs, scheduled tasks, or the role-based SP pattern in this doc |
 
-## Role-Based Service Principals
+## Shared Service Principal
 
 Instead of one SP per external user (doesn't scale), map roles to SPs:
 
@@ -62,7 +62,7 @@ Instead of one SP per external user (doesn't scale), map roles to SPs:
 | Executive | `sp-role-executive` | `executives` | All regions, full columns |
 | Finance | `sp-role-finance` | `finance` | All regions, financial columns |
 
-One SP per role, not per user. N:1 mapping. UC governance applies via `is_member('group_name')` in row filters and column masks.
+One SP per workload, not per user or role. UC governance resolves `current_oauth_custom_identity_claim()` through the governed entitlement mapping.
 
 ### Federation Policy
 
@@ -192,7 +192,7 @@ The prerequisite federation trust policy is self-service on Azure: an account ad
 |---|---|---|
 | Account limit: 20 account-wide federation policies | Another policy fails after the account reaches the limit | Consolidate issuers where possible; each environment can consume a separate policy when issuer or audience values differ |
 | JDBC/ODBC connections | Token exchange (RFC 8693) is API-only | Perform the exchange in application code and pass the resulting Databricks token to the driver, or route JDBC/ODBC callers through an API layer that performs the exchange server-side |
-| `client_id` required for SP (role-based) exchange | Omitting `client_id` routes the exchange to the per-user account-wide policy instead of the intended service principal | Always include `client_id` (the Databricks SP UUID) for role-to-SP mapping in this pattern |
+| `client_id` required for shared-SP exchange | Omitting `client_id` selects a different identity path | Always include the shared Databricks SP application ID and the immutable `custom_claim` |
 | Audience mismatch (`400 invalid_grant`) | The IdP token's `aud` claim doesn't match what the federation policy expects | Decode the token (for example at jwt.io) and confirm `aud` matches the policy audience exactly |
 | Stale IdP token exchanged | Databricks copies `exp` verbatim, so an old IdP token produces an already-expired Databricks token | Always exchange a fresh IdP token immediately before use |
 | Native Azure AD token used against Model Serving / Agent Bricks | These services expect a Databricks-issued OAuth token rather than a raw Entra token | Use the token-exchange flow above for Model Serving, Agent Bricks, and ML APIs; a direct Azure AD token works fine for workspace REST APIs (clusters, jobs, SQL) |

@@ -1,6 +1,6 @@
 # Federation Personas and Use-Case Patterns
 
-> **Canonical architecture:** Personas are governed entitlement records, not separate service principals. Use [External-User Authorization](external-user-authorization.md); the role-SP material below is historical only.
+> **Canonical architecture:** Personas are governed entitlement records, not separate service principals. Use [External-User Authorization](external-user-authorization.md).
 
 > **What this is**: a reusable role taxonomy for external-user federation. It shows how a
 > handful of external roles map through IdP groups to role service principals to Databricks

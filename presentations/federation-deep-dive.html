@@ -105,7 +105,6 @@ tr:hover td{background:var(--surface)}
 </style>
 </head>
 <body>
-<div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#ff3621;color:white;padding:8px 16px;text-align:center;font:600 14px/1.3 Arial">Canonical external-user pattern: shared service principal + OAuth custom identity claim + Unity Catalog entitlement filter. Role-SP material in this deck is historical.</div>
 
 <div class="topbar">
   <div class="title">Federation <span>Exchange</span> Deep Dive</div>
@@ -441,7 +440,7 @@ token.claims["/email"] = user.email;
         <tr><td><span class="badge badge-red">4</span></td><td><strong>JWT Signature Verification</strong></td><td>API Server <span style="font-size:0.55rem;color:var(--red)">(Databricks Apps)</span></td><td>JWKS-based RS256 verification + audience + issuer</td><td><code>401</code> &rarr; request rejected</td></tr>
         <tr><td><span class="badge badge-red">5</span></td><td><strong>Role &rarr; SP Mapping</strong></td><td>API Server <span style="font-size:0.55rem;color:var(--red)">(Databricks Apps)</span></td><td>JWT role claim &rarr; SP application_id lookup</td><td><code>403</code> &rarr; unknown role</td></tr>
         <tr><td><span class="badge badge-green">6</span></td><td><strong>Tool Access Control</strong></td><td>API Server <span style="font-size:0.55rem;color:var(--red)">(Databricks Apps)</span></td><td>TOOL_ACCESS dict: role &isin; allowed_roles?</td><td>ACCESS_DENIED logged to audit</td></tr>
-        <tr><td><span class="badge badge-green">7</span></td><td><strong>UC Governance</strong></td><td>Databricks SQL Engine</td><td>Row filters (<code>is_member()</code>), column masks, USE CONNECTION grants</td><td>Filtered/masked silently, never errors, just restricts</td></tr>
+        <tr><td><span class="badge badge-green">7</span></td><td><strong>UC Governance</strong></td><td>Databricks SQL Engine</td><td>Claim-based row filters, column masks, USE CONNECTION grants</td><td>Missing claim or entitlement returns no rows</td></tr>
       </tbody>
     </table>
 
@@ -518,7 +517,7 @@ token.claims["/email"] = user.email;
         <div class="flow-connector"></div>
         <div class="flow-step"><div class="flow-num red">?</div><div class="flow-content"><strong>Data returned but empty or masked?</strong></div></div>
         <div class="flow-connector"></div>
-        <div class="flow-step"><div class="flow-num green">OK</div><div class="flow-content"><strong>&rarr; Governance is working correctly</strong><p>0 rows = row filter active<br>NULL values = column mask active<br>ACCESS_DENIED = tool access control<br><br><strong>Verify:</strong> <code>SELECT is_member('group')</code> as the SP</p></div></div>
+        <div class="flow-step"><div class="flow-num green">OK</div><div class="flow-content"><strong>&rarr; Governance is working correctly</strong><p>Expected rows = entitlement matched<br>0 rows = missing/disabled entitlement<br>ACCESS_DENIED = tool access control<br><br><strong>Verify:</strong> <code>SELECT current_oauth_custom_identity_claim()</code> through the production token path</p></div></div>
       </div>
     </div>
   </div>
@@ -572,14 +571,14 @@ token.claims["/email"] = user.email;
       <div style="font-size:var(--sz-label);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--red);margin-bottom:10px">Databricks Side</div>
 
       <div class="card card-red mb-2">
-        <h4 style="font-size:var(--sz-body)"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:0.6rem;font-weight:700;margin-right:6px">6</span>Create Role-Based Service Principals</h4>
-        <p style="font-size:var(--sz-small);color:var(--ink-60)">One SP per role (not per user). Each SP gets a unique <code>application_id</code> and <code>numeric_id</code>.</p>
+        <h4 style="font-size:var(--sz-body)"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:0.6rem;font-weight:700;margin-right:6px">6</span>Create the Shared Service Principal</h4>
+        <p style="font-size:var(--sz-small);color:var(--ink-60)">One least-privileged SP represents the workload. External-person identity arrives in each token's <code>custom_claim</code>.</p>
         <p style="font-size:var(--sz-small);margin-top:3px"><code>sp-west-sales</code>, <code>sp-finance</code>, etc.</p>
       </div>
 
       <div class="card card-red mb-2">
         <h4 style="font-size:var(--sz-body)"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:0.6rem;font-weight:700;margin-right:6px">7</span>Add SPs to Workspace Groups</h4>
-        <p style="font-size:var(--sz-small);color:var(--ink-60)">Create workspace groups (e.g., <code>west_sales</code>) and add each SP. These groups are what <code>is_member()</code> checks in row filters and column masks.</p>
+        <p style="font-size:var(--sz-small);color:var(--ink-60)">Create the governed entitlement table keyed by immutable external subject and resource ID. Do not encode roles in the token.</p>
       </div>
 
       <div class="card card-red mb-2">
@@ -590,7 +589,7 @@ token.claims["/email"] = user.email;
 
       <div class="card card-red mb-2">
         <h4 style="font-size:var(--sz-body)"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:0.6rem;font-weight:700;margin-right:6px">9</span>Configure UC Governance</h4>
-        <p style="font-size:var(--sz-small);color:var(--ink-60)">Set up row filters (<code>is_member('group')</code>), column masks, and <code>GRANT USE CONNECTION</code> on tables. Grant SPs <code>SELECT</code> on data tables and SQL warehouse access.</p>
+        <p style="font-size:var(--sz-small);color:var(--ink-60)">Set up fail-closed row filters using <code>current_oauth_custom_identity_claim()</code>, column masks, and <code>GRANT USE CONNECTION</code>. Grant the shared SP only required access.</p>
       </div>
 
       <div class="card mb-2" style="border-left:4px solid var(--ink)">
@@ -681,7 +680,7 @@ ROLE_SP_MAP = {
       <table style="font-size:var(--sz-small)">
         <thead><tr><th>Grant</th><th>On</th><th>To</th></tr></thead>
         <tbody>
-          <tr><td><strong>Federation Policy</strong></td><td>Each role-SP</td><td>, </td></tr>
+          <tr><td><strong>Federation Policy</strong></td><td>Shared service principal</td><td>Issuer, audience, subject</td></tr>
           <tr><td><strong>CAN_USE</strong></td><td>SQL Warehouse</td><td>All SPs</td></tr>
           <tr><td><strong>USE CATALOG</strong></td><td>Data catalog</td><td>All SPs</td></tr>
           <tr><td><strong>USE SCHEMA</strong></td><td>Data schema(s)</td><td>All SPs</td></tr>
@@ -724,7 +723,7 @@ ROLE_SP_MAP = {
      /federationPolicies</pre>
         <p style="font-size:var(--sz-small);margin-top:6px"><strong>When to use:</strong></p>
         <ul style="font-size:var(--sz-small);padding-left:1rem;line-height:1.6">
-          <li><strong>Federation Exchange</strong>, each role-SP trusts one IDP with one subject</li>
+          <li><strong>Federation Exchange</strong>, the shared SP trusts the external IdP and accepts validated subjects</li>
           <li><strong>Per-partner access</strong>, Partner A's IDP can only exchange for Partner A's SP</li>
           <li><strong>Least privilege</strong>, tight blast radius if credentials leak</li>
         </ul>
@@ -1152,7 +1151,7 @@ Scope:      Any scope</pre>
       <div class="flow-vertical mt-2">
         <div class="flow-step"><div class="flow-num green">&#10003;</div><div class="flow-content"><strong>Databricks Service Principals</strong><p>Same SPs, same application_ids, same group membership</p></div></div>
         <div class="flow-connector"></div>
-        <div class="flow-step"><div class="flow-num green">&#10003;</div><div class="flow-content"><strong>UC Row Filters &amp; Column Masks</strong><p>Same <code>is_member()</code> functions, same tables</p></div></div>
+        <div class="flow-step"><div class="flow-num green">&#10003;</div><div class="flow-content"><strong>UC Row Filters &amp; Column Masks</strong><p>Same claim-based functions and entitlement tables</p></div></div>
         <div class="flow-connector"></div>
         <div class="flow-step"><div class="flow-num green">&#10003;</div><div class="flow-content"><strong>UC Connection Grants</strong><p>Same GRANT/REVOKE USE CONNECTION SQL</p></div></div>
         <div class="flow-connector"></div>
@@ -1181,11 +1180,11 @@ Scope:      Any scope</pre>
       </div>
       <div class="card mb-2">
         <h4>2. Two Token Exchanges, One Identity</h4>
-        <p style="font-size:var(--sz-small)">External app exchanges IDP JWT &rarr; DB token (for proxy auth). MCP server independently exchanges the same IDP JWT &rarr; DB token (for SQL execution). Both resolve to the same role-SP. The external user's identity is preserved in JWT claims, audit records, and MLflow traces.</p>
+        <p style="font-size:var(--sz-small)">External app and MCP server exchange the validated IdP JWT for tokens issued to the same shared SP. Each request carries the same immutable external subject in <code>custom_claim</code>, correlated across application audit and MLflow traces.</p>
       </div>
       <div class="card card-green mb-2">
         <h4>3. Governance Is Native</h4>
-        <p style="font-size:var(--sz-small)">UC row filters and column masks fire at the SQL engine level. They can't be bypassed by changing the application, the IDP, or the query. <code>is_member()</code> checks the SP's group membership, not the caller's headers.</p>
+        <p style="font-size:var(--sz-small)">UC row filters and column masks fire at the SQL engine level. They cannot be bypassed by changing the application, IdP, or query. <code>current_oauth_custom_identity_claim()</code> supplies the external subject.</p>
       </div>
     </div>
     <div>
@@ -1250,7 +1249,7 @@ Scope:      Any scope</pre>
           <li><strong>Column mask</strong>: margin_pct &rarr; NULL for sales/managers, real values for finance/exec/admin</li>
           <li><strong>Tool access</strong>: Supervisor + GitHub + External API restricted to executive + admin</li>
           <li><strong>UC Connection</strong>: GRANT/REVOKE USE CONNECTION, instant, no deploy</li>
-          <li><strong>Audit isolation</strong>: role-SPs have zero write access to audit table</li>
+          <li><strong>Audit isolation</strong>: the shared SP has zero write access to the authoritative audit table</li>
         </ul>
       </div>
       <div class="card card-red" style="font-size:var(--sz-small)">

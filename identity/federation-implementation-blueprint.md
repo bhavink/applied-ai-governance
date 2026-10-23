@@ -85,7 +85,7 @@ Nothing in this blueprint works without these. Set them up first, verify each on
 |---|---|---|---|
 | P10 | **M2M client_id** (public config) | Identifies the M2M app when requesting tokens from the IdP. Safe to store in config files. | Visible in your deployment config (env var, config file). |
 | P11 | **M2M client_secret** (secret store) | Authenticates the M2M app. MUST be in a secret store, never in code or git. | Stored in CF Secrets, AWS Secrets Manager, Databricks Secrets, Azure Key Vault, etc. |
-| P12 | **Role-to-SP mapping** | A simple lookup table: role name → Databricks SP application_id. Static config, changes only when you add/remove roles. | JSON object in config, e.g., `{"sales_west": "abcd...", "finance": "efgh..."}`. |
+| P12 | **Shared SP identity** | One application ID for the external-user workload. Individual authorization comes from `custom_claim`, not role routing. | Shared SP application ID plus governed entitlement table. |
 
 ---
 
@@ -208,7 +208,7 @@ These three fields are what Databricks validates. All three must match the feder
 
 #### Step 6: Backend exchanges JWT for Databricks SP token
 
-The backend looks up the SP application_id from the role-to-SP map, then calls the Databricks token exchange endpoint.
+The backend uses the shared SP application ID and calls the Databricks token exchange endpoint with the immutable external subject in `custom_claim`.
 
 ```
 POST https://workspace-host.azuredatabricks.net/oidc/v1/token
@@ -217,7 +217,8 @@ Content-Type: application/x-www-form-urlencoded
 grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 &subject_token=<JWT from Step 5>
 &subject_token_type=urn:ietf:params:oauth:token-type:jwt
-&client_id=<SP application_id from role-to-SP map>
+&client_id=<shared SP application_id>
+&custom_claim=<immutable external subject>
 &scope=all-apis
 ```
 
@@ -309,7 +310,7 @@ Every error you will encounter, why it happens, and how to fix it.
 | `aud` mismatch | Step 6 | JWT audience does not match what the SP federation policy expects | Ensure M2M token request uses `audience` = exact Databricks workspace URL (with `https://`). Decode the JWT to confirm the exact value. |
 | `iss` mismatch | Step 6 | JWT issuer does not match federation policy | Check trailing slashes. Auth0 uses `https://domain/`, Okta uses `https://domain/oauth2/default`. Copy exact value from a decoded JWT. |
 | `sub` mismatch | Step 6 | JWT subject does not match federation policy | The `sub` in a `client_credentials` JWT is the M2M app's client_id. Auth0 appends `@clients` (e.g., `YOUR_M2M_CLIENT_ID@clients`). Decode a real JWT to get the exact value. |
-| `unknown role` from MCP server | Step 7 | Role string sent by SPA does not match any key in role-to-SP map | Check the SPA's role mapping table. Ensure every IdP role has a corresponding entry. |
+| Unknown external subject | Step 7 | No enabled entitlement matches the token's custom claim | Verify the immutable subject and governed entitlement record; never default to broader access. |
 | 401 from `/oidc/v1/token` | Step 6 | Federation policy not created, or SP not found, or JWT expired | Verify SP exists, federation policy is attached, JWT is fresh (not cached/expired). |
 | 401 shortly after a successful exchange | Step 6/7 | The source IdP token was near expiry when exchanged; Databricks copied that `exp` verbatim onto the Databricks token | Always exchange a fresh IdP token immediately before use — see [Token Lifetime (TTL) Behavior](#token-lifetime-ttl-behavior). |
 | 403 from SQL/Genie Agents | Step 7 | SP lacks permissions on the SQL warehouse or Genie Agent | Grant `CAN USE` on the warehouse and `CAN RUN` on Genie Agents to each SP or their group. |
@@ -324,8 +325,8 @@ These must always be true. If any is violated, security guarantees no longer hol
 
 1. **The human's IdP token never leaves the browser.** The backend authenticates independently via M2M.
 2. **The M2M client_secret is never in code, config files, or git.** It lives only in the deployment platform's secret store.
-3. **The role-to-SP map is the single source of truth** for which roles exist. If a role is not in the map, it cannot access Databricks.
-4. **One SP per role, not per user.** You do not create SPs for individual humans. You create SPs for roles.
+3. **The governed entitlement table is the single source of truth** for external-user access.
+4. **One SP per workload, not per user or role.** Individual context comes from the immutable custom claim.
 5. **UC governance is the enforcement layer, not the application.** Even if the MCP server has a bug, the SP token can only see data that UC row filters allow for that SP's groups.
 6. **All federation policies use the M2M app's subject, not the human's.** The human identity is carried in metadata headers for audit, not for authentication.
 
@@ -585,7 +586,7 @@ Use this before writing any code.
 [ ] SPs added to workspace groups (one group per role)
 [ ] UC row filters reference group membership via is_member()
 [ ] SQL warehouse active and accessible by all SP groups (only if MCP server runs SQL)
-[ ] Role-to-SP map written (JSON: role_key -> SP application_id)
+[ ] Shared SP application ID configured and entitlement mapping populated
 [ ] M2M client_secret stored in deployment secret store
 [ ] MCP server deployed and accessible
 [ ] Smoke test passes (Appendix D)
