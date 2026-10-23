@@ -634,10 +634,10 @@ Content-Type: application/x-www-form-urlencoded
   <p class="r muted" style="max-width:72ch;margin-bottom:clamp(.8rem,1.6vw,1.2rem)">A token scope limits what API surface the SP can reach&mdash;even if it has UC grants on a broader set of resources.</p>
   <div class="three-col flex1 mt1">
     <div class="card card-ink r">
-      <div class="label" style="color:#fff;opacity:.6">all-apis</div>
-      <h4 style="color:#fff">Data pipeline</h4>
-      <p style="color:rgba(255,255,255,.75)">Full Databricks API surface: Jobs, compute, DBFS, SQL, Secrets. Needed because the pipeline starts scheduled jobs, writes staging data, and runs SQL transforms.</p>
-      <p style="margin-top:8px;color:rgba(255,255,255,.55);font-size:var(--xs)">Use only when the service genuinely needs both compute and data APIs.</p>
+      <div class="label">all-apis</div>
+      <h4>Data pipeline</h4>
+      <p>Full Databricks API surface: Jobs, compute, DBFS, SQL, Secrets. Needed because the pipeline starts scheduled jobs, writes staging data, and runs SQL transforms.</p>
+      <p style="margin-top:8px;color:var(--muted);font-size:var(--xs)">Use only when the service genuinely needs both compute and data APIs.</p>
     </div>
     <div class="card card-blue r">
       <div class="label">sql</div>
