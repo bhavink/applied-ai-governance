@@ -1,5 +1,29 @@
 # Observability and Audit Reference
 
+## External-user claim correlation
+
+For external people, the platform query identity is the shared service principal. The
+application audit record must add the immutable external subject before executing SQL and
+must correlate it with the platform records rather than pretending the SP is the person.
+
+| Field | Source |
+|---|---|
+| `external_subject` | Validated IdP subject and OAuth `custom_claim` |
+| `service_principal_application_id` | Databricks workload identity |
+| `request_id` | Application-generated correlation ID |
+| `statement_id` | Statement Execution API response |
+| `trace_id` | MLflow trace |
+| `policy_version` | Version of the entitlement/policy deployment |
+| `decision` | Allowed, denied, or failed closed |
+
+Never log the IdP JWT or Databricks OAuth token. Hash the external subject in secondary
+analytics exports when raw identity is not required. A missing claim, mapping, request ID, or
+audit write is a failed request, not a best-effort warning.
+
+Reconcile application records with `system.access.audit` by service principal, time window,
+statement ID, and request ID. Retain the application event and MLflow trace under the same
+retention and access policy as the governed business data.
+
 > **Purpose**: Canonical reference for the two-layer observability model in Databricks AI applications: app-level traces (MLflow) and platform-level audit (`system.access.audit`).
 >
 > **Audience**: Builders implementing production observability for Databricks AI apps. Security reviewers assessing audit posture.

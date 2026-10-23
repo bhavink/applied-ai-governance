@@ -32,17 +32,18 @@ The app uses its own service principal credentials. Databricks sees the SP.
 
 Reference: [OAuth M2M](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m), [Agent authentication](https://docs.databricks.com/aws/en/generative-ai/agent-framework/agent-authentication)
 
-### Federation (Token Exchange)
+### Federation (External users)
 
 An external app exchanges an IdP token for a Databricks SP token. Users don't have Databricks accounts.
 
 - External user authenticates with their own IdP (Okta, Entra, Auth0)
-- The app exchanges the IdP JWT for a scoped Databricks SP token via RFC 8693
-- UC sees the role-based SP, not the individual
-- App-level audit captures the human identity from the IdP JWT
+- The app exchanges the IdP identity for a scoped Databricks token issued to one shared service principal
+- The token carries an immutable external subject in its OAuth custom identity claim
+- UC row filters resolve `current_oauth_custom_identity_claim()` through a governed entitlement table
+- Missing claims and missing entitlements fail closed
 - **When to use**: Partner portals, customer-facing apps, multi-tenant SaaS. Users authenticate via their own identity system.
 
-See [Federation Exchange](federation.md) for the full pattern.
+See [External-User Authorization](external-user-authorization.md) for the required pattern.
 
 ### U2M from External Apps
 
@@ -54,9 +55,9 @@ For external apps where the user is already a Databricks user, see [U2M from Ext
 |----------|--------|
 | Does the user have a Databricks account? | Yes: OBO. No: Federation. |
 | Is there a human in the loop? | Yes: OBO or Federation. No: M2M. |
-| Do you need per-user row filters in UC? | Yes: OBO (individual). Federation uses group-based `is_member()`. |
+| Do you need per-user row filters in UC? | Native user: OBO with `current_user()`. External user: Federation with `current_oauth_custom_identity_claim()`. |
 | Is this a background job or pipeline? | M2M. |
-| Both internal and external users? | OBO for internal + Federation for external. Same UC governance, same MCP tools. |
+| Both internal and external users? | OBO for native users and custom-claim Federation for external users. Both enforce in UC. |
 
 Most production apps combine OBO + M2M: user-facing calls use OBO (identity propagation), background tasks use M2M (service credentials).
 

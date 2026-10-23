@@ -47,7 +47,7 @@ Row filters, column masks, and connection grants are enforced by the SQL engine.
 Tools change. Protocols change. Identity is the one constant across every governance decision. Design everything around identity:
 
 - **Human identity** propagates through OBO tokens: `current_user()` is the human's email at every layer
-- **Role identity** maps to service principals via group membership: `is_member()` evaluates at the SQL engine
+- **External human identity** uses a shared service principal plus an OAuth custom identity claim; Unity Catalog resolves that subject through governed entitlements
 - **Service identity** authenticates via M2M credentials: background jobs, pipelines, audit writers
 
 Every governance decision reduces to: given this identity, is this action allowed on this resource? The mechanism for establishing identity (OAuth, SAML, Federation, PAT) is an implementation detail. The identity itself is the invariant.
@@ -151,7 +151,7 @@ Three identity models, one governance plane:
 |-------|-------------|-------------------|----------|
 | **OBO (U2M)** | Apps proxy injects user's scoped token | Human email | Internal apps, interactive |
 | **M2M** | SP client credentials | SP application ID | Background jobs, pipelines, audit |
-| **Federation** | External IDP JWT exchanged for SP token | SP application ID | Partner portals, external users |
+| **Federation** | External IdP identity exchanged for a shared-SP token with a custom identity claim | External subject via `current_oauth_custom_identity_claim()` | Partner portals, external users |
 
 OAuth scopes enforce least privilege per token: `sql`, `genie`, `serving`, never `all-apis`. The scope is the maximum capability; UC grants are the actual authorization.
 
@@ -164,9 +164,9 @@ OAuth scopes enforce least privilege per token: `sql`, `genie`, `serving`, never
 Access control lives at the data layer, so every AI service that issues SQL inherits it. Row
 filters exclude rows the caller should not see; column masks redact values; ABAC via governed
 tags applies one policy to every table carrying a tag. The pivotal fact for federated access:
-when an external user reaches Databricks through a service principal, `current_user()` is the
-SP, not the human, so individual-identity filters do not fire and group-based filtering (or a
-mapping table) is the correct pattern. See [Access Control Patterns](data-governance/access-control-patterns.md).
+when an external user reaches Databricks through the shared service principal, `current_user()`
+still identifies the workload. Per-person authorization uses `current_oauth_custom_identity_claim()`
+and the governed entitlement mapping. See [External-User Authorization](identity/external-user-authorization.md).
 
 **Future-proof because:** the policy is attached to the data, not the application. A new AI
 tool inherits the same filters and masks on day one without any governance code.

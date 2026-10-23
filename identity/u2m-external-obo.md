@@ -15,11 +15,11 @@
 ## When NOT to Use (Use Federation Instead)
 
 - Users are NOT Databricks users (partners, vendors, customers with their own IdP)
-- You need role-based access (one SP per role) rather than individual user access
+- Users do not have Databricks accounts and therefore require the external-user federation path
 - No browser interaction is possible (pure backend/API)
 - You want to decouple external identity from Databricks identity
 
-See [Federation Exchange](federation.md) for the role-based SP pattern.
+See [External-User Authorization](external-user-authorization.md) for the shared-SP custom-claim pattern.
 
 ---
 

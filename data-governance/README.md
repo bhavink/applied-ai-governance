@@ -11,11 +11,9 @@ the same row filters and column masks with no per-service work.
 
 1. [Access Control Patterns](access-control-patterns.md): Row filters, column masks, ABAC via
    governed tags, and the data-model patterns behind them (team/region, individual,
-   hierarchical, attribute-based). Includes the **service principal identity gap**, the most
-   important thing to understand for federated access: when an external user reaches
-   Databricks via a service principal, `current_user()` is the SP, not the human, so
-   individual-identity filters do not fire. Covers the group-based, mapping-table, and
-   application-enforced workarounds and when to use each.
+   hierarchical, attribute-based). For federated external users, the repository standard is
+   `current_oauth_custom_identity_claim()` plus a governed entitlement table and a fail-closed
+   Unity Catalog row filter. See [External-User Authorization](../identity/external-user-authorization.md).
 
 ## The Key Insight
 

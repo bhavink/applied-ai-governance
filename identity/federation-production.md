@@ -1,5 +1,7 @@
 # External App to Databricks: Production Federation (RFC 8693)
 
+> **Canonical architecture:** Use the single [External-User Authorization](external-user-authorization.md) pattern. The older path comparison below is historical context; role-specific service principals are not a supported recommendation.
+
 > **What this is**: the decision framework and production hardening for an external app,
 > hosted outside Databricks and using its own IdP, that needs the end user's identity
 > propagated to Databricks so Unity Catalog honors that user's permissions. It sits above

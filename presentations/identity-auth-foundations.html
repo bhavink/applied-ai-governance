@@ -718,7 +718,7 @@ tr:hover td{background:var(--surface)}
         <tr><td>Internal Databricks users</td><td><span class="badge badge-blue">OBO</span></td><td><code>current_user()</code> = human, per-user audit</td></tr>
         <tr><td>External users with their own IdP</td><td><span class="badge badge-red">Federation</span></td><td>IdP JWT &rarr; scoped Databricks token</td></tr>
         <tr><td>No user present (automation, CI/CD)</td><td><span class="badge badge-ink">M2M</span></td><td>SP client credentials, no human in the loop</td></tr>
-        <tr><td>Role-based access across 100+ external users</td><td><span class="badge badge-red">Federation</span></td><td>Role &rarr; SP &rarr; UC group mapping scales</td></tr>
+        <tr><td>Governed access across 100+ external users</td><td><span class="badge badge-red">Federation</span></td><td>Shared SP &rarr; custom identity claim &rarr; UC entitlement mapping</td></tr>
         <tr><td>Both internal and external users on the same tools</td><td><span class="badge badge-blue">OBO</span> + <span class="badge badge-red">Federation</span></td><td>Same UC governance, same MCP tools, same audit table</td></tr>
       </tbody>
     </table>

@@ -308,8 +308,15 @@ These Databricks SQL functions determine identity in row filters, column masks, 
 | `user()` | Executing user | Alias for `current_user()` | SP UUID | Runtime 13.3 |
 | `is_member(group)` | Boolean | Whether session_user is in a workspace-local or account group assigned to the workspace | SP's groups | All |
 | `is_account_group_member(group)` | Boolean | Whether session_user is in an account-level group | SP's groups | UC only |
+| `current_oauth_custom_identity_claim()` | OAuth custom identity claim | The immutable external subject carried by the authenticating token | External subject even though `current_user()` is the shared SP | Runtime 19.7 |
 
 Since Runtime 14.1, Databricks recommends `session_user()` over `current_user()` or `user()`. The SQL standard differentiates between the two.
+
+For external people without Databricks accounts, the repository standard is
+`current_oauth_custom_identity_claim()` plus a governed entitlement mapping. Do not use
+service-principal groups, application-supplied SQL parameters, or role-specific service
+principals as substitutes for end-user authorization. See
+[External-User Authorization](external-user-authorization.md).
 
 ### Genie Agents OBO group membership issue
 

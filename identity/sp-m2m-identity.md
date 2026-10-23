@@ -297,7 +297,7 @@ ORDER BY event_time DESC;
 ## Related
 
 - [Authorization](authorization.md) — Token patterns (OBO, M2M, Federation)
-- [Federation Exchange](federation.md) — role-based SPs for external IdP callers
+- [External-User Authorization](external-user-authorization.md) — shared-SP custom-claim authorization for external people
 - [OAuth Scopes Reference](oauth-scopes-reference.md) — scope governance and blast-radius tiers
 - [AppKit Auth Patterns](appkit-auth-patterns.md) — combining M2M, OBO, and U2M in one application
 

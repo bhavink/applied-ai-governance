@@ -526,7 +526,7 @@ WHERE is_member('sales_west')
     </div>
   </div>
   <div class="card mt-2 reveal" style="text-align:center;border-left:4px solid var(--ink)">
-    <p><strong>OBO pattern:</strong> prefer <code>current_user()</code>, which propagates the human identity end-to-end. <strong>Federation pattern:</strong> use <code>is_member()</code>, where role-based SPs map to workspace groups.</p>
+    <p><strong>Native-user OBO:</strong> use <code>current_user()</code>. <strong>External-user federation:</strong> use one shared SP and resolve <code>current_oauth_custom_identity_claim()</code> through a governed entitlement table.</p>
   </div>
 </div>
 
@@ -691,7 +691,7 @@ ALTER TABLE my_catalog.hr.employees
     <div class="dt-row" style="border-bottom:none">
       <div class="dt-cond">External users, no Databricks accounts</div>
       <div class="dt-arrow">&rarr;</div>
-      <div class="dt-result"><span class="badge badge-red">FEDERATION</span> role SPs + <code style="font-size:var(--sz-label)">is_member()</code></div>
+      <div class="dt-result"><span class="badge badge-red">FEDERATION</span> shared SP + <code style="font-size:var(--sz-label)">current_oauth_custom_identity_claim()</code></div>
     </div>
   </div>
   <div class="card card-green mt-2 reveal" style="text-align:center">

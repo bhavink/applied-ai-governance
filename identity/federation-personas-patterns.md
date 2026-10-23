@@ -1,5 +1,7 @@
 # Federation Personas and Use-Case Patterns
 
+> **Canonical architecture:** Personas are governed entitlement records, not separate service principals. Use [External-User Authorization](external-user-authorization.md); the role-SP material below is historical only.
+
 > **What this is**: a reusable role taxonomy for external-user federation. It shows how a
 > handful of external roles map through IdP groups to role service principals to Databricks
 > groups, and how Unity Catalog then enforces per-role row and column access. Use it to plan
@@ -124,14 +126,9 @@ ALTER TABLE sales.opportunities SET ROW FILTER sales.filter_by_region ON (region
 
 ## The service principal identity gap
 
-With role-based federation the acting principal is the SP, so `current_user()` returns the SP
-application id, not the external user's email. Therefore `WHERE owner_email = current_user()`
-does not work for individual-level filtering. Use group-based filtering with
-`is_account_group_member()`, which supports SPs natively. If you need per-individual
-enforcement in Unity Catalog rather than per-role, that is the per-user path, where the
-external user is SCIM-synced and the exchange omits the SP so `current_user()` is the human.
-See [Per-User BYO-IdP Federation](byoidp-peruser-federation.md) and the fuller treatment in
-[Access Control Patterns](../data-governance/access-control-patterns.md).
+The shared service principal remains the acting workload identity, so `current_user()` returns
+its application ID. Per-person enforcement uses `current_oauth_custom_identity_claim()` and a
+governed entitlement mapping. See [External-User Authorization](external-user-authorization.md).
 
 ## Industry mappings
 

@@ -1,5 +1,7 @@
 # Federation Token Exchange: Implementation Blueprint
 
+> **Superseded blueprint:** Implement [External-User Authorization](external-user-authorization.md). It replaces the role-mapped service-principal design below with one shared service principal, an immutable OAuth custom identity claim, and Unity Catalog entitlement filters.
+
 > **What this is**: A step-by-step recipe to let external users (partners, vendors, auditors) use Databricks data and AI tools without ever being provisioned as Databricks users. Their Identity Provider (IdP) handles who they are. Databricks handles what they can see.
 >
 > **IdP-agnostic**: The pattern works with any OIDC-compliant IdP. IdP-specific setup is in the appendix.

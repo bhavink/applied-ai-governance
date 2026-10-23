@@ -1,5 +1,7 @@
 # Federation Exchange
 
+> **Canonical architecture:** Use the single [External-User Authorization](external-user-authorization.md) pattern: one shared service principal, an immutable OAuth custom identity claim, and fail-closed Unity Catalog entitlement filters. Any role-SP, group-mapping, or app-enforced alternative retained below is historical context and is not recommended for new work.
+
 > Bridging external identity providers to Databricks for users who don't have workspace accounts.
 
 ## The Problem

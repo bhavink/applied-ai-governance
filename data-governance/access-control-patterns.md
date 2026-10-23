@@ -3,8 +3,8 @@
 > Prescriptive patterns for enforcing row- and column-level access in Unity Catalog, with
 > particular attention to **federated identity**, where external users authenticate through
 > their own IdP and reach Databricks via token exchange. The central tension is covered in
-> section 3: when access is via a service principal, `current_user()` is the SP, not the
-> human, so individual-identity filters do not fire.
+> section 3: external callers share a service principal while an OAuth custom identity claim
+> carries the immutable end-user subject into Unity Catalog policy evaluation.
 
 ## 1. Data model patterns for access control
 
@@ -18,8 +18,8 @@ on the granularity of control required and the identity model in use.
 | Hierarchical | Managers see reports' data via an org-chart lookup | Management dashboards, approval workflows | A separate hierarchy table the filter JOINs against (query-time cost) |
 | Attribute-based (ABAC) | Access combines role + department + clearance + sensitivity | Regulated industries, multi-dimensional rules | Governance columns on tables plus subject-attribute lookups |
 
-Individual-level filtering has a critical caveat: it breaks when the authenticated identity
-is a service principal (section 3).
+Individual-level filtering must use the identity function for the caller boundary: native
+users use `current_user()`; external people use `current_oauth_custom_identity_claim()`.
 
 ## 2. Unity Catalog capabilities
 
@@ -125,105 +125,57 @@ cannot apply to views, and caps the number of column conditions in a match claus
 |---|---|
 | One row filter per table | Cannot compose multiple independent filters |
 | Views cannot carry filters/masks | Filter at the base table |
-| `current_user()` returns SP UUID | Individual-level filtering fails for federated SP access |
+| `current_user()` returns SP UUID | Expected for federation; use `current_oauth_custom_identity_claim()` for the external subject |
 | Group checks cost on hot paths | Keep group checks out of per-row logic where possible |
 | No cross-table filter composition | Each table's filter is independent |
 | Time travel disabled on filtered tables | Cannot query historical snapshots |
 
-## 3. The service principal identity gap
+## 3. External-user authorization
 
-This is the central tension in federated access control.
-
-### 3.1 The problem
+There is one supported pattern for external people without Databricks accounts:
 
 ```
-External user (user@partner.example)
-    -> external IdP login -> IdP JWT
-    -> token exchange -> Databricks token (SP: sp-west-sales)
-    -> SELECT * FROM sales_pipeline
-
-Inside Databricks:
-    session_user()  ->  SP UUID
-    current_user()  ->  SP UUID
-    Row filter: WHERE owner_email = current_user()  ->  no rows match
+External user -> external IdP -> validated identity -> Databricks OAuth token
+              -> shared service principal + immutable custom identity claim
+              -> Unity Catalog row filter -> governed entitlement table
 ```
 
-The human's email is not available inside filter functions when access is via a service
-principal. This is by design: the SP is the authenticated principal.
-
-### 3.2 What works and what does not
-
-| Access pattern | Works with SP exchange? | Why |
-|---|---|---|
-| `is_account_group_member('sales-west')` | Yes | The SP can be a member of Databricks groups |
-| `session_user() = 'user@partner.example'` | No | Returns the SP UUID, not the federated email |
-| `owner_email = current_user()` | No | Same, returns the SP UUID |
-| App-layer parameter passing | Yes (app-enforced) | The app sends user context as query parameters |
-
-### 3.3 Workaround strategies
-
-**Strategy A, group-based filtering (recommended).** Map external users to Databricks groups
-via the SP; the SP belongs to the groups matching the user's role. The row filter uses
-`is_account_group_member()`, not individual identity. Enforced by Unity Catalog, native for
-SPs, auditable, no app-layer trust required. Granularity is limited to group boundaries
-(team/region), not the individual. Use it for territory, role, or department filtering.
-
-**Strategy B, application-enforced parameter passing.** The app layer adds a user-specific
-WHERE clause before executing as the SP.
-
-```python
-external_email = get_federated_identity()   # from the verified IdP JWT
-# parameterize; never string-concat untrusted input
-result = execute_as_sp(
-    "SELECT * FROM sales_pipeline WHERE account_owner_email = :email",
-    {"email": external_email},
-)
-```
-
-Gives individual granularity with any identity model, but governance is app-enforced, not
-platform-enforced; a misconfigured app can bypass it, and it does not appear as a policy in
-UC audit. Use only where you accept the app as a trust boundary, and always parameterize.
-
-**Strategy C, mapping table + EXISTS.** A governance-maintained table links the acting
-principal to its authorized scope; the filter joins against it.
+`current_user()` and `session_user()` continue to return the shared service principal. That
+is the workload identity and is expected. `current_oauth_custom_identity_claim()` returns the
+external subject used for end-user authorization.
 
 ```sql
-CREATE TABLE catalog.schema.user_access_map (
-  external_email     STRING,
-  sp_application_id  STRING,
-  authorized_region  STRING,
-  authorized_accounts ARRAY<STRING>
+CREATE TABLE governance.identity.external_user_entitlements (
+  external_subject STRING NOT NULL,
+  account_id       STRING NOT NULL,
+  enabled          BOOLEAN NOT NULL
 );
 
-CREATE OR REPLACE FUNCTION catalog.schema.mapped_filter(region_col STRING, account_id_col STRING)
-  RETURNS BOOLEAN
-  RETURN EXISTS (
-    SELECT 1 FROM catalog.schema.user_access_map m
-    WHERE m.sp_application_id = session_user()
-      AND (m.authorized_region = region_col
-           OR array_contains(m.authorized_accounts, account_id_col))
-  );
+CREATE OR REPLACE FUNCTION governance.identity.external_account_filter(account_id STRING)
+RETURNS BOOLEAN
+RETURN EXISTS (
+  SELECT 1
+  FROM governance.identity.external_user_entitlements entitlement
+  WHERE entitlement.external_subject = current_oauth_custom_identity_claim()
+    AND entitlement.account_id = account_id
+    AND entitlement.enabled = TRUE
+);
+
+ALTER TABLE catalog.schema.sales_pipeline
+SET ROW FILTER governance.identity.external_account_filter ON (account_id);
 ```
 
-Fine-grained, platform-enforced, auditable, but the filter JOINs on every query (cost) and
-the mapping is per-SP unless you run a 1:1 SP-per-user model, which is impractical at scale.
+The claim must contain an opaque, immutable identifier, not email, roles, permissions, or
+secrets. Missing claims and missing mappings fail closed. Never interpolate the claim into
+SQL or use it as an identifier or regular expression.
 
-**Strategy D, hybrid.** Unity Catalog row filters (group-based) for coarse access, app layer
-for fine-grained column projection or value masking. Platform does the heavy lifting; the
-split enforcement is harder to audit holistically.
+Do not implement external-user authorization with role service principals, SP group
+membership, application-supplied SQL predicates, or a hybrid app/UC policy. Those approaches
+either collapse multiple humans into one authorization identity or move enforcement outside
+Unity Catalog.
 
-### 3.4 Decision framework
-
-```
-Do all users in the same role see the same rows?
-  |
-  |-- YES -> Strategy A (group-based). Simplest, most secure, best-performing.
-  |
-  |-- NO  -> Does the user need to see only "their" records?
-             |-- YES, platform enforcement required -> Strategy C (mapping table)
-             |-- YES, app-layer enforcement acceptable -> Strategy B (parameter passing)
-             |-- MIXED -> Strategy D (hybrid)
-```
+See [External-User Authorization](../identity/external-user-authorization.md) for platform
+requirements, grants, audit correlation, and validation gates.
 
 ## 4. Design principles
 
@@ -316,25 +268,21 @@ ALTER TABLE catalog.schema.sales_pipeline ALTER COLUMN margin SET MASK catalog.s
 
 ## 6. Trade-offs
 
-| Pattern | Granularity | Complexity | Query perf | Works with SPs? | Platform enforced? |
-|---|---|---|---|---|---|
-| Group + `is_account_group_member()` | team / region | low | good | yes | yes |
-| `current_user()` / `session_user()` | individual | low | good | no (SP UUID) | yes |
-| App-layer parameter passing | individual | medium | good | yes (app-enforced) | no |
-| Mapping table + EXISTS | individual | high | moderate (JOIN) | partial (per-SP) | yes |
-| ABAC via governed tags | flexible | high setup | moderate | yes | yes |
-| Dynamic views | flexible | medium | good | yes | yes |
+| Caller pattern | Policy identity | Complexity | Query perf | Platform enforced? |
+|---|---|---|---|---|
+| Native Databricks user | `current_user()` / `session_user()` | low | good | yes |
+| External person | `current_oauth_custom_identity_claim()` + entitlement lookup | medium | moderate | yes |
+| Non-interactive workload | Service principal UC grants | low | good | yes |
 
-Failure modes worth remembering: group-based cannot distinguish individuals in the same
-group; `current_user()` matches nothing for federated SP access; app parameter passing can be
-bypassed if misconfigured; mapping tables go stale and cost JOINs; ABAC tags need a recent
-runtime and risk tag sprawl; dynamic views are read-only.
+These rows describe identity boundaries, not competing implementation choices. For external
+people, role-SP groups, application-supplied predicates, and hybrid enforcement are rejected
+patterns because they do not provide one authoritative per-person policy in Unity Catalog.
 
 ## 7. UDF best practices for filter/mask functions
 
 Do: simple `CASE` and boolean expressions; deterministic logic; SQL UDFs over Python;
 reference only columns from the target table; test on 1M+ rows before deploying. Do not: call
-external APIs from a filter; use heavy subqueries/JOINs (the mapping-table pattern is the
+external APIs from a filter; use heavy subqueries/JOINs (the external entitlement lookup is the
 accepted exception); use heavy regex on large text; nest UDFs; use non-deterministic logic
 that breaks caching. Rough performance order, fastest first: group membership check, simple
 column comparison, small `CASE`, EXISTS against a small lookup, EXISTS against a large mapping
@@ -345,10 +293,9 @@ table, Python UDF (much slower), external API call (never).
 - **Data modeling**: identify governance columns per table; denormalize them onto fact
   tables; add NOT NULL and CHECK constraints; populate at ingestion; document which value
   maps to who.
-- **Identity**: decide whether individual-level filtering is truly required (if not, use
-  groups only); map external IdP groups to Databricks groups; assign SPs to groups; verify
-  `is_account_group_member()` per SP; document the chain External user, IdP group, SP, DB
-  group, row filter.
+- **Identity**: classify the caller as native user, external person, or workload. For an
+  external person, mint the immutable custom identity claim and verify
+  `current_oauth_custom_identity_claim()` through the production token path.
 - **Deployment**: create filter/mask functions in a dedicated governance schema; GRANT
   EXECUTE to every SP that queries filtered tables; apply filters and masks; test each role
   or SP for correct visibility; verify production-scale performance.
@@ -360,7 +307,7 @@ table, Python UDF (much slower), external API call (never).
 ## Related
 
 - [Identity: Authorization](../identity/authorization.md), the token patterns and UC enforcement model
-- [Identity: Production Federation Guide](../identity/federation-production.md), how the acting identity reaches UC
+- [Identity: External-User Authorization](../identity/external-user-authorization.md), the canonical external-person path
 - [Identity: Per-User BYO-IdP Federation](../identity/byoidp-peruser-federation.md), the per-user path where `current_user()` is the human
 - [Observability: Audit Reference](../observability/audit-reference.md), tying an SP-executed query back to the human
 
@@ -370,4 +317,5 @@ table, Python UDF (much slower), external API call (never).
 - [ABAC with governed tags](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac)
 - [is_account_group_member()](https://docs.databricks.com/aws/en/sql/language-manual/functions/is_account_group_member)
 - [session_user()](https://docs.databricks.com/aws/en/sql/language-manual/functions/session_user)
+- [current_oauth_custom_identity_claim()](https://learn.microsoft.com/en-us/azure/databricks/sql/language-manual/functions/current_oauth_custom_identity_claim)
 - [Unity Catalog privileges](https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/privileges)

@@ -14,8 +14,8 @@ Your business needs an AI platform where users get governed answers from live da
 
 | Topic | Path | Contents |
 |-------|------|----------|
-| Identity & Access Control | [identity/](identity/) | AuthN (IdP delegation), AuthZ (OBO, M2M, Federation), [production federation guide](identity/federation-production.md), [service identity & audit](identity/service-identity-and-audit.md), [federation personas](identity/federation-personas-patterns.md), [proxy architecture](identity/proxy-architecture.md), [OAuth scopes](identity/oauth-scopes-reference.md) |
-| Data Governance | [data-governance/](data-governance/) | [Access control patterns](data-governance/access-control-patterns.md): row filters, column masks, ABAC, and the service-principal identity gap for federated access |
+| Identity & Access Control | [identity/](identity/) | AuthN (IdP delegation), AuthZ (OBO, M2M, Federation), the [external-user authorization golden path](identity/external-user-authorization.md), [service identity & audit](identity/service-identity-and-audit.md), [proxy architecture](identity/proxy-architecture.md), and [OAuth scopes](identity/oauth-scopes-reference.md) |
+| Data Governance | [data-governance/](data-governance/) | [Access control patterns](data-governance/access-control-patterns.md): row filters, column masks, ABAC, and claim-based external-user authorization |
 | Tool & API Governance | [tool-governance/](tool-governance/) | [Custom MCP principles](tool-governance/custom-mcp-principles.md) (gateway, scopes over grants, UC connections) and [runtime config patterns](tool-governance/runtime-config-patterns.md) (hot-deployable tool policy) |
 | Observability & Audit | [observability/](observability/) | Platform audit (system.access.audit), application audit patterns, [MLflow tracing](observability/agent-tracing.md), [app observability](observability/app-observability.md), audit correlation |
 | Agent Runtime Harness | [harness/](harness/) | Identity and observability at the agent runtime boundary, [omnigent guardrails demo](harness/omnigent-guardrails-demo/), policy enforcement |
@@ -50,10 +50,10 @@ A: Use OBO tokens to propagate user identity into SQL queries. Unity Catalog row
 A: This is the two-proxy problem. See [Authorization](identity/authorization.md#the-three-token-patterns).
 
 **Q: How do I give external users governed access to Databricks AI tools?**
-A: Use token federation. Start with the [Production Federation Guide](identity/federation-production.md) to choose between per-user and role-based, then [Federation](identity/federation.md) and the [Federation Blueprint](identity/federation-implementation-blueprint.md) for the build.
+A: Use one shared, least-privileged service principal, place an immutable external subject in its OAuth custom identity claim, and enforce entitlements with Unity Catalog row filters. See [External-User Authorization](identity/external-user-authorization.md).
 
 **Q: My row filter using `current_user()` returns no rows for a federated user. Why?**
-A: When an external user reaches Databricks through a service principal, `current_user()` is the SP, not the human, so individual-identity filters do not fire. Use group-based filtering (or a mapping table). See [Access Control Patterns](data-governance/access-control-patterns.md).
+A: `current_user()` correctly returns the shared service principal. External-user policies must use `current_oauth_custom_identity_claim()` with the governed entitlement mapping. See [External-User Authorization](identity/external-user-authorization.md).
 
 **Q: How do I change which role can call which tool without a redeploy?**
 A: Keep the tool-access matrix in a governed, versioned config store the server reads at runtime, not in code. See [Runtime Config Patterns](tool-governance/runtime-config-patterns.md).
