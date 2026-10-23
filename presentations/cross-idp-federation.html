@@ -494,21 +494,21 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="6">
   <div class="label r">What it is &middot; The decision</div>
-  <h2 class="r">Same mechanic, two ways to anchor identity. Pick by whether users can ever be Databricks users.</h2>
+  <h2 class="r">One external-user pattern: shared workload identity, individual authorization context.</h2>
   <div class="r flex1 mt1" style="overflow-x:auto">
     <table style="min-width:720px">
-      <thead><tr><th style="width:20%"></th><th>Per-user OBO</th><th>Role-based service principal</th></tr></thead>
+      <thead><tr><th style="width:24%">Layer</th><th>Required design</th><th>Why</th></tr></thead>
       <tbody>
-        <tr><td><strong>Identity model</strong></td><td>Each external user is provisioned as a Databricks identity (SCIM)</td><td><code>N</code> users map to <code>O(roles)</code> SPs &mdash; no Databricks provisioning</td></tr>
-        <tr><td><strong>UC evaluates</strong></td><td><code>current_user()</code> &mdash; the real person</td><td><code>is_member()</code> &mdash; the SP&rsquo;s group membership</td></tr>
-        <tr><td><strong>Scales to</strong></td><td>Hundreds of provisioned users</td><td>Thousands of external users, unlimited &mdash; scales with roles, not people</td></tr>
-        <tr><td><strong>Individual attribution</strong></td><td>Native &mdash; <code>current_user()</code> is the email</td><td>Via JWT-tagged audit table, not <code>current_user()</code></td></tr>
-        <tr><td><strong>Best fit</strong></td><td>Known users you can SCIM-provision, need native per-user row filters</td><td>Partners, auditors, consultants &mdash; never becoming Databricks identities</td></tr>
+        <tr><td><strong>Workload</strong></td><td>One least-privileged service principal</td><td>Stable operational identity; no user or role SP sprawl</td></tr>
+        <tr><td><strong>Person</strong></td><td>Immutable subject in OAuth <code>custom_claim</code></td><td>Individual context without provisioning Databricks users</td></tr>
+        <tr><td><strong>Authorization</strong></td><td><code>current_oauth_custom_identity_claim()</code> + governed entitlements</td><td>One authoritative platform decision</td></tr>
+        <tr><td><strong>Failure</strong></td><td>Missing claim or mapping returns no rows</td><td>Fail closed instead of trusting app predicates</td></tr>
+        <tr><td><strong>Change</strong></td><td>Update entitlements, not token code</td><td>Immediate revocation without redeployment</td></tr>
       </tbody>
     </table>
   </div>
   <div class="card card-amber mt2 r">
-    <p><strong>Do not mix the two rules.</strong> Row filters written with <code>current_user()</code> only work when the caller genuinely is that user. Row filters written with <code>is_member()</code> only work when the caller is a role-scoped SP. Using the wrong function for the pattern in place fails silently &mdash; same result for every user, no error.</p>
+    <p><strong>Rejected patterns:</strong> one SP per role, SP group membership as end-user authorization, or application-supplied user predicates. External-person authorization belongs in Unity Catalog.</p>
   </div>
 </div>
 
@@ -518,7 +518,7 @@ tr:hover td{background:var(--surface)}
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="7">
   <div class="label r">What it is &middot; Token anatomy</div>
-  <h2 class="r">What&rsquo;s inside the token at each stage.</h2>
+  <h2 class="r">The workload identity and end-user claim travel together.</h2>
   <p class="r muted" style="max-width:80ch">Claims below are Auth0-shaped, for illustration. The exchange itself is IdP-agnostic &mdash; Okta, Entra, or any OIDC-compliant provider slots into the same three federation-policy fields. Only the claim names and formats shift per provider (see Gotchas).</p>
   <div class="three-col mt1">
     <div class="card card-red r">
@@ -527,8 +527,7 @@ tr:hover td{background:var(--surface)}
   <span class="st">"iss"</span>: <span class="st">"https://idp/"</span>,
   <span class="st">"aud"</span>: <span class="st">"https://workspace"</span>,
   <span class="st">"sub"</span>: <span class="st">"{client_id}@clients"</span>,
-  <span class="st">"groups"</span>: [<span class="st">"sales-west"</span>],
-  <span class="st">"email"</span>: <span class="st">"sarah@partner.com"</span>
+  <span class="st">"sub"</span>: <span class="st">"immutable-user-123"</span>
 }</pre>
       <p>Signed RS256/ES256, verifiable via the IdP&rsquo;s JWKS. HS256 blocks this pattern entirely &mdash; no shared-secret verification path.</p>
       <p style="font-size:var(--xs);color:var(--muted);margin-top:6px"><code>iss</code>&nbsp;&rarr;&nbsp;issuer &middot; <code>aud</code>&nbsp;&rarr;&nbsp;audience &middot; <code>sub</code>&nbsp;&rarr;&nbsp;subject &mdash; the same three federation-policy fields as slide 12, whichever IdP is on the other end.</p>
@@ -539,17 +538,15 @@ tr:hover td{background:var(--surface)}
   <span class="st">"access_token"</span>: <span class="st">"eyJ..."</span>,
   <span class="st">"expires_in"</span>: 3600
 }
-<span class="cm">// opaque; scoped to the</span>
-<span class="cm">// user or role-SP</span></pre>
-      <p>Not decodable by the caller. Encodes either the user&rsquo;s identity (OBO) or the role-SP&rsquo;s identity, depending on which pattern is in play.</p>
+<span class="cm">// shared SP + custom claim</span></pre>
+      <p>The token authorizes the shared service principal to reach SQL and carries the immutable external subject as <code>custom_claim</code>.</p>
     </div>
     <div class="card card-green r">
       <h4>3. Governance context</h4>
       <pre style="font-size:var(--xs)"><span class="cm">-- fires automatically,</span>
 <span class="cm">-- no app code needed</span>
-<span class="kw">WHERE</span> current_user() = owner
-<span class="cm">-- or</span>
-<span class="kw">WHERE</span> is_member('west')</pre>
+<span class="kw">WHERE</span> external_subject =
+  current_oauth_custom_identity_claim()</pre>
       <p>Row filters and column masks fire at the SQL engine, per token. Can&rsquo;t be bypassed by the application, the IdP, or the query.</p>
     </div>
   </div>
@@ -680,9 +677,9 @@ tr:hover td{background:var(--surface)}
 <span class="kw">subject_token</span>={idp_jwt}
 <span class="kw">subject_token_type</span>=
   urn:ietf:params:oauth:token-type:jwt
-<span class="kw">scope</span>=all-apis
-<span class="cm"># client_id present -&gt; role-SP token</span>
-<span class="cm"># client_id omitted -&gt; per-user token</span></pre>
+<span class="kw">client_id</span>={shared_sp_application_id}
+<span class="kw">scope</span>=sql
+<span class="kw">custom_claim</span>={immutable_external_subject}</pre>
     </div>
   </div>
   <div class="card card-amber mt1 r">
@@ -695,25 +692,32 @@ tr:hover td{background:var(--surface)}
      SLIDE 13 · HOW — current_user() vs is_member()
      ═══════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="13">
-  <div class="label r">How &middot; The gotcha that matters most</div>
-  <h2 class="r">Use the row-filter function that matches your pattern &mdash; or it fails silently.</h2>
+  <div class="label r">How &middot; The enforcement rule</div>
+  <h2 class="r">The claim identifies the person. Unity Catalog owns the entitlement.</h2>
   <div class="two-col mt1">
     <div class="card r" style="border-top:3px solid var(--green)">
-      <div class="gate-label" style="color:var(--green)">Per-user OBO pattern</div>
-      <pre style="font-size:var(--xs)"><span class="kw">RETURN</span> <span class="kw">IF</span>(current_user() <span class="kw">IN</span>
-  (<span class="kw">SELECT</span> email <span class="kw">FROM</span> approved),
-  val, <span class="kw">NULL</span>);</pre>
-      <p style="font-size:var(--sm)">Works because the caller genuinely is that user. Using <code>is_member()</code> here evaluates the <em>execution service&rsquo;s</em> identity, not the human&rsquo;s &mdash; every OBO user sees the same result.</p>
+      <div class="gate-label" style="color:var(--green)">Required policy</div>
+      <pre style="font-size:var(--xs)"><span class="kw">RETURN EXISTS</span> (
+  <span class="kw">SELECT</span> 1 <span class="kw">FROM</span> entitlements e
+  <span class="kw">WHERE</span> e.external_subject =
+    current_oauth_custom_identity_claim()
+  <span class="kw">AND</span> e.resource_id = resource_id
+  <span class="kw">AND</span> e.enabled = <span class="kw">TRUE</span>);</pre>
+      <p style="font-size:var(--sm)">The token carries identity; the governed table carries permissions. Revocation is a data change, not a deployment.</p>
     </div>
     <div class="card r" style="border-top:3px solid var(--red)">
-      <div class="gate-label" style="color:var(--red)">Role-based SP pattern</div>
-      <pre style="font-size:var(--xs)"><span class="kw">WHERE</span> is_member(<span class="st">'sales_west'</span>)
-  <span class="kw">AND</span> region = <span class="st">'WEST'</span></pre>
-      <p style="font-size:var(--sm)">Works because the token is scoped to a role-SP with real group membership. Using <code>current_user()</code> here just returns the SP&rsquo;s application_id UUID &mdash; not useful for per-person filtering.</p>
+      <div class="gate-label" style="color:var(--red)">Fail-closed behavior</div>
+      <pre style="font-size:var(--xs)"><span class="cm">-- no custom_claim</span>
+current_oauth_custom_identity_claim()
+  <span class="cm">-- returns NULL</span>
+
+<span class="cm">-- no entitlement match</span>
+<span class="kw">EXISTS</span> (...) <span class="cm">-- returns FALSE</span></pre>
+      <p style="font-size:var(--sm)">Never coalesce a missing claim to a permissive value. Never place roles, secrets, or SQL fragments in the claim.</p>
     </div>
   </div>
   <div class="callout r mt2">
-    UC enforcement never errors when the wrong function is used &mdash; it just returns the wrong rows, correctly, for the identity it was actually given. Test with two different personas before trusting either pattern in production.
+    Test two subjects on the same service principal, plus missing, unknown, disabled, and expired claims. Every negative case must return zero rows.
   </div>
 </div>
 

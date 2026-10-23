@@ -130,7 +130,7 @@ tr:hover td{background:var(--surface)}
 <!-- ════════════════════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="2">
   <div class="label reveal">The Decision</div>
-  <h2 class="reveal">Two Paths for External Users, and Why SPs Win</h2>
+  <h2 class="reveal">One Path for External Users: Shared SP + Custom Identity Claim</h2>
 
   <p class="reveal mt-1" style="font-size:var(--sz-body);color:var(--ink-60)">Your channel partners, external auditors, and consultants need governed access to Databricks. They have their own IDP. They are <strong>not in your directory</strong>. Two architectural options:</p>
 
@@ -163,10 +163,10 @@ tr:hover td{background:var(--surface)}
     </div>
 
     <div class="card card-red">
-      <h4>Option B: Role-Based Service Principals</h4>
-      <p style="font-size:var(--sz-small);font-style:italic;color:var(--ink-60);margin-bottom:8px">N external users map to O(roles) SPs, no Databricks provisioning</p>
+      <h4>Canonical: Shared Service Principal</h4>
+      <p style="font-size:var(--sz-small);font-style:italic;color:var(--ink-60);margin-bottom:8px">N external users share one workload identity; each token carries an immutable subject</p>
 
-      <p style="font-size:var(--sz-small)"><strong>How it works:</strong> External user authenticates with their IDP &rarr; JWT exchanged for Databricks token scoped to a <em>role-SP</em>. Governance fires via <code>is_member('group')</code>. Real identity preserved in JWT claims + audit.</p>
+      <p style="font-size:var(--sz-small)"><strong>How it works:</strong> External user authenticates with their IdP &rarr; JWT exchanges for a shared-SP token with <code>custom_claim</code>. Governance resolves <code>current_oauth_custom_identity_claim()</code> through a UC entitlement table.</p>
 
       <div style="margin-top:10px;font-size:var(--sz-small)">
         <div style="font-weight:600;color:var(--green);margin-bottom:4px">Why this wins</div>
@@ -174,7 +174,7 @@ tr:hover td{background:var(--surface)}
           <li><strong>No Databricks user provisioning</strong>, external users never touch your directory</li>
           <li><strong>Scales with roles, not users</strong>: 500 reps &rarr; 2 SPs (west + east)</li>
           <li><strong>Works with any OIDC IDP</strong>, no cross-tenant federation needed</li>
-          <li><strong>UC governance fires natively</strong> via <code>is_member()</code> on SP groups</li>
+          <li><strong>UC governance fires per person</strong> via <code>current_oauth_custom_identity_claim()</code></li>
           <li><strong>Identity preserved</strong>, JWT claims &rarr; audit table + MLflow traces</li>
         </ul>
       </div>
@@ -183,7 +183,7 @@ tr:hover td{background:var(--surface)}
         <div style="font-weight:600;color:var(--red);margin-bottom:4px">Trade-off</div>
         <ul style="padding-left:1rem;line-height:1.6">
           <li><code>current_user()</code> returns SP UUID, not individual email</li>
-          <li>Per-user row filters need <code>is_member()</code> groups, not <code>current_user() = email</code></li>
+          <li>Missing claims and missing entitlements must return zero rows</li>
           <li>Individual attribution requires app-level audit (solved by JWT-tagged audit table)</li>
         </ul>
       </div>
@@ -288,7 +288,7 @@ token.claims["/email"] = user.email;
 <div class="slide" data-slide="4">
   <div class="label reveal">The Architecture</div>
   <h2 class="reveal">External User &rarr; IDP Token &rarr; Databricks Token</h2>
-  <p class="reveal mt-2">The external user authenticates with their own IDP. Their JWT is exchanged for a Databricks OAuth token scoped to a role-specific Service Principal. UC row filters, column masks, and connection grants enforce governance. The real external identity is preserved end-to-end for audit.</p>
+  <p class="reveal mt-2">The external user authenticates with their own IdP. Their JWT is exchanged for a Databricks OAuth token issued to one shared service principal with an immutable <code>custom_claim</code>. UC row filters resolve that claim through governed entitlements.</p>
 
   <div class="two-col mt-3 reveal">
     <div class="card card-red">
@@ -305,7 +305,7 @@ token.claims["/email"] = user.email;
       <h4>What Stays the Same</h4>
       <ul style="padding-left:1.2rem">
         <li>Databricks <code>/oidc/v1/token</code> exchange endpoint</li>
-        <li>Federation policy on each SP (issuer + audience + subject)</li>
+        <li>Federation policy on the shared SP (issuer + audience + subject)</li>
         <li>Role &rarr; SP mapping</li>
         <li>UC row filters, column masks, connection grants</li>
         <li>Audit table, MLflow tracing</li>
@@ -349,7 +349,7 @@ token.claims["/email"] = user.email;
       </div>
       <div class="card mb-2" style="border-left:4px solid var(--ink);background:#fff">
         <div class="label" style="color:var(--ink)">Stage 2 &middot; Exchange</div>
-        <p style="font-size:var(--sz-small)"><code>POST /oidc/v1/token</code> with the IdP JWT as <code>subject_token</code> and the role SP as <code>client_id</code>. The federation policy validates <code>iss</code> + <code>aud</code> + <code>sub</code>.</p>
+        <p style="font-size:var(--sz-small)"><code>POST /oidc/v1/token</code> with the IdP JWT as <code>subject_token</code>, the shared SP as <code>client_id</code>, <code>scope=sql</code>, and the immutable external subject as <code>custom_claim</code>.</p>
       </div>
       <div class="card card-green" style="background:#fff">
         <div class="label" style="color:var(--green)">Stage 3 &middot; Databricks token</div>
@@ -393,24 +393,28 @@ token.claims["/email"] = user.email;
   <span class="str">"expires_in"</span>: <span class="num">3600</span>
 }
 <span class="cmt">// The access_token is a Databricks
-// OAuth token scoped to the role-SP.
-// current_user() = SP application_id
-// is_member() = SP's group membership</span></pre>
-      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Opaque to the caller &middot; Encodes SP identity &middot; UC enforcement via SP's groups</p>
+// OAuth token issued to the shared SP.
+// scope = sql
+// custom_claim = immutable external subject</span></pre>
+      <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Opaque to the caller &middot; Stable workload identity &middot; Individual context in the custom claim</p>
     </div>
 
     <div class="card card-green">
       <h4>Stage 3: Governance Context</h4>
-      <p class="label mt-1">Derived from SP identity at query time</p>
+      <p class="label mt-1">Resolved from the custom claim at query time</p>
 <pre style="font-size:0.7rem"><span class="cmt">-- Row filter function</span>
 <span class="kw">SELECT</span> *
 <span class="kw">FROM</span> sales.opportunities
 <span class="cmt">-- UC auto-applies:</span>
-<span class="kw">WHERE</span> is_member(<span class="str">'west_sales'</span>)
-  <span class="kw">AND</span> opp_region = <span class="str">'WEST'</span>
+<span class="kw">WHERE EXISTS</span> (
+  <span class="kw">SELECT</span> 1 <span class="kw">FROM</span> entitlements e
+  <span class="kw">WHERE</span> e.external_subject =
+    current_oauth_custom_identity_claim()
+  <span class="kw">AND</span> e.resource_id = opportunity_id)
 
 <span class="cmt">-- Column mask function</span>
-<span class="kw">CASE WHEN</span> is_member(<span class="str">'finance'</span>)
+<span class="kw">CASE WHEN</span> current_oauth_custom_identity_claim() <span class="kw">IN</span>
+  (<span class="kw">SELECT</span> external_subject <span class="kw">FROM</span> finance_entitlements)
   <span class="kw">THEN</span> margin_pct
   <span class="kw">ELSE NULL END</span></pre>
       <p class="mt-1" style="font-size:var(--sz-small);color:var(--muted)">Fires automatically &middot; No application code needed &middot; Can't be bypassed</p>

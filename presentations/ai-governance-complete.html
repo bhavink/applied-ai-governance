@@ -451,19 +451,19 @@ tr:hover td{background:var(--surface)}
 <div class="slide" data-slide="4">
   <div class="label r">What: the model, at a glance</div>
   <h2 class="r">One authorization engine, however authentication arrives</h2>
-  <p class="r muted" style="max-width:760px">Databricks enforces authorization in exactly one place: Unity Catalog. Authentication can originate from the workspace identity provider for internal users, or from an external IdP via token federation for partners and customers. Every path converges on UC before any data or tool is touched.</p>
+  <p class="r muted" style="max-width:760px">Databricks enforces authorization in exactly one place: Unity Catalog. Native users arrive through OBO. External users arrive through one shared service principal with an immutable OAuth custom identity claim. Every path converges on UC before any data or tool is touched.</p>
   <div class="arch-wrap r">
     <div class="arch-row" style="margin-bottom:clamp(.5rem,1vw,.8rem)">
       <div class="abox sys r delay-1">Internal IdP<small>Entra ID &middot; Okta &middot; SAML/OIDC</small></div>
       <div class="arch-arrow delay-2">&rarr;</div>
       <div class="abox uc r delay-3">Unity Catalog<small style="color:var(--red);opacity:.7">single trust boundary</small></div>
       <div class="arch-arrow delay-4">&larr;</div>
-      <div class="abox sys r delay-5">External IdP<small>partner / customer, via federation</small></div>
+      <div class="abox sys r delay-5">External IdP<small>shared SP + custom identity claim</small></div>
     </div>
     <div class="arch-vstack r delay-6">
       <div class="arch-varrow">&darr;</div>
       <div class="card card-green r delay-7" style="text-align:center;max-width:600px">
-        <p><strong>Same governance, regardless of which door the identity walked in.</strong> Data, tools, and agents all check the same UC privileges.</p>
+        <p><strong>One opinionated external-user path.</strong> <code>current_oauth_custom_identity_claim()</code> resolves the caller through a governed entitlement table; missing claims or mappings return no rows.</p>
       </div>
     </div>
   </div>
@@ -575,7 +575,7 @@ tr:hover td{background:var(--surface)}
         <tr><td><a class="deck-link" href="identity-auth-foundations.html">Identity &amp; Auth Foundations</a><span class="deck-file">identity-auth-foundations.html</span></td><td>U2M/OBO/M2M in depth, one authentication layer</td></tr>
         <tr><td><a class="deck-link" href="authorization-by-resource.html">Authorization by Resource Type</a><span class="deck-file">authorization-by-resource.html</span></td><td>The full resource-authorization matrix</td></tr>
         <tr><td><a class="deck-link" href="orchestration-tool-governance.html">Orchestration &amp; Tool Governance</a><span class="deck-file">orchestration-tool-governance.html</span></td><td>Agent Bricks, MCP, service policies</td></tr>
-        <tr><td><a class="deck-link" href="cross-idp-federation.html">Cross-IdP Federation</a><span class="deck-file">cross-idp-federation.html</span></td><td>Token exchange across identity providers</td></tr>
+        <tr><td><a class="deck-link" href="cross-idp-federation.html">Cross-IdP Federation</a><span class="deck-file">cross-idp-federation.html</span></td><td>Shared-SP exchange, custom identity claims, and UC entitlement enforcement</td></tr>
         <tr><td><a class="deck-link" href="sp-m2m-identity.html">SP &amp; M2M Identity</a><span class="deck-file">sp-m2m-identity.html</span></td><td>Governance for service principals and machine identities</td></tr>
         <tr><td><a class="deck-link" href="uc-connections.html">UC Connections</a><span class="deck-file">uc-connections.html</span></td><td>Unity Catalog HTTP Connections to external services</td></tr>
         <tr><td><a class="deck-link" href="uc-governance.html">UC Governance</a><span class="deck-file">uc-governance.html</span></td><td>Row filters, column masks, ABAC</td></tr>
